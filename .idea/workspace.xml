@@ -20,14 +20,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="680ac341-e675-43cb-aa4f-bb66829b2003" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/CandlePdf/candle_20210218_204812__2.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/MergedCandle/mergedCandle_20210218_205437.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/MergedCandle/mergedCandle_20210218_205503.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/printCandle.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BluePring.md" beforeDir="false" afterPath="$PROJECT_DIR$/BluePrints/Base.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CandlePng/candle_20210218_204345__0.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/CandlePdf/candle_20210218_204345__0.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CandlePng/candle_20210218_204346__1.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CandlePng/candle_20210218_204346__2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/CandlePdf/candle_20210218_204346__2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CandlePng/candle_20210218_204347__3.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/CandlePdf/candle_20210218_204813__4.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CandlePng/candle_20210218_204347__4.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/CandlePdf/candle_20210218_204347__4.pdf" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TradeSystem.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/iMa.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/randomWorkMarket.py" beforeDir="false" afterPath="$PROJECT_DIR$/RandomWorkMarket.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RandomWorkMarket.py" beforeDir="false" afterPath="$PROJECT_DIR$/RandomWorkMarket.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,12 +49,15 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1oeTdpLQv3HLNBhxe1WOOH3g3WZ" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="restartRequiresConfirmation" value="false" />
@@ -60,7 +67,7 @@
       <recent name="D:\myGit\fx\FXTradeSimu\BluePrints" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.RandomWorkMarket (1)">
+  <component name="RunManager" selected="Python.printCandle">
     <configuration name="RandomWorkMarket (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FXTradeSimu" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -124,7 +131,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="randamWork" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="printCandle" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FXTradeSimu" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -136,7 +143,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="D:\GoogleDrive\ichir0roie\works\FX\システム開発\system\FXTradeSimu\randomWorkMarket.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/printCandle.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -168,11 +175,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.printCandle" />
         <item itemvalue="Python.RandomWorkMarket (1)" />
         <item itemvalue="Python.RandomWorkMarket" />
         <item itemvalue="Python.simpleFollower" />
         <item itemvalue="Python.TradeSystem" />
-        <item itemvalue="Python.randamWork" />
       </list>
     </recent_temporary>
   </component>
@@ -200,27 +207,30 @@
       </map>
     </option>
   </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+  </component>
   <component name="WindowStateProjectService">
     <state x="364" y="0" key="#com.intellij.refactoring.rename.AutomaticRenamingDialog" timestamp="1613647721287">
       <screen x="0" y="0" width="2560" height="1410" />
     </state>
     <state x="364" y="0" key="#com.intellij.refactoring.rename.AutomaticRenamingDialog/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613647721287" />
-    <state width="1256" height="203" key="GridCell.Tab.0.bottom" timestamp="1613648624533">
+    <state width="1256" height="203" key="GridCell.Tab.0.bottom" timestamp="1613649302334">
       <screen x="0" y="0" width="2560" height="1410" />
     </state>
-    <state width="1256" height="203" key="GridCell.Tab.0.bottom/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613648624533" />
-    <state width="1256" height="203" key="GridCell.Tab.0.center" timestamp="1613648624533">
+    <state width="1256" height="203" key="GridCell.Tab.0.bottom/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613649302334" />
+    <state width="1256" height="203" key="GridCell.Tab.0.center" timestamp="1613649302334">
       <screen x="0" y="0" width="2560" height="1410" />
     </state>
-    <state width="1256" height="203" key="GridCell.Tab.0.center/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613648624533" />
-    <state width="1256" height="203" key="GridCell.Tab.0.left" timestamp="1613648624533">
+    <state width="1256" height="203" key="GridCell.Tab.0.center/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613649302334" />
+    <state width="1256" height="203" key="GridCell.Tab.0.left" timestamp="1613649302334">
       <screen x="0" y="0" width="2560" height="1410" />
     </state>
-    <state width="1256" height="203" key="GridCell.Tab.0.left/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613648624533" />
-    <state width="1256" height="203" key="GridCell.Tab.0.right" timestamp="1613648624533">
+    <state width="1256" height="203" key="GridCell.Tab.0.left/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613649302334" />
+    <state width="1256" height="203" key="GridCell.Tab.0.right" timestamp="1613649302334">
       <screen x="0" y="0" width="2560" height="1410" />
     </state>
-    <state width="1256" height="203" key="GridCell.Tab.0.right/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613648624533" />
+    <state width="1256" height="203" key="GridCell.Tab.0.right/-1920.889.1920.1050/0.0.2560.1410@0.0.2560.1410" timestamp="1613649302334" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
