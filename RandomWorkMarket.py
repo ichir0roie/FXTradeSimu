@@ -84,25 +84,3 @@ class RandomWorkMarket:
 
     def genCounts(self, array):
         return [i for i in range(len(array))]
-
-def someChartCreateAndSave(times):
-    for i in range(times):
-        market = RandomWorkMarket()
-        for j in range(random.randint(100,10000)):
-            market.onTick()
-        name="CandlePng/"+datetime.datetime.now().strftime("candle_%Y%m%d_%H%M%S_")+"_"+str(i)+".pdf"
-        market.candleSave(200,name)
-
-
-
-if __name__ == "__main__":
-    # market = RandomWorkMarket()
-    # for i in range(10000):
-    #     market.onTick()
-
-    # plot.plot(market.genCounts(market.values), market.values)
-    # plot.show()
-
-    # market.candleView(200)
-
-    someChartCreateAndSave(5)
