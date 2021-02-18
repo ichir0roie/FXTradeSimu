@@ -1,0 +1,2 @@
+# FXTradeSimu
+create random chart!!
