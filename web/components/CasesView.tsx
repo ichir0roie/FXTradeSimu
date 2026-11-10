@@ -27,7 +27,7 @@ export default function CasesView() {
           <thead>
             <tr>
               <th className="l">ID</th><th className="l">名前</th><th className="l">動作</th><th className="l">期間</th><th className="l">パターン</th>
-              <th className="l">状態</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>最小</th><th>最大</th><th>プラスの割合</th><th>シャープ平均</th><th className="l">run</th>
+              <th className="l">状態</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>最小</th><th>最大</th><th>プラスの割合</th><th>t値</th><th>シャープ平均</th><th className="l">run</th>
             </tr>
           </thead>
           <tbody>
@@ -56,6 +56,7 @@ export default function CasesView() {
                   <td className={`num ${tone(p?.min)}`}>{yen(p?.min)}</td>
                   <td className={`num ${tone(p?.max)}`}>{yen(p?.max)}</td>
                   <td className="num">{pct(p?.positive_ratio, 0)}</td>
+                  <td className={`num ${Math.abs(p?.t ?? 0) >= 2 ? tone(p?.t) : "muted"}`}>{fmt(p?.t)}</td>
                   <td className={`num ${tone(a?.sharpe?.mean)}`}>{fmt(a?.sharpe?.mean)}</td>
                   <td className="l">{r?.run_id ? <Link href={`/runs/${r.run_id}`}>#{r.run_id} →</Link> : "–"}</td>
                 </tr>
@@ -69,7 +70,7 @@ export default function CasesView() {
       <div className="tablewrap">
         <table>
           <thead>
-            <tr><th className="l">テスト</th><th className="l">相場パターン</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>標準偏差</th><th>プラスの割合</th><th>シャープ平均</th><th>最大DD平均</th></tr>
+            <tr><th className="l">テスト</th><th className="l">相場パターン</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>標準偏差</th><th>プラスの割合</th><th>t値</th><th>シャープ平均</th><th>最大DD平均</th></tr>
           </thead>
           <tbody>
             {data.tests.flatMap((t: any) => {
@@ -84,6 +85,7 @@ export default function CasesView() {
                   <td className={`num ${tone(v.pnl?.total)}`}>{yen(v.pnl?.total)}</td>
                   <td className="num">{fmt(v.pnl?.std, 0)}</td>
                   <td className="num">{pct(v.pnl?.positive_ratio, 0)}</td>
+                  <td className={`num ${Math.abs(v.pnl?.t ?? 0) >= 2 ? tone(v.pnl?.t) : "muted"}`}>{fmt(v.pnl?.t)}</td>
                   <td className={`num ${tone(v.sharpe?.mean)}`}>{fmt(v.sharpe?.mean)}</td>
                   <td className="num">{pct(v.max_dd?.mean)}</td>
                 </tr>

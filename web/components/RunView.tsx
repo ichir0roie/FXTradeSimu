@@ -33,6 +33,7 @@ export default function RunView({ id }: { id: number }) {
   const [metric, setMetric] = useState("pnl");
   const [broker, setBroker] = useState<string | null>(null);
   const [jobFilter, setJobFilter] = useState<"detail" | "all">("detail");
+  const [jobLimit, setJobLimit] = useState(40);
 
   const jobsById = useMemo(() => new Map<number, any>((data?.jobs ?? []).map((j: any) => [j.id, j])), [data]);
   const brokers: string[] = useMemo(() => [...new Set<string>((data?.jobs ?? []).map((j: any) => j.broker))], [data]);
@@ -122,7 +123,7 @@ export default function RunView({ id }: { id: number }) {
           <thead>
             <tr>
               <th className="l">戦略</th><th className="l">市場</th><th>n</th><th>平均</th><th>中央</th>
-              {!m.ratio && <th>合計</th>}<th>標準偏差</th><th>最小</th><th>最大</th><th>プラスの割合</th><th className="l">分布</th>
+              {!m.ratio && <th>合計</th>}<th>標準偏差</th><th>最小</th><th>最大</th><th>プラスの割合</th><th title="パターン単位の t 値。|t| > 2 が有意の目安">t値</th><th className="l">分布</th>
             </tr>
           </thead>
           <tbody>
@@ -138,6 +139,7 @@ export default function RunView({ id }: { id: number }) {
                 <td className={`num ${tone(r.st?.min)}`}>{m.f(r.st?.min)}</td>
                 <td className={`num ${tone(r.st?.max)}`}>{m.f(r.st?.max)}</td>
                 <td className="num">{pct(r.st?.positiveRatio, 0)}</td>
+                <td className={`num ${Math.abs(r.st?.t ?? 0) >= 2 ? tone(r.st?.t) : "muted"}`}>{fmt(r.st?.t)}</td>
                 <td className="l">
                   <StripPlot patterns={r.vals} lo={lo} hi={hi} mean={r.st?.mean} median={r.st?.median} />
                 </td>
@@ -161,7 +163,7 @@ export default function RunView({ id }: { id: number }) {
             </tr>
           </thead>
           <tbody>
-            {jobs.map((j: any) => (
+            {jobs.slice(0, jobLimit).map((j: any) => (
               <tr key={j.id}>
                 <td className="l">{j.market_label}</td>
                 <td className="num">{j.seed}</td>
@@ -182,6 +184,12 @@ export default function RunView({ id }: { id: number }) {
           </tbody>
         </table>
       </div>
+      {jobs.length > jobLimit && (
+        <div className="controls" style={{ justifyContent: "center", marginTop: 10 }}>
+          <span className="muted">{jobLimit} / {jobs.length} 件を表示</span>
+          <button onClick={() => setJobLimit(jobs.length)}>すべて表示</button>
+        </div>
+      )}
     </>
   );
 }

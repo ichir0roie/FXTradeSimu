@@ -64,4 +64,6 @@ w を推定できる戦略(最近どちらの型が負けているかを見る�
 - `range_reversion` の半減期 16 時間は、悪意の部品が無くても逆張りに素のシャープ +1.1 を与えていた(stylized)。
   malicious では群衆の逆突きで相殺されるが、stylized 単体ではまだ逆張り有利。→ 次の課題(M004)
 - malicious v1 の既定値は 3 年 x 6 パターンで、素のシャープの絶対値の最大が 0.63(donchian_breakout +0.63、
-  bollinger_reversion +0.61)。単純な規則にまだ少し穴がある。→ 次の課題(M004)
+  bollinger_reversion +0.61)。単純な規則にまだ少し穴がある。
+- E001(10 年 x 8 パターン)では、ブレイクアウトが malicious 市場で 8 本中 7 本プラス(fair で中央値 +109 万円)。
+  短い期間では見えなかった順張りの穴。→ 次の課題(M004、docs/proposals/markets/M003-malicious.md)

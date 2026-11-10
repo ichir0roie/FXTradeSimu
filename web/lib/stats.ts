@@ -10,6 +10,7 @@ export type Summary = {
   p10: number;
   p90: number;
   positiveRatio: number;
+  t: number; // パターン単位の t 値(|t| > 2 が有意の目安)
 };
 
 function pct(sorted: number[], q: number): number {
@@ -38,5 +39,6 @@ export function summarize(values: (number | null | undefined)[]): Summary | null
     p10: pct(s, 0.1),
     p90: pct(s, 0.9),
     positiveRatio: v.filter((x) => x > 0).length / v.length,
+    t: v.length > 1 && std > 0 ? mean / (std / Math.sqrt(v.length)) : 0,
   };
 }
