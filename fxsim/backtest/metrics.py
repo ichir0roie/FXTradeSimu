@@ -88,4 +88,25 @@ def compute_metrics(bt: Backtester) -> dict:
         "exit_reasons": reasons,
         "years": years,
         "yearly_pnl": yearly_pnl(day_t, eq, eq0),
+        "costs": cost_breakdown(bt),
+        "rejected": int(bt.stats.get("rejected", 0)),
+        "zero_cut": float(bt.stats.get("zero_cut", 0.0)),
+    }
+
+
+def cost_breakdown(bt: Backtester) -> dict:
+    """費用の内訳(円)。spread + slippage + commission − swap が、素の損益と実際の損益の差。"""
+    pip = bt.pip
+    spread_and_slip = sum(t.cost_pips * pip * t.units for t in bt.trades)
+    slippage = sum(t.slippage for t in bt.trades)
+    commission = sum(t.commission for t in bt.trades)
+    swap = sum(t.swap for t in bt.trades)
+    gross = sum(t.gross_pips * pip * t.units for t in bt.trades)
+    return {
+        "gross_pnl": float(gross),
+        "spread": float(spread_and_slip - slippage),
+        "slippage": float(slippage),
+        "commission": float(commission),
+        "swap": float(swap),
+        "total": float(spread_and_slip + commission - swap),
     }
