@@ -101,7 +101,7 @@ def test_verification_runs_paired_null_and_records_verdict(tmp_path):
     v = summary["verdict"]
     assert v["verdict"] in ("合格", "条件付き", "不合格")
     assert [c["key"] for c in v["checks"]] == ["C1", "C2", "C3", "C4"]
-    assert {"real", "placebo"} <= set(v["groups"])
+    assert {"real", "bootstrap", "placebo"} <= set(v["groups"])
     # 帰無(NULL)は対になる同じパターンで回っている
     rows = con.execute("SELECT strategy_label, COUNT(*) FROM jobs WHERE run_id=? GROUP BY 1", (run_id,)).fetchall()
     counts = dict(rows)

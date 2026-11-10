@@ -3,11 +3,21 @@
 同じ期間・同じシードの相場パターンの組で、モデルと「方向だけでたらめ版」(direction_null)を対にして回し、
 次の条件で合否を判定する。数字はすべて記録され、画面(/cases/<テストケース>)で見られる。
 
-    C1 利益        実データ系のパターンで、損益の中央値 > 0、プラスの割合 ≥ 60%、パターン単位の t ≥ 2
-    C2 帰無より上  同じパターンどうしの差(モデル − 方向でたらめ)の t ≥ 2
-    C3 偽薬より上  実データ系の損益が、偽薬(符号でたらめの骨格)の損益より大きい(ウェルチの t ≥ 2)
-    C4 時間の安定性 年ごとの損益の中央値がプラスの年が 60% 以上、かつ前半・後半の平均がどちらもプラス
-    参考           完全ランダム相場(stylized / malicious)とストレス(real_bridge_malicious)の損益
+有意性は「独立した別の歴史」で測る。real_bootstrap(実データのリターンを 20 日のブロックで並べ替えたもの)は
+互いに独立だが、real_bridge は日足が実データと同じなので、日足の戦略では実データ 1 本のコピーになり、
+何本並べても独立な証拠にならない(擬似反復)。real_bridge は「日中の動きが違っても同じか」の頑健性として参考に出す。
+
+    C1 利益        並べ替えのパターンで、損益の中央値 > 0、プラスの割合 ≥ 60%、パターン単位の t ≥ 2。
+                   かつ実データ 1 本の損益 > 0
+    C2 帰無より上  並べ替えのパターンどうしで、差(モデル − 方向でたらめ版)の t ≥ 2
+    C3 偽薬より上  並べ替えの損益が、偽薬(符号でたらめの骨格)の損益より大きい(ウェルチの t ≥ 2)
+    C4 時間の安定性 並べ替えのパターンで、年ごとの損益の中央値がプラスの年が 60% 以上、前半・後半の平均がどちらもプラス
+    参考           実データ + 日中ランダム(real_bridge)、完全ランダム(stylized / malicious)、
+                   ストレス(real_bridge_malicious)
+
+注意: 並べ替えは標本の平均ドリフト(この期間の上げ下げ)を引き継ぐ。買い寄り・売り寄りの戦略はその分有利になる。
+偽薬(C3)はドリフトを持たないので、ドリフトだけで勝つ戦略は C3 を通るが C1 の実データでも勝つ。判定の表の
+「方向でたらめ版の平均」と合わせて読む。
 
 判定: C1〜C4 すべて → 合格 / C1 と C2 → 条件付き / それ以外 → 不合格
 """
@@ -26,12 +36,13 @@ NULL_LABEL = "NULL"
 
 # 市場モデル -> パターンの組
 GROUPS = {
-    "real": "real", "real_bridge": "real", "real_bootstrap": "real",
+    "real": "real", "real_bootstrap": "bootstrap", "real_bridge": "bridge",
     "real_bridge_placebo": "placebo",
     "stylized": "synthetic", "malicious": "synthetic", "random_walk": "synthetic",
     "real_bridge_malicious": "stress",
 }
-GROUP_LABELS = {"real": "実データ系", "placebo": "偽薬", "synthetic": "完全ランダム", "stress": "ストレス"}
+GROUP_LABELS = {"real": "実データ", "bootstrap": "並べ替え(独立)", "bridge": "実データ + 日中ランダム",
+                "placebo": "偽薬", "synthetic": "完全ランダム", "stress": "ストレス"}
 
 # 検証の標準のパターン(seeds は実行時に入る。real は決定的なので 1 本)
 STANDARD_PATTERNS = ["real", "real_bridge", "real_bootstrap", "real_bridge_placebo", "stylized", "malicious",
@@ -87,19 +98,19 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     def pnl(group):
         return np.array([r["pnl"] for r in model if r["group"] == group], dtype=float)
 
-    real, placebo = pnl("real"), pnl("placebo")
-    s_real = summarize(real)
+    boot, placebo, actual = pnl("bootstrap"), pnl("placebo"), pnl("real")
+    s_boot = summarize(boot)
     paired = np.array([r["pnl"] - null[r["path_id"]]["pnl"] for r in model
-                       if r["group"] == "real" and r["path_id"] in null], dtype=float)
+                       if r["group"] == "bootstrap" and r["path_id"] in null], dtype=float)
     s_paired = summarize(paired)
 
-    # 年ごと(実データ系の全パターン)。期間が半年に満たない端の年は安定性の判定に使わない
-    real_rows = [r for r in model if r["group"] == "real"]
+    # 年ごと(並べ替えの全パターン)。期間が半年に満たない端の年は安定性の判定に使わない
+    real_rows = [r for r in model if r["group"] == "bootstrap"]
     years = sorted({y for r in real_rows for y in r["yearly"]})
     covered = _year_coverage(real_rows)
     yearly = []
     for y in years:
-        vals = [r["yearly"].get(y) for r in model if r["group"] == "real" and y in r["yearly"]]
+        vals = [r["yearly"].get(y) for r in real_rows if y in r["yearly"]]
         s = summarize(vals)
         if s:
             yearly.append({"year": y, "coverage": covered.get(y, 0.0), **s})
@@ -114,22 +125,25 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     def check(key, label, ok, detail):
         checks.append({"key": key, "label": label, "ok": bool(ok), "detail": detail})
 
-    if s_real:
-        check("C1", "利益(実データ系)",
-              s_real["median"] > 0 and s_real["positive_ratio"] >= c.min_positive_ratio and s_real["t"] >= c.min_t,
-              f"中央値 {s_real['median']:,.0f} 円 / プラス {s_real['positive_ratio']:.0%} / t {s_real['t']:.2f}"
-              f"(n={s_real['n']})")
+    if s_boot:
+        actual_ok = bool(len(actual)) and float(actual[0]) > 0
+        actual_txt = f" / 実データ {float(actual[0]):,.0f} 円" if len(actual) else " / 実データの結果なし"
+        check("C1", "利益(並べ替え + 実データ)",
+              s_boot["median"] > 0 and s_boot["positive_ratio"] >= c.min_positive_ratio and s_boot["t"] >= c.min_t
+              and actual_ok,
+              f"中央値 {s_boot['median']:,.0f} 円 / プラス {s_boot['positive_ratio']:.0%} / t {s_boot['t']:.2f}"
+              f"(n={s_boot['n']}){actual_txt}")
     else:
-        check("C1", "利益(実データ系)", False, "実データ系のパターンがありません")
+        check("C1", "利益(並べ替え + 実データ)", False, "並べ替えのパターンがありません")
     if s_paired:
         check("C2", "方向でたらめ版より上", s_paired["t"] >= c.min_t,
               f"差の平均 {s_paired['mean']:,.0f} 円 / t {s_paired['t']:.2f}(n={s_paired['n']})")
     else:
         check("C2", "方向でたらめ版より上", False, "対になる帰無の結果がありません")
-    t_pl = _welch_t(real, placebo)
-    if len(placebo):
+    t_pl = _welch_t(boot, placebo)
+    if len(placebo) and len(boot):
         check("C3", "偽薬より上", t_pl >= c.min_t,
-              f"実データ系 {real.mean():,.0f} 円 − 偽薬 {placebo.mean():,.0f} 円 / t {t_pl:.2f}")
+              f"並べ替え {boot.mean():,.0f} 円 − 偽薬 {placebo.mean():,.0f} 円 / t {t_pl:.2f}")
     else:
         check("C3", "偽薬より上", False, "偽薬のパターンがありません")
     check("C4", "時間の安定性", pos_years >= c.min_positive_years and first > 0 and second > 0,
@@ -172,5 +186,5 @@ def format_verdict(v: dict) -> str:
         lines.append(f"| {g['label']} | {g['n']} | {g['mean']:,.0f} | {g['median']:,.0f} | {g['positive_ratio']:.0%} | "
                      f"{g['t']:.2f} | {g.get('null_mean', float('nan')):,.0f} |")
     if v["yearly"]:
-        lines += ["", "年ごと(実データ系): " + ", ".join(f"{y['year']} {y['median']:+,.0f}" for y in v["yearly"])]
+        lines += ["", "年ごと(並べ替えの中央値): " + ", ".join(f"{y['year']} {y['median']:+,.0f}" for y in v["yearly"])]
     return "\n".join(lines)
