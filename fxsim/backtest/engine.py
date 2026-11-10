@@ -309,11 +309,14 @@ class Backtester:
         self._close(i, price, self.o[i], reason, slip)
 
     def _path_quotes(self, i: int, side: int):
-        """足 i の中の経路で、建玉を閉じる側の価格(買いなら bid、売りなら ask)と mid。経路が無ければ None。"""
+        """足 i の中の経路で、建玉を閉じる側の価格(買いなら bid、売りなら ask)と mid。経路が無ければ None。
+
+        先頭は 1 つ前の点(越えた 1 歩が飛びかどうかを見るため)。
+        """
         if not self.use_path:
             return None
-        path = self.bars.path(i)
-        if path is None or len(path[0]) == 0:
+        path = self.bars.path(i, prev=True)
+        if path is None or len(path[0]) < 2:
             return None
         mid, spread = path
         half = (spread + 2 * self._widen(spread)) / 2
@@ -343,19 +346,28 @@ class Backtester:
         if quotes is not None:
             q, mid = quotes
             q = q * sd
-            js = _first_cross(q, stop, below=True) if touch_stop else -1
-            jt = _first_cross(q, tp, below=False) if touch_tp else -1
-            if js < 0 and jt < 0:
+            js = _first_cross(q[1:], stop, below=True) + 1 if touch_stop else 0     # q[0] は 1 つ前の点
+            jt = _first_cross(q[1:], tp, below=False) + 1 if touch_tp else 0
+            if js <= 0 and jt <= 0:
                 return
-            if js >= 0 and (jt < 0 or js <= jt):
+            # 越えた 1 歩が飛びのときだけ、飛んだ先で約定する。ふつうの 1 歩なら点の間も連続して動いている。
+            # 足の中の点が少ない(日足の再生など)と「ふつうの 1 歩」が測れないので、越えた点で約定する(悲観的)
+            if len(mid) > 10:
+                gap = self.broker.gap_k * max(float(np.median(np.abs(np.diff(mid)))), 1e-12)
+            else:
+                gap = 0.0
+            if js > 0 and (jt <= 0 or js <= jt):
                 slip = self._slip(i, stop=True)
-                fill = min(q[js], stop) - slip                  # 越えた点の価格(窓なら損切り価格より不利)
+                jumped = q[js - 1] - q[js] > gap
+                fill = (min(q[js], stop) if jumped else stop) - slip
                 reason = "losscut" if lc is not None and stop == lc and (sl is None or lc > sl) else "sl"
                 if reason == "losscut":
                     self.stats["losscut"] += 1
-                self._close(i, fill * sd, float(mid[js]), reason, slip)
+                self._close(i, fill * sd, float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd)),
+                            reason, slip)
             else:
-                fill = q[jt] if (self.broker.positive_slippage and q[jt] > tp) else tp
+                jumped = q[jt] - q[jt - 1] > gap
+                fill = q[jt] if (self.broker.positive_slippage and jumped and q[jt] > tp) else tp
                 self._close(i, fill * sd, float(mid[jt]), "tp")
             return
         # 経路が無い足: 足の高安だけで判定(両方届いたら損切りが先 = 悲観的)
