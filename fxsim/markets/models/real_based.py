@@ -33,10 +33,10 @@ def _intraday():
     return [SessionSeasonality(), StochasticVolatility(), NewsShocks(), FatTails()]
 
 
-@MARKETS.register("real", version="1", description="実データをそのまま再生(既定: USDJPY 日足 FRED)",
+@MARKETS.register("real", version="2", description="実データをそのまま再生(既定: USDJPY 日足 FRED)",
                   tags=("real",))
 def build_real(params: dict) -> MarketModel:
-    return MarketModel("real", "1", [RealReplay(), ConstantSpread()]).with_params(params)
+    return MarketModel("real", "2", [RealReplay(), ConstantSpread()]).with_params(params)
 
 
 @MARKETS.register("real_bridge", version="2",

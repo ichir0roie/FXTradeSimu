@@ -76,6 +76,7 @@ class StorageConfig:
     trades: str = "detail"                # detail(詳細保存のシードだけ)| all | none
     equity_timeframe: int = 1440          # 詳細保存しないパターンの資産曲線の間隔(分)
     equity_detail_timeframe: int | None = None   # 詳細保存のパターンの資産曲線の間隔(既定 = candle_timeframe)
+    events: bool = True                   # 詳細保存のパターンの悪意イベントを保存するか(画面のマーカー)
 
     def __post_init__(self):
         if self.trades not in ("detail", "all", "none"):

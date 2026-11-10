@@ -123,3 +123,36 @@ def test_direction_null_keeps_timing_and_randomizes_side():
     sides = [t.side for t in bt.trades]
     assert len(sides) > 20 and 0.2 < sides.count(1) / len(sides) < 0.8
     assert check_lookahead(lambda: STRATEGIES.create("direction_null", {"inner": "ma_cross"}), bars) == []
+
+
+def test_verification_passes_a_model_with_a_real_edge(tmp_path):
+    """陽性対照: 「実データ」に既知の優位性(日次リターンの自己相関 0.3)を仕込み、それに乗る戦略なら合格になる。
+
+    判定がどんなモデルも落とす仕組みではないこと、そして偽薬(符号でたらめ)ではその優位性が消えることの確認。
+    """
+    import numpy as np
+
+    from fxsim.cases import run_cases, verification_case
+    from fxsim.storage import queries
+
+    rng = np.random.default_rng(0)
+    days = np.busday_offset("2015-01-05", np.arange(2400), roll="forward")
+    r = np.zeros(len(days))
+    for k in range(1, len(r)):
+        r[k] = 0.3 * r[k - 1] + 0.006 * rng.standard_normal()
+    csv = tmp_path / "ar1.csv"
+    csv.write_text("time,close\n" + "".join(f"{d},{100 * np.exp(x):.6f}\n" for d, x in zip(days, np.cumsum(r),
+                                                                                         strict=True)))
+    root = tmp_path / "cases"
+    (root / "behaviors").mkdir(parents=True)
+    (root / "tests").mkdir()
+    (root / "behaviors" / "B.yaml").write_text(
+        "id: BX\nstrategy: tsmom\nparams: {lookbacks: [1]}\ntimeframe: 1440\nbroker: malicious\n", encoding="utf-8")
+    db = tmp_path / "o.sqlite"
+    con = init_db(db)
+    t = verification_case("BX", years=6.0, seeds=[1, 2, 3, 4, 5, 6], dataset=str(csv), block_days=60)
+    t.workers = 2
+    run_cases(con, str(db), [t.id], extra=[t], root=root, log=lambda *a: None)
+    v = queries.latest_case_run(con, t.id)[1]["verdict"]
+    assert v["verdict"] == "合格", v["checks"]
+    assert v["groups"]["placebo"]["t"] < 2      # 偽薬では優位性が消えている

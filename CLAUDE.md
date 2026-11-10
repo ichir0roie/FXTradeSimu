@@ -71,8 +71,18 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 `cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
 いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
 
+### ひとつのモデルの長期検証(合否)
+```bash
+python -m fxsim verify <動作ケース> --years 30 --seeds 1-10 --block-days <戦略が見る期間より長い日数>
+```
+- 「このモデルは長期的に利益を出すか」はこれで判定する(E002)。1 本のバックテストの結果で判断しない
+- 有意性は並べ替え(real_bootstrap)で測る。real_bridge は日足の戦略では実データのコピーなので数に入れない
+- 合格の条件と落とし穴は `fxsim/verification.py` の先頭と `docs/proposals/experiments/E002-model-verification.md`
+- 判定の仕組みを変えたら、陽性対照のテスト(`test_verification_passes_a_model_with_a_real_edge`)が合格のままか確かめる
+
 ### 長期の基準実験
-`configs/long_run_baseline.yaml`(E001)。大きな変更の後は回し直し、提案書 E001 の表と比べる。
+`configs/long_run_v2.yaml`(E003、市場モデル v2)。大きな変更の後は回し直し、提案書の表と比べる。
+`configs/long_run_baseline.yaml` は E001(v1 の市場モデルの時点)の設定として残している。
 
 ## コードの約束
 

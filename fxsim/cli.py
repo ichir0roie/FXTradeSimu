@@ -182,7 +182,8 @@ def cmd_verify(args) -> None:
     from .verification import format_verdict
 
     con = init_db(args.db)
-    t = verification_case(args.behavior, years=args.years, seeds=args.seeds, start=args.start, end=args.end)
+    t = verification_case(args.behavior, years=args.years, seeds=args.seeds, start=args.start, end=args.end,
+                          block_days=args.block_days, dataset=args.dataset)
     if args.workers:
         t.workers = args.workers
     run_cases(con, args.db, [t.id], force=args.force, extra=[t])
@@ -292,6 +293,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seeds", type=parse_seeds, default=parse_seeds("1-8"))
     p.add_argument("--start")
     p.add_argument("--end")
+    p.add_argument("--block-days", type=float, default=20.0,
+                   help="並べ替えのブロックの長さ(日)。戦略が見る期間より長くする")
+    p.add_argument("--dataset", help="実データ系に使う CSV(既定: data/real/usdjpy_d1_fred.csv)")
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--force", action="store_true")
     p.add_argument("--patterns", action="store_true")

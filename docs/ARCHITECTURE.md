@@ -48,6 +48,7 @@ fxsim/
     model.py             BehaviorCase / TestCase / Pattern
     loader.py            YAML を読んで検査する
     runner.py            テストケースを実験に直して回し、記録する
+  verification.py      ひとつのモデルの長期検証の判定(C1〜C4、パターンの組、年ごと)
   reports/             Markdown のレポート(run_report / leaderboard / cases_overview)
   cli.py               python -m fxsim ...
 web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-charts
@@ -55,7 +56,7 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
   lib/queries/           SQL(runs / jobs / cases)
   lib/stats.ts           パターンごとの統計(Python の stats.py と同じ定義・同じキー)
   lib/useJobStream.ts    ジョブの差分を 1 秒ごとに取りに行くフック
-  components/            画面(RunsView / RunView / JobView / CasesView / Charts)
+  components/            画面(RunsView / RunView / JobView / CasesView / CaseView(検証)/ Charts / FanChart)
 ```
 
 ## 市場モデル = 部品の並び
@@ -123,5 +124,7 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 | `/` | 実験の一覧と進捗、全実験の戦略ランキング |
 | `/runs/[id]` | 市場の性質、戦略の成績(パターンごとの統計と分布)、ジョブ一覧 |
 | `/jobs/[id]` | ライブ表示: ローソク足 + 売買 + 悪意イベント、資産曲線、経過・取引回数・残高 |
+| `/cases` | テストケースの一覧と最新の結果・判定 |
+| `/cases/[id]` | 検証: 判定と根拠、パターンの組ごとの損益、資産曲線の束(中央値・10/90%・実データ・帰無)、年ごとの損益 |
 
 ジョブの画面は 1 秒ごとに差分(最後の足以降・新しい取引・新しい資産曲線の点)だけを取りに行く。

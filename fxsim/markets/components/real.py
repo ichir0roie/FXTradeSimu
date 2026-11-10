@@ -46,7 +46,12 @@ def _realized_vol(close: np.ndarray, step_minutes: int) -> float:
 
 
 class RealReplay(Component):
-    """実データの終値を、そのままの解像度で再生する。"""
+    """実データをそのままの解像度で再生する。
+
+    足 1 本を「始値 → (高値 → 安値) → 終値」の点で表す(足の区切りの 1 秒後〜終わりの 1 秒前)。
+    戦略の注文は次の足の始値で約定するので、終値しか無い日足でも、始値 = 前日の終値で約定する。
+    v1 は終値の 1 点だけだったため、注文が翌日の終値で約定し、日足の戦略が 1 日遅れていた。
+    """
 
     key = "source"
     stage = Stage.SOURCE
@@ -59,14 +64,24 @@ class RealReplay(Component):
     def prepare_times(self, base: BaseParams, years, days, rng):
         s = _series(self.p, years, days)
         self._s = s
+        sec = 1_000_000_000
+        start = s.times - s.step_minutes * NS_MIN          # 足の始まり(times は足の終わり)
+        if s.has_ohlc:
+            offsets = [(start, 1), (start, 2), (start, 3), (s.times, -1)]
+            prices = [s.open, s.high, s.low, s.close]
+        else:
+            offsets = [(start, 1), (s.times, -1)]
+            prices = [s.open, s.close]                    # 終値だけのデータの始値は前日の終値
+        times = np.stack([t + k * sec for t, k in offsets], axis=1).ravel()
+        self._price = np.stack(prices, axis=1).ravel()
         b = replace(base, p0=float(s.close[0]), step_minutes=s.step_minutes,
                     annual_vol=_realized_vol(s.close, s.step_minutes),
                     start=str(np.datetime64(int(s.times[0]), "ns"))[:10])
-        return s.times.copy(), b
+        return times, b
 
     def apply(self, ctx: GenContext) -> None:
         s = self._s
-        ctx.logp = np.log(s.close)
+        ctx.logp = np.log(self._price)
         r = np.abs(np.diff(ctx.logp, prepend=ctx.logp[0]))
         ctx.vol = np.maximum(r, 1e-12)
         ctx.meta["real_source"] = s.source
