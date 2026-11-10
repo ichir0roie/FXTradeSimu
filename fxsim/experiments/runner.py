@@ -13,6 +13,7 @@ import numpy as np
 
 from .. import catalog  # noqa: F401  (登録を済ませる)
 from ..backtest import Backtester, BrokerConfig, EngineConfig, compute_metrics
+from ..backtest.schedule import TradingSchedule
 from ..calendar import NS_MIN
 from ..data import BAR_OFFSET_MINUTES
 from ..markets import MARKETS
@@ -51,7 +52,8 @@ def plan(con, cfg: ExperimentConfig) -> tuple[int, list[dict]]:
         for m in cfg.markets:
             model = MARKETS.create(m.model, m.params)
             info = model.info()
-            seeds = cfg.seeds[:1] if model.deterministic else cfg.seeds
+            seeds = m.seeds or cfg.seeds
+            seeds = seeds[:1] if model.deterministic else seeds
             for seed in seeds:
                 detail = int(seed in cfg.detail_seeds)
                 path_id = con.execute(
@@ -64,11 +66,13 @@ def plan(con, cfg: ExperimentConfig) -> tuple[int, list[dict]]:
                     for s in cfg.strategies:
                         strat = STRATEGIES.create(s.name, s.params)
                         si = strat.info()
+                        sched = TradingSchedule.from_dict(s.schedule).to_dict()
                         job_id = con.execute(
                             "INSERT INTO jobs(run_id, path_id, broker, strategy, strategy_label, strategy_version,"
-                            " params_hash, params_json, timeframe, status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                            " params_hash, params_json, schedule_json, timeframe, status)"
+                            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                             (run_id, path_id, b.label, s.name, s.label, si["version"], si["params_hash"],
-                             dumps(si["params"]), strat.timeframe, "queued")).lastrowid
+                             dumps(si["params"]), dumps(sched), strat.timeframe, "queued")).lastrowid
                         jobs.append({"job_id": job_id, "broker": b.__dict__, "strategy": s.__dict__})
                 tasks.append({"path_id": path_id, "market": m.__dict__, "seed": seed, "detail": bool(detail),
                               "jobs": jobs})
@@ -207,7 +211,8 @@ def run_path(db_path: str, task: dict, cfg: dict) -> dict:
                 equity_minutes=(max(candle_tf, int(cfg["storage"]["equity_detail_timeframe"])) if detail
                                 else int(cfg["storage"]["equity_timeframe"])),
                 delay_ms=float(cfg["live"]["delay_ms"]) if detail else 0.0)
-            bt = Backtester(bars, strat, broker, eng, pip=md.pip, seed=task["seed"])
+            bt = Backtester(bars, strat, broker, eng, pip=md.pip, seed=task["seed"],
+                            schedule=TradingSchedule.from_dict(s.get("schedule")))
             try:
                 bt.run(progress=writer.progress, every=int(cfg["live"]["flush_every"]))
                 writer.finish(bt, compute_metrics(bt))

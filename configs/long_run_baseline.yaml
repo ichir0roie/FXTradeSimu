@@ -12,7 +12,7 @@ engine: {initial_balance: 1000000, sizing: fixed, units: 10000}
 storage:
   candle_timeframe: 240          # 詳細保存のローソク足は H4
   equity_detail_timeframe: 1440  # 詳細保存の資産曲線は日次
-  equity_timeframe: 10080        # それ以外は週次
+  equity_timeframe: 43200        # それ以外は約 30 日ごと(DB を小さく保つ)
   trades: detail
 live: {flush_every: 1000, delay_ms: 0}
 brokers: [fair, malicious]

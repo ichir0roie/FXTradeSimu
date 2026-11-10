@@ -1,0 +1,10 @@
+id: T002
+name: EMA 交差(H1・終日) を、実相場の範囲のランダム化と完全ランダムで 5 年
+behavior: B001
+period: {years: 5}
+patterns:
+  - {market: real_bridge, seeds: "1-8"}
+  - {market: real_bridge_malicious, seeds: "1-8"}
+  - {market: stylized, seeds: "1-4"}
+  - {market: malicious, seeds: "1-4"}
+detail_seeds: [1]
