@@ -18,6 +18,7 @@ Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.
 | 実験の結果(全部) | `data/fxsim.sqlite`(runs / paths / jobs / equity / trades / candles / market_events) |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
 | 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
+| これまでの評価の整理 | 投資の知見 `docs/INSIGHTS.md`、開発項目 `docs/ROADMAP.md`、戦略の候補 `docs/CANDIDATES.md` |
 
 ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`、動作ケース `B###`、テストケース `T###`。
 既存の最大番号 + 1 を使う(`ls docs/proposals/*/`)。
@@ -26,7 +27,7 @@ ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦�
 
 1. **現状を読む**
    - `python -m fxsim leaderboard` と `python -m fxsim leaderboard --kind markets`
-   - 直近の提案書の「次の一手」(`docs/proposals/`)
+   - 直近の提案書の「次の一手」(`docs/proposals/`)と、`docs/ROADMAP.md`・`docs/CANDIDATES.md`
 2. **案を複数出す**(1 回に 2〜4 案)。それぞれ「何を、なぜ、どう測れば当否が分かるか」を提案書に先に書く
 3. **実装する**
    - 市場の悪意を増やす → 部品クラスを書き、既存モデルを複製した新しいモデル(新 ID・version)に組み込む。
@@ -48,7 +49,8 @@ python -m fxsim eval-market <model> --years 3 --seeds 1-6 --proposal M00X
 python -m fxsim ablate <model> --years 3 --seeds 1-4 --proposal M00X    # どの部品が効いているか
 ```
 - **現実らしさ**(`realism_score`、0–100): `fxsim/markets/evaluation.py` の TARGETS の範囲に入るか。80 未満なら原因を直す
-- **悪用されにくさ**: パネル戦略(random_entry 以外)の **素のシャープ(gross_sharpe、コスト抜き)の絶対値の最大**。
+- **悪用されにくさ**: パネル戦略(random_entry 以外。1 時間足の 5 本 + rsi_reversion + 5 分足の scalping)の
+  **素のシャープ(gross_sharpe、コスト抜き)の絶対値の最大**。
   悪意ある市場の目標は「どの単純な規則にも安定した素の優位性が無い」= 0 に近いほど良い(目安 < 0.3)。
   正にも負にも大きいなら、その規則(または逆張り)で稼げる穴がある
 - **コストと悪意の重さ**: random_entry の net と、fair / ecn / malicious ブローカーの差。
@@ -90,6 +92,9 @@ python -m fxsim verify <動作ケース> --years 30 --seeds 1-10 --block-days <�
 ## コードの約束
 
 - 乱数は必ず市場の部品なら `ctx.rng`、戦略なら `prepare(bars, rng)` の rng から。グローバル乱数を使わない(再現性)
+- 同じ値が並びうる並べ替えは `kind="stable"`。既定のクイックソートは同点の順番が CPU の SIMD で変わり、
+  同じシードでも端末ごとに別の相場になっていた(E007、`test_markets_do_not_depend_on_the_cpu_simd_features`)
+- 悪意のずれを数十分以上かけた直線で入れない。動き出しを見てから乗れば残りが取れる(M006)
 - 1 つの部品は `GenContext` の配列を読み書きするだけ。部品どうしの受け渡しは `ctx.meta`(例: `crowd_mix`, `regime`)
 - 価格を持続的にずらす悪意は `apply_block_increments`、一時的なヒゲは `ctx.logp` に直接足す
 - 実データの骨格に合わせた後(ANCHOR 段)に値動きを足す部品は、骨格の終値(`ctx.meta["anchor"]["idx"]`)を

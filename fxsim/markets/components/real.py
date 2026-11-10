@@ -184,8 +184,13 @@ class AnchorBridge(Component):
     """経路を骨格に合わせる。
 
     0. 振れ幅の合わせ方(calibrate_vol)
-       - "local"(既定、v2): 骨格の足ごとに、足の中の実現分散を目標に合わせる(_local_scale)。
-         目標は実データの局所ボラと、その足自身のリターンの混ぜ合わせ(day_weight)
+       - "posterior"(既定、v4 / R008): 骨格の足ごとに、足の中の分散を g² に合わせる。g² は
+         「直前の局所ボラ² を中心にした対数正規の事前分布(幅 vol_spread)」と「その足のリターン r ~ N(0, g²)」から、
+         r を見た事後分布で引く(_posterior_goal)。g が分かっても r は N(0, g²) なので、足の中の経路は自分の過去だけを
+         見ればマルチンゲールに近くなる(荒れ方から |r| が漏れない)
+       - "local"(v2〜v3): 目標は実データの局所ボラと、その足自身のリターンの混ぜ合わせ(day_weight)。
+         荒れ方から |r| が漏れ、静かな日は戻り・荒れた日は走りになる。day_weight をどう選んでも、
+         1 時間足の RSI・ストキャス・ボリンジャーのどれかに年数百 pip の素の優位性が残っていた(R008)
        - "global"(v1): 経路全体で 1 つの倍率だけ合わせる
        - "none": 合わせない
     1. 骨格の各足の終わりで、終値との差を足し込む(ブラウン橋の補正)。
@@ -203,10 +208,14 @@ class AnchorBridge(Component):
     @dataclass
     class Params:
         fit_high_low: bool = True
-        calibrate_vol: str = "local"     # local | global | none
-        vol_window: int = 21             # local のとき、実データのボラを測る足の本数(前後合わせて)
+        calibrate_vol: str = "posterior"  # posterior | local | global | none
+        vol_window: int = 21             # 実データのボラを測る足の本数(local は前後合わせて、posterior は直前)
         day_weight: float = 0.6          # local のとき、目標の分散に混ぜる「その足自身のリターン²」の重み
-        clock: str = "variance"          # 終値とのずれを配る時計: variance(動いた分に比例、v2)| time(時刻に比例、v1)
+        # posterior のとき、事前分布 ln g² の分散(偽薬で単純な規則の素の優位性が 0 に近くなる値、R008)
+        vol_spread: float = 0.7
+        # 終値とのずれを配る時計: expected(事前の分散 vol² に比例、v4)| variance(動いた分 dx² に比例、v2〜v3)
+        # | time(時刻に比例、v1)
+        clock: str = "expected"
 
     def apply(self, ctx: GenContext) -> None:
         a = ctx.meta.get("anchor")
@@ -218,7 +227,16 @@ class AnchorBridge(Component):
         if mode is True:                 # v1 の設定ファイル(真偽値)との互換
             mode = "global"
         dx = np.diff(x, prepend=x[0])
-        if mode == "local" and len(idx) > 2:
+        ev = ctx.vol * ctx.vol                     # 1 歩の事前の分散(季節性・確率ボラ・指標の後の跳ね上がり込み)
+        if mode == "posterior" and len(idx) > 2:
+            goal = _posterior_goal(target, self.p.vol_window, self.p.vol_spread, ctx.rng)
+            # 足ごとの分散の見込み(事前の分散 + その足のジャンプ²)を g² に合わせる。実現した dx² で合わせると、
+            # 足の中の大きな 1 歩の後が静かになる(未来の大きさを見た伸縮)ので使わない
+            sc = _scale_to_goal(ev + ctx.jumps * ctx.jumps, idx, goal, squared=True)
+            dx = dx * sc
+            ev = ev * sc * sc
+            x = x[0] + np.cumsum(dx)
+        elif mode == "local" and len(idx) > 2:
             dx = dx * _local_scale(dx, idx, target, self.p.vol_window, self.p.day_weight)
             x = x[0] + np.cumsum(dx)
         elif mode == "global" and len(idx) > 10:
@@ -229,15 +247,19 @@ class AnchorBridge(Component):
                 x = x[0] + (x - x[0]) * k
                 dx = dx * k
                 ctx.meta["intraday_scale"] = k
-        elif mode not in ("local", "global", "none", False):
-            raise ValueError(f"anchor.calibrate_vol must be local / global / none, got {mode!r}")
+        elif mode not in ("posterior", "local", "global", "none", False):
+            raise ValueError(f"anchor.calibrate_vol must be posterior / local / global / none, got {mode!r}")
         err = target - x[idx]
-        if self.p.clock == "variance":
+        if self.p.clock == "expected":
+            # 事前の分散の時計。実現した dx² に比例して配ると、ジャンプのような大きな 1 歩にその日の残り(未来)を
+            # 含んだ補正が大きく乗り、大きく動いた後に戻る癖ができていた(R008)
+            clock = np.cumsum(ev)
+        elif self.p.clock == "variance":
             clock = np.cumsum(dx * dx)       # 実現分散の時計: 動いた分だけ補正を配る
         elif self.p.clock == "time":
             clock = np.arange(ctx.n, dtype=float)
         else:
-            raise ValueError(f"anchor.clock must be variance / time, got {self.p.clock!r}")
+            raise ValueError(f"anchor.clock must be expected / variance / time, got {self.p.clock!r}")
         x = x + np.interp(clock, clock[idx], err)
         if a["has_ohlc"] and self.p.fit_high_low and len(idx) > 1:
             x = _fit_envelope(x, idx, a["high"], a["low"], ctx.rng)
@@ -258,9 +280,47 @@ def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: in
     w = max(1, int(window))
     local2 = np.convolve(r * r, np.ones(w) / w, mode="same")
     g = np.sqrt((1 - day_weight) * local2 + day_weight * r * r)
-    goal = np.r_[g[0], g]                                                # 最初の足は 2 本目の値で代用
+    return _scale_to_goal(dx, idx, np.r_[g[0], g])                       # 最初の足は 2 本目の値で代用
+
+
+_Z_GRID = np.linspace(-4.0, 4.0, 81)
+
+
+def _posterior_goal(target: np.ndarray, window: int, spread: float, rng) -> np.ndarray:
+    """骨格の足ごとの、足の中の振れ幅 g(_scale_to_goal の目標)。
+
+    L² = 直前 window 本のリターン² の平均(その足と、それより後は使わない)。事前分布 ln g² ~ N(ln L² − s²/2, s²)
+    (s² = spread、E[g²] = L²)と r ~ N(0, g²) から、その足のリターン r を見た事後分布で g² を引く(z の格子 ±4、81 点)。
+    L を前後の窓で測ると、荒れる時期の直前の足で g だけが先回りして大きくなり、日中の戻りを作っていた(R008)。
+    """
+    r = np.diff(target)
+    if len(r) == 0:
+        return np.zeros(1)
+    w = max(2, int(window))
+    r2 = r * r
+    csum = np.r_[0.0, np.cumsum(r2)]
+    k = np.arange(len(r))
+    lo = np.maximum(k - w, 0)
+    L2 = np.where(k > 0, (csum[k] - csum[lo]) / np.maximum(k - lo, 1), np.nan)
+    early = k < min(w, len(r))                                          # 最初の w 本は先頭 w 本の平均で代用
+    L2[early] = np.mean(r2[:min(w, len(r))])
+    pos = L2[L2 > 0]
+    L2 = np.where(L2 > 0, L2, np.median(pos) if len(pos) else 1e-12)
+    s2 = max(float(spread), 1e-9)
+    v = L2[:, None] * np.exp(np.sqrt(s2) * _Z_GRID[None, :] - s2 / 2)  # 候補の g²(足 x 格子)
+    logw = -0.5 * _Z_GRID[None, :] ** 2 - 0.5 * np.log(v) - r2[:, None] / (2 * v)
+    logw -= logw.max(axis=1, keepdims=True)
+    cdf = np.cumsum(np.exp(logw), axis=1)
+    u = rng.random(len(r))[:, None] * cdf[:, -1:]
+    j = np.minimum((cdf < u).sum(axis=1), len(_Z_GRID) - 1)
+    g = np.sqrt(v[np.arange(len(r)), j])
+    return np.r_[g[0], g]                                                # 最初の足は 2 本目の値で代用
+
+
+def _scale_to_goal(dx: np.ndarray, idx: np.ndarray, goal: np.ndarray, squared: bool = False) -> np.ndarray:
+    """足 k の中の分散が goal[k]² になる伸縮率(ステップごと)。squared なら dx は 1 歩ごとの分散そのもの。"""
     starts = np.clip(np.r_[0, idx[:-1] + 1], 0, len(dx) - 1)             # 足 k の中身は starts[k]..idx[k]
-    rv = np.add.reduceat(dx * dx, starts)[:len(idx)]
+    rv = np.add.reduceat(dx if squared else dx * dx, starts)[:len(idx)]
     f = np.where(rv > 0, goal / np.sqrt(np.maximum(rv, 1e-300)), 1.0)
     lens = np.diff(np.r_[starts, idx[-1] + 1])
     scale = np.full(len(dx), f[-1])

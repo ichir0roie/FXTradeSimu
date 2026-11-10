@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..base import Component, GenContext, Stage
-from ..blocks import apply_block_increments, block_view, rolling_prev_max, rolling_prev_min
+from ..blocks import apply_block_increments, apply_quick_moves, block_view, rolling_prev_max, rolling_prev_min
 
 
 class CrowdSqueeze(Component):
@@ -227,6 +227,15 @@ class FalseBreakout(Component):
         adapt_halflife: float = 20.0     # 何回分の抜けの結末を覚えているか(半減期、回数)
         cooldown_hours: float = 6.0
         block_minutes: int = 15
+        # 走りも罠と同じ待ち時間(delay_blocks)の後に始めるか(v4 / M006)。False(v3 まで)は走りが次のブロックから
+        # すぐ伸び、罠は待ってから戻すので、抜けた直後の数十分は走りの分だけ順方向に偏り、5 分足の抜けに乗る
+        # スキャルピングが素で年 +1,300 pip 勝っていた
+        run_delay: bool = False
+        # ずれの入れ方(M006)。drift(v3 まで)は revert_blocks のブロックをかけて直線で動かす。jump は待ち時間の後、
+        # そのブロックのランダムな分から jump_minutes 分で全量を動かす。直線で数十分以上かけると、動き出しを
+        # 見てから乗れば残りが取れ、罠でも走りでも 5 分足の抜けに乗る規則が勝っていた
+        move: str = "drift"
+        jump_minutes: tuple = (1, 3)
 
     def apply(self, ctx: GenContext) -> None:
         p = self.p
@@ -250,6 +259,20 @@ class FalseBreakout(Component):
         cooldown = int(p.cooldown_hours * 60 / p.block_minutes)
         last = -10 ** 9
         pip_log = float(ctx.pips_to_log(1.0))
+        if p.move not in ("drift", "jump"):
+            raise ValueError(f"false_breakout.move must be drift / jump, got {p.move!r}")
+        quick = p.move == "jump"
+        moves: list[tuple[int, int, float]] = []
+
+        def place(b0: int, nblocks: int, value: float) -> None:
+            """ブロック b0 から nblocks かけて value だけずらす(jump なら b0 の中で数分で)。"""
+            if quick:
+                pending[b0] += value
+                start = b0 * bs + int(rng.integers(0, bs))
+                moves.append((start, int(rng.integers(p.jump_minutes[0], p.jump_minutes[1] + 1)), value))
+            else:
+                pending[b0:b0 + nblocks] += value / nblocks
+
         for b in range(nb):
             off += pending[b]
             h = hi_l[b] + off
@@ -272,15 +295,16 @@ class FalseBreakout(Component):
                         total = excess + rng.uniform(*p.extra_pips) * pip_log
                         delay = int(rng.integers(p.delay_blocks[0], p.delay_blocks[1] + 1))
                         rev = int(rng.integers(p.revert_blocks[0], p.revert_blocks[1] + 1))
-                        pending[b + delay:b + delay + rev] += -direction * total / rev
+                        place(b + delay, rev, -direction * total)
                         ctx.event(int(ends[b]) + 1, "false_breakout", direction=direction,
                                   pips=float(total / pip_log))
                         bo_perf += a_bo * (-1.0 - bo_perf)
                     elif u[b] < prob + run:
                         last = b
                         total = rng.uniform(*p.follow_pips) * pip_log
+                        start = int(rng.integers(p.delay_blocks[0], p.delay_blocks[1] + 1)) if p.run_delay else 1
                         rev = int(rng.integers(p.revert_blocks[0], p.revert_blocks[1] + 1))
-                        pending[b + 1:b + 1 + rev] += direction * total / rev
+                        place(b + start, rev, direction * total)
                         ctx.event(int(ends[b]) + 1, "breakout_run", direction=direction,
                                   pips=float(total / pip_log))
                         bo_perf += a_bo * (1.0 - bo_perf)
@@ -295,6 +319,9 @@ class FalseBreakout(Component):
                 dq_hi.popleft()
             while dq_lo[0][0] <= b - lb:
                 dq_lo.popleft()
+        if quick:
+            apply_quick_moves(ctx, moves)
+            return
         # pending[b] はブロック b の中で効かせる(apply_block_increments は d[k] をブロック k+1 に置く)
         apply_block_increments(ctx, pending[1:nb + 1], bs)
 

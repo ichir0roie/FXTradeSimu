@@ -144,3 +144,49 @@ def test_zero_cut_absorbs_negative_balance_only_when_enabled():
     assert owed.balance < 0 and owed.ruined
     assert cut.balance == 0 and cut.stats["zero_cut"] > 0 and cut.ruined
     assert owed.trades[0].reason == "losscut"
+
+
+def _dip_and_recover():
+    # 100 → 69(口座の 9 割強を失うが、ロスカットの水準には届かない)→ 100 に戻る
+    bars = bars_from_minutes([100.0] * 120 + [69.0] * 120 + [100.0] * 600)
+    plan = {0: [("buy", {"units": 30_000})], 5: [("close", {})], 6: [("buy", {"units": 1_000})]}
+    return bars, plan
+
+
+def test_ruin_is_counted_without_changing_the_result_by_default():
+    bars, plan = _dip_and_recover()
+    broker = BrokerConfig(slippage_pips=0)
+    bt = Backtester(bars, Script(plan), broker, EngineConfig(), pip=PIP).run()
+    off = Backtester(bars, Script(plan), broker, EngineConfig(ruin_frac=0.0), pip=PIP).run()
+    assert bt.ruined and not off.ruined
+    assert bt.balance == pytest.approx(off.balance)             # 数えるだけで、損益は同じ
+    assert [t.reason for t in bt.trades] == [t.reason for t in off.trades]
+    m = compute_metrics(bt)
+    assert m["ruined"] and m["min_equity_frac"] < 0.1 and m["ruin_years"] is not None
+    assert compute_metrics(off)["ruin_years"] is None
+
+
+def test_stop_at_ruin_closes_and_stops_trading():
+    bars, plan = _dip_and_recover()
+    bt = Backtester(bars, Script(plan), BrokerConfig(slippage_pips=0), EngineConfig(stop_at_ruin=True),
+                    pip=PIP).run()
+    assert bt.ruined and bt.halted
+    assert [t.reason for t in bt.trades] == ["ruin"]               # 破綻した足で手仕舞いし、後の買いは出ない
+    assert bt.balance < 0.1 * 1_000_000
+    assert bt.equity_curve[-1] == pytest.approx(bt.balance)
+
+
+def test_bridge_touch_probability_matches_the_brownian_bridge():
+    from fxsim.backtest.engine import _first_touch
+    rng = np.random.default_rng(0)
+    q = np.array([100.03, 100.02, 100.04])          # 両端とも 100.00 より上。1 歩目は a=0.03, b=0.02
+    sig2 = 0.01 ** 2
+    hits = [_first_touch(q, 100.0, sig2, gap=1.0, u=rng.random(2)) for _ in range(20000)]
+    first = np.mean([j == 1 for j, _ in hits])
+    p1 = np.exp(-2 * 0.03 * 0.02 / sig2)
+    assert first == pytest.approx(p1, abs=0.01)
+    assert not any(c for _, c in hits)              # 点では越えていない
+    assert _first_touch(q, 100.0, sig2, gap=1.0, u=None) == (-1, False)   # points: 点で越えたときだけ
+    assert _first_touch(np.array([100.03, 99.99]), 100.0, sig2, 1.0, None) == (1, True)
+    # 飛び(|1 歩| > gap)は拡散ではないので、間で触れたことにしない
+    assert _first_touch(q, 100.0, sig2, gap=0.001, u=np.zeros(2)) == (-1, False)

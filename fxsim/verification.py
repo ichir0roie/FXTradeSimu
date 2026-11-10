@@ -161,7 +161,8 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     for g in GROUP_LABELS:
         vals = pnl(g)
         if len(vals):
-            groups[g] = {"label": GROUP_LABELS[g], **summarize(vals)}
+            groups[g] = {"label": GROUP_LABELS[g], **summarize(vals),
+                         "ruin_ratio": float(np.mean([bool(r.get("ruined")) for r in model if r["group"] == g]))}
             nulls = [null[r["path_id"]]["pnl"] for r in model if r["group"] == g and r["path_id"] in null]
             if nulls:
                 groups[g]["null_mean"] = float(np.mean(nulls))
@@ -180,11 +181,11 @@ def format_verdict(v: dict) -> str:
     lines = [f"## 判定: {v['verdict']}({v['model']})", ""]
     for ch in v["checks"]:
         lines.append(f"- {'✓' if ch['ok'] else '✗'} {ch['key']} {ch['label']}: {ch['detail']}")
-    lines += ["", "| パターンの組 | n | 損益 平均 | 中央 | プラス | t | 方向でたらめ版の平均 |",
-              "|---|---|---|---|---|---|---|"]
+    lines += ["", "| パターンの組 | n | 損益 平均 | 中央 | プラス | t | 破綻 | 方向でたらめ版の平均 |",
+              "|---|---|---|---|---|---|---|---|"]
     for g in v["groups"].values():
         lines.append(f"| {g['label']} | {g['n']} | {g['mean']:,.0f} | {g['median']:,.0f} | {g['positive_ratio']:.0%} | "
-                     f"{g['t']:.2f} | {g.get('null_mean', float('nan')):,.0f} |")
+                     f"{g['t']:.2f} | {g.get('ruin_ratio', 0.0):.0%} | {g.get('null_mean', float('nan')):,.0f} |")
     if v["yearly"]:
         lines += ["", "年ごと(並べ替えの中央値): " + ", ".join(f"{y['year']} {y['median']:+,.0f}" for y in v["yearly"])]
     return "\n".join(lines)

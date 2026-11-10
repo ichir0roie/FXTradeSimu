@@ -120,6 +120,11 @@ def compute_facts(md: MarketData) -> dict:
         "big_h1_moves_per_year": float(np.sum(np.abs(rh) >= 0.01) / max(1e-9, len(rh) / (260 * 24))),
         "max_spread_pips": float(np.max(sp)),
     }
+    if md.step_minutes <= 5:
+        # 5 分足の勢い(M006)。Var(1 時間足) / (12 Var(5 分足))。1 ならランダムウォーク、1 より大きいと数十分の勢い。
+        # 悪意を数十分かけた直線で入れると 1.05 前後になり、5 分足の抜けに乗る規則が素で勝っていた。記録だけで採点しない
+        r5 = _ret(md.bars(5))
+        facts["vr_m5_h1"] = float(np.var(rh) / (12 * np.var(r5))) if np.var(r5) > 0 else float("nan")
     facts.update(breakout_stats(h1))
     counts: dict[str, int] = {}
     for e in md.events:

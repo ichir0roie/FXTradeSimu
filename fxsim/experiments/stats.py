@@ -54,5 +54,7 @@ def strategy_stats(con: sqlite3.Connection, run_id: int, metrics=STAT_METRICS) -
                               "sharpe": r["sharpe"]} for r in rs]}
         for m in metrics:
             item[m] = summarize([r[m] for r in rs])
+        # 破綻(有効証拠金が初期の 1 割以下)したパターンの割合。ギャンブル型は損益の平均よりこれで見る
+        item["ruin_ratio"] = float(np.mean([bool(r.get("ruined")) for r in rs])) if rs else 0.0
         out.append(item)
     return out

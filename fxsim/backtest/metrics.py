@@ -85,6 +85,11 @@ def compute_metrics(bt: Backtester) -> dict:
         "hunted": int(bt.stats["hunted"]),
         "losscut": int(bt.stats["losscut"]),
         "ruined": bool(bt.ruined),
+        # 破綻までの年数(破綻しなければ None)。建てられなかった注文の数(証拠金不足)。有効証拠金の最小 / 初期
+        "ruin_years": (float((bt.bars.t[bt.ruin_idx] - bt.bars.t[0]) / NS_DAY / 365.25)
+                       if bt.ruin_idx is not None else None),
+        "blocked": int(bt.stats.get("blocked", 0)),
+        "min_equity_frac": float(bt.min_equity / eq0),
         "exit_reasons": reasons,
         "years": years,
         "yearly_pnl": yearly_pnl(day_t, eq, eq0),

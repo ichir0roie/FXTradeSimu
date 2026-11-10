@@ -1,0 +1,37 @@
+# E007: 市場モデル v4(R008・M006・指標の並べ替えの修正)とエンジンの修正(損切りのブラウン橋の判定・破綻の判定)での長期シミュレーション(10 年)。E005 と同じ組み合わせ。
+# 実データ(USDJPY 日足の再生)と、ランダム相場 6 種 x 8 パターンで、同じ戦略を評価する。
+# 実行: python -m fxsim run configs/long_run_v4.yaml   (4 コアで 3 分前後)
+name: long_run_v4
+proposal: E007
+notes: 基本戦略 x 市場 7 種 x ブローカー 3 種。実データ(日足)では日足の戦略だけが回る。
+years: 10
+seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+detail_seeds: [1]
+workers: 4
+engine: {initial_balance: 1000000, sizing: fixed, units: 10000}
+storage:
+  candle_timeframe: 1440         # 詳細保存のローソク足は日足(DB を小さく保つ)
+  equity_detail_timeframe: 10080 # 詳細保存の資産曲線は週次
+  equity_timeframe: 43200        # それ以外は約 30 日ごと
+  trades: none                   # 取引の明細は保存しない(成績は jobs に残る)
+  events: false
+live: {flush_every: 1000, delay_ms: 0}
+brokers: [fair, ecn, malicious]
+markets:
+  - real                    # 実データの再生(日足のみ。シードによらず 1 本)
+  - real_bridge             # 実データの日足を骨格に、日中をランダム合成
+  - real_bootstrap          # 実データのリターンを並べ替えた別の相場
+  - real_bridge_malicious   # real_bridge + 悪意
+  - random_walk             # 悪意なしの基準
+  - stylized                # 実際の為替らしい性質
+  - malicious               # stylized + 悪意
+strategies:
+  - random_entry            # 帰無仮説(コストと悪意だけを映す)
+  - ma_cross
+  - donchian_breakout
+  - bollinger_reversion
+  - simple_follower         # 旧 samples/simpleFollower.py の移植(M5)
+  - buy_and_hold            # 日足
+  - {name: ma_cross, label: ma_cross_d1, params: {timeframe: 1440, fast: 10, slow: 50, atr_n: 20, sl_atr: 3.0}}
+  - {name: donchian_breakout, label: donchian_d1, params: {timeframe: 1440, entry_n: 20, exit_n: 10, atr_n: 20, sl_atr: 2.0}}
+  - {name: bollinger_reversion, label: bollinger_d1, params: {timeframe: 1440, n: 20, k: 2.0, atr_n: 20, sl_atr: 2.5, max_hold: 20}}

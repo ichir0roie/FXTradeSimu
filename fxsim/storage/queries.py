@@ -83,8 +83,8 @@ def latest_case_run(con: sqlite3.Connection, test_id: str) -> tuple[int, dict] |
 
 def done_jobs_with_metrics(con: sqlite3.Connection, run_id: int) -> list[dict]:
     """完了したジョブの損益と成績の JSON、パターン(経路)の情報。検証の判定の材料。"""
-    q = """SELECT j.id, j.strategy_label, j.pnl, j.metrics_json, p.id AS path_id, p.market, p.market_label, p.seed,
-                  p.t_start, p.t_end
+    q = """SELECT j.id, j.strategy_label, j.pnl, j.ruined, j.metrics_json, p.id AS path_id, p.market, p.market_label,
+                  p.seed, p.t_start, p.t_end
            FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ? AND j.status = 'done'"""
     return [dict(r) for r in con.execute(q, (run_id,))]
 

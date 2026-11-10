@@ -75,6 +75,7 @@ def summarize_run(con: sqlite3.Connection, run_id: int, verify_label: str | None
         out["verdict"] = compute_verdict(con, run_id, verify_label)
     for s in stats:
         item = {k: s[k] for k in keys}
+        item["ruin_ratio"] = s.get("ruin_ratio", 0.0)
         if s["market"] == "ALL":
             out["all"] = item
             out["patterns"] += s["patterns"]

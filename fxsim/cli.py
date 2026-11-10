@@ -31,7 +31,10 @@ from .paths import DEFAULT_DB
 from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
-PANEL = ["random_entry", "ma_cross", "donchian_breakout", "bollinger_reversion", "simple_follower"]
+# 悪用されにくさを測るパネル。rsi_reversion(1 時間足のオシレーター、R008)と scalping(5 分足、M006)は、
+# 1 時間足の 5 本では見えなかった穴を映すために足した
+PANEL = ["random_entry", "ma_cross", "donchian_breakout", "bollinger_reversion", "simple_follower", "rsi_reversion",
+         "scalping"]
 REAL_SET = ["real", "real_bridge", "real_bootstrap", "real_bridge_malicious"]
 
 

@@ -1,0 +1,8 @@
+id: B010
+name: パラボリック SAR のドテン(日足、SAR を損切りとして追う)
+strategy: parabolic_sar
+params: {timeframe: 1440}
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

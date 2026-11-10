@@ -67,6 +67,12 @@ class BrokerConfig:
     zero_cut: bool = True             # マイナス残高を 0 に戻す(客に請求しない)か
     intrabar: str = "path"            # path | pessimistic
     gap_k: float = 6.0                # path: 1 歩の |動き| の中央値のこの倍(正規なら約 4σ)を超える 1 歩は飛び
+    # path: 逆指値・指値に「触れた」の判定。bridge は点と点の間をブラウン橋とみなし、両端が手前にあっても
+    # 間で触れる確率 exp(-2ab/σ²) で触れたことにする(最初に触れた瞬間に指値の価格で約定する、という
+    # 連続の解釈と矛盾しない)。points は点で越えたときだけ判定する(E004〜E006 の版)。points で指値の価格で
+    # 約定させると、越えたら指値の価格・戻ったら持ち続け、を後から選べることになり、損切りを使う戦略が
+    # ランダムウォークでも年 60〜110 pip 得をしていた(R008)
+    touch: str = "bridge"             # bridge | points
     leverage: float = 25.0
     losscut_level: float = 0.5        # 有効証拠金 / 必要証拠金
 
@@ -75,6 +81,8 @@ class BrokerConfig:
             raise ValueError("swap_mode must be fixed or rates")
         if self.intrabar not in ("path", "pessimistic"):
             raise ValueError("intrabar must be path or pessimistic")
+        if self.touch not in ("bridge", "points"):
+            raise ValueError("touch must be bridge or points")
 
     @classmethod
     def preset(cls, name: str, overrides: dict | None = None) -> BrokerConfig:

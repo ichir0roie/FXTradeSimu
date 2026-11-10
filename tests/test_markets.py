@@ -126,3 +126,80 @@ def test_bridge_v2_has_no_intraday_mean_reversion():
         c = np.log(md.bars(60).close)
         vrs.append(np.var(c[24:] - c[:-24]) / (24 * np.var(np.diff(c))))
     assert 0.93 < np.mean(vrs) < 1.07
+
+
+_SIMD_SCRIPT = """
+import json, sys
+from fxsim import catalog  # noqa: F401
+from fxsim.markets import MARKETS
+out = {}
+for model in ("malicious", "real_bridge_malicious"):
+    md = MARKETS.create(model, {}).generate(years=1, seed=3)
+    out[model] = [len(md.events), [e["kind"] for e in md.events][:2000], float(md.mid[-1])]
+json.dump(out, sys.stdout)
+"""
+
+
+def test_markets_do_not_depend_on_the_cpu_simd_features():
+    # numpy は CPU の SIMD(AVX2 / AVX-512)で並べ替えや exp の実装を切り替える。同じ値の並べ替えの順番に
+    # 依存すると、同じシードでも端末ごとに別の相場になる(NewsShocks の argsort で起きていた)
+    import json
+    import os
+    import subprocess
+    import sys
+
+    def run(env_extra):
+        env = {**os.environ, **env_extra}
+        res = subprocess.run([sys.executable, "-c", _SIMD_SCRIPT], capture_output=True, text=True, env=env,
+                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))), check=True)
+        return json.loads(res.stdout)
+
+    a = run({})
+    b = run({"NPY_DISABLE_CPU_FEATURES": "X86_V3 X86_V4 AVX512F AVX512_SKX AVX512_ICL AVX512_SPR AVX2 FMA3"})
+    for model in a:
+        assert a[model][0] == b[model][0] and a[model][1] == b[model][1], model
+        assert a[model][2] == pytest.approx(b[model][2], rel=1e-9), model
+
+
+def _rv_leak_ratio(md) -> float:
+    """日の前半の実現分散(直前 20 日比)で上位 2 割の日と下位 2 割の日の、E[r²] / E[実現分散] の比。
+
+    足の中の荒れ方から日足のリターンの大きさが漏れていなければ 1 に近い(R008)。
+    """
+    from fxsim.calendar import trading_day
+
+    lp = np.log(md.mid)
+    dx = np.diff(lp, prepend=lp[0])
+    d = trading_day(md.times)
+    starts = np.flatnonzero(np.r_[True, d[1:] != d[:-1]])
+    ends = np.r_[starts[1:], len(dx)]
+    rv = np.add.reduceat(dx * dx, starts)
+    ret = np.add.reduceat(dx, starts)
+    half = np.array([(dx[a:(a + b) // 2] ** 2).sum() for a, b in zip(starts, ends, strict=True)])
+    prev = np.convolve(rv, np.ones(20) / 20, mode="full")[:len(rv)]
+    key = (half / np.r_[np.nan, prev[:-1]])[20:]
+    ret, rv = ret[20:], rv[20:]
+    lo, hi = key <= np.quantile(key, 0.2), key >= np.quantile(key, 0.8)
+    return float((np.mean(ret[hi] ** 2) / np.mean(rv[hi])) / (np.mean(ret[lo] ** 2) / np.mean(rv[lo])))
+
+
+def test_bridge_v4_does_not_leak_daily_return_through_intraday_volatility():
+    """v3(day_weight 0.6)は静かな日に戻り・荒れた日に走り、比が 2.5 を超えていた。v4 は 1 に近い。"""
+    v4 = [_rv_leak_ratio(MARKETS.create("real_bridge_placebo", {"flash_overlay": None}).generate(years=4, seed=s))
+          for s in (1, 2)]
+    v3 = _rv_leak_ratio(MARKETS.create("real_bridge_placebo", {"flash_overlay": None, "anchor": {
+        "calibrate_vol": "local", "clock": "variance"}}).generate(years=4, seed=1))
+    assert 0.7 < np.mean(v4) < 1.4
+    assert v3 > 2.0
+
+
+def test_quick_moves_finish_within_their_steps():
+    from fxsim.markets.base import GenContext
+    from fxsim.markets.blocks import apply_quick_moves
+
+    ctx = GenContext(rng=np.random.default_rng(0), times=np.arange(30), base=None, vol=np.zeros(30),
+                     drift=np.zeros(30), jumps=np.zeros(30))
+    ctx.logp = np.zeros(30)
+    apply_quick_moves(ctx, [(10, 1, 0.01), (20, 3, -0.03)])
+    assert ctx.logp[9] == 0 and ctx.logp[10] == pytest.approx(0.01) and ctx.logp[19] == pytest.approx(0.01)
+    assert ctx.logp[22] == pytest.approx(-0.02) and ctx.logp[-1] == pytest.approx(-0.02)

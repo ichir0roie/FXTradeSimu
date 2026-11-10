@@ -70,7 +70,9 @@ class NewsShocks(Component):
         if not idx_list:
             ctx.meta["news_idx"] = np.zeros(0, dtype=np.int64)
             return
-        order = np.argsort(idx_list)
+        # 安定ソート。雇用統計とランダムな指標が同じ分に重なったとき、既定のクイックソートは重なりの順番が
+        # CPU の SIMD の実装で変わり、どちらの大きさが付くかが端末ごとに違っていた(同じシードで別の相場になる)
+        order = np.argsort(idx_list, kind="stable")
         idx = np.asarray(idx_list)[order]
         sc = np.asarray(scales)[order]
         decay_steps = max(1.0, self.p.vol_decay_min / ctx.base.step_minutes)

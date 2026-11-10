@@ -32,6 +32,12 @@ class EngineConfig:
     risk_fraction: float = 0.01            # risk のとき、損切りまでの損失 = 有効証拠金 x これ
     min_units: float = 1_000.0
     max_units: float = 1_000_000.0
+    # 破綻の判定。有効証拠金が「初期 x ruin_frac」以下になったら破綻として数える(E005 の次の一手)。
+    # 建てる量は有効証拠金 x レバレッジで頭打ちになるので、破綻しかけた口座は少額で取引を続けてしまう。
+    # stop_at_ruin = True なら、破綻した足の終値で手仕舞いし、それ以降は取引しない。
+    # 既定(False)は数えるだけで、損益は変わらない
+    ruin_frac: float = 0.1
+    stop_at_ruin: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -64,7 +70,7 @@ class Trade:
     gross_pips: float     # mid どうしの pip(コスト抜き = 戦略の素の優位性)
     cost_pips: float      # gross - pips(スプレッド + スリッページ)
     swap: float           # 円
-    reason: str           # signal | sl | tp | hunted | losscut | end | reverse
+    reason: str           # signal | sl | tp | hunted | losscut | end | reverse | ruin
     bars_held: int
     commission: float = 0.0   # 円(往復)
     slippage: float = 0.0     # 円(往復、不利な向きを正)
@@ -183,11 +189,26 @@ def _swap_days(t: np.ndarray) -> list[int]:
     return out
 
 
-def _first_cross(values: np.ndarray, level: float, below: bool) -> int:
-    """values が level 以下(below)/ 以上 になる最初の位置。無ければ -1。"""
-    hit = values <= level if below else values >= level
+def _first_touch(q: np.ndarray, level: float, sig2: float, gap: float, u: np.ndarray | None) -> tuple[int, bool]:
+    """q(符号をそろえた価格。q[0] は 1 つ前の点)が level 以下に触れた最初の 1 歩の位置(1 以上)と、
+    その 1 歩で点が越えたか(False なら点と点の間で触れた)。触れなければ (-1, False)。
+
+    u があれば、両端が level より上の 1 歩でも、点の間をブラウン橋とみなした「間で触れる確率」
+    exp(-2ab/σ²)(a, b は両端から level までの距離)で触れたことにする。飛び(|1 歩| > gap)は拡散ではないので除く。
+    """
+    d = q - level
+    cross = d[1:] <= 0
+    if u is not None and sig2 > 0:
+        a, b = d[:-1], d[1:]
+        ok = (a > 0) & (b > 0) & (np.abs(np.diff(q)) <= gap)
+        p = np.where(ok, np.exp(-2.0 * np.where(ok, a * b, 0.0) / sig2), 0.0)
+        hit = cross | (u < p)
+    else:
+        hit = cross
     j = int(np.argmax(hit))
-    return j if hit[j] else -1
+    if not hit[j]:
+        return -1, False
+    return j + 1, bool(cross[j])
 
 
 class Backtester:
@@ -204,6 +225,7 @@ class Backtester:
         self.cfg = config or EngineConfig()
         self.pip = pip
         self.rng = np.random.default_rng([seed, 7919])          # ブローカー用
+        self.touch_rng = np.random.default_rng([seed, 15485863])  # 点の間で指値に触れたかの判定用(broker.touch)
         self.strategy_rng = np.random.default_rng([seed, 104729])
         self.balance = self.cfg.initial_balance
         self.equity = self.balance
@@ -214,9 +236,12 @@ class Backtester:
         self.balance_curve = np.full(len(bars), np.nan)
         self.decisions: list[tuple[int, str, int]] = []   # 先読み検査用 (i, kind, side)
         self.i = 0
-        self.ruined = False
+        self.ruined = False          # 破綻した(有効証拠金が初期 x ruin_frac 以下になった、または 0 以下)
+        self.ruin_idx: int | None = None
+        self.halted = False          # 取引を止めた(有効証拠金 0 以下、または stop_at_ruin で破綻)
+        self.min_equity = self.balance
         self.stats = {"hunted": 0, "losscut": 0, "swap_total": 0.0, "slippage_pips": 0.0, "commission_total": 0.0,
-                      "slippage_total": 0.0, "rejected": 0, "zero_cut": 0.0}
+                      "slippage_total": 0.0, "rejected": 0, "zero_cut": 0.0, "blocked": 0}
         self._prepare_prices()
 
     # ---- 足ごとの価格(ブローカーの上乗せ込み)を先に用意する ----
@@ -245,6 +270,15 @@ class Backtester:
         self.sm = (np.maximum(bars.spread_mean + markup, floor)).tolist()
         self.t = bars.t.tolist()
         self.use_path = b.intrabar == "path" and bars.base_mid is not None
+        self.bridge = self.use_path and b.touch == "bridge"
+        self.touch_margin = [0.0] * len(bars)
+        if self.bridge:
+            # 足の高安が指値の手前でも、点の間で触れる可能性がある幅(1 歩の標準偏差の 4 倍。触れる確率 < 1e-13)
+            d = np.abs(np.diff(bars.base_mid, prepend=bars.base_mid[0]))
+            starts = np.asarray(bars.start_idx, dtype=np.int64)
+            n_steps = np.diff(np.r_[starts, len(d)])
+            mean_abs = np.add.reduceat(d, starts) / np.maximum(n_steps, 1)
+            self.touch_margin = (4.0 * np.sqrt(np.pi / 2) * mean_abs).tolist()
         if b.swap_mode == "rates":
             self.rate_diff = load_rates(b.rates_path).differential(bars.t).tolist()
 
@@ -302,6 +336,7 @@ class Backtester:
         price = self.ao[i] + slip if o.side > 0 else self.bo[i] - slip
         units = self._units(o.sl_dist, price, o.units)
         if units < self.cfg.min_units:
+            self.stats["blocked"] += 1      # 証拠金が足りず、最小の数量も建てられなかった
             return
         sl = price - o.side * o.sl_dist if o.sl_dist else None
         tp = price + o.side * o.tp_dist if o.tp_dist else None
@@ -379,10 +414,12 @@ class Backtester:
         lc = self._losscut_price(i)
         lc = lc * sd if lc is not None else None
         stop = max(x for x in (sl, lc, -np.inf) if x is not None)   # 先に届く方(高い方)が実質の逆指値
-        touch_stop = stop > -np.inf and lo <= stop
-        touch_tp = tp is not None and hi >= tp
+        reach_stop = stop > -np.inf and lo <= stop
+        margin = self.touch_margin[i]
+        touch_stop = stop > -np.inf and lo <= stop + margin      # 点の間で触れる可能性も含める(bridge)
+        touch_tp = tp is not None and hi >= tp - margin
         hunted = False
-        if (sl is not None and not touch_stop and self.broker.hunt_prob > 0
+        if (sl is not None and not reach_stop and self.broker.hunt_prob > 0
                 and lo - sl <= self.broker.hunt_pips * self.pip and self.rng.random() < self.broker.hunt_prob):
             hunted = True
             self.stats["hunted"] += 1
@@ -392,19 +429,28 @@ class Backtester:
         if quotes is not None:
             q, mid = quotes
             q = q * sd
-            js = _first_cross(q[1:], stop, below=True) + 1 if touch_stop else 0     # q[0] は 1 つ前の点
-            jt = _first_cross(q[1:], tp, below=False) + 1 if touch_tp else 0
-            if js <= 0 and jt <= 0:
-                return
             # 越えた 1 歩が飛びのときだけ、飛んだ先で約定する。ふつうの 1 歩なら点の間も連続して動いている。
             # 足の中の点が少ない(日足の再生など)と「ふつうの 1 歩」が測れないので、越えた点で約定する(悲観的)
             if len(mid) > 10:
-                gap = self.broker.gap_k * max(float(np.median(np.abs(np.diff(mid)))), 1e-12)
+                med = max(float(np.median(np.abs(np.diff(mid)))), 1e-12)
+                gap = self.broker.gap_k * med
+                sig2 = (med / 0.6745) ** 2                     # 1 歩の分散(中央値からの頑健な見積もり)
             else:
-                gap = 0.0
+                gap, sig2 = 0.0, 0.0
+            bridge = self.bridge and sig2 > 0
+            js = jt = 0
+            cross_s = cross_t = True
+            if touch_stop:                                     # q[0] は 1 つ前の点
+                u = self.touch_rng.random(len(q) - 1) if bridge else None
+                js, cross_s = _first_touch(q, stop, sig2, gap, u)
+            if touch_tp:                                       # 上への指値は符号を反転して同じ式にする
+                u = self.touch_rng.random(len(q) - 1) if bridge else None
+                jt, cross_t = _first_touch(-q, -tp, sig2, gap, u)
+            if js <= 0 and jt <= 0:
+                return
             if js > 0 and (jt <= 0 or js <= jt):
                 slip = self._slip(i, stop=True)
-                jumped = q[js - 1] - q[js] > gap
+                jumped = cross_s and q[js - 1] - q[js] > gap
                 fill = (min(q[js], stop) if jumped else stop) - slip
                 reason = "losscut" if lc is not None and stop == lc and (sl is None or lc > sl) else "sl"
                 if reason == "losscut":
@@ -412,7 +458,7 @@ class Backtester:
                 at = float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd))   # 損切り価格に届いた瞬間
                 self._close(i, fill * sd, at, reason, slip)
             else:
-                jumped = q[jt] - q[jt - 1] > gap
+                jumped = cross_t and q[jt] - q[jt - 1] > gap
                 fill = q[jt] if (self.broker.positive_slippage and jumped and q[jt] > tp) else tp
                 # 素の損益の mid: 飛びなら越えた点の mid、ふつうの 1 歩なら利確価格に届いた瞬間の mid
                 at = float(mid[jt]) if jumped else float(tp * sd + (mid[jt] - q[jt] * sd))
@@ -481,6 +527,22 @@ class Backtester:
             self.stats["losscut"] += 1
             self.equity = self.balance
 
+    def _check_ruin(self, i: int) -> None:
+        self.min_equity = min(self.min_equity, self.equity)
+        if not self.ruined and (self.equity <= 0
+                                or self.equity <= self.cfg.initial_balance * self.cfg.ruin_frac):
+            self.ruined = True
+            self.ruin_idx = i
+        if self.equity <= 0:
+            self.halted = True
+        elif self.ruined and self.cfg.stop_at_ruin and not self.halted:
+            if self.pos is not None:
+                p = self.pos
+                self._close(i, self.bc[i] if p.side > 0 else self.ac[i], self.c[i], "ruin")
+                self.equity = self.balance
+            self.pending = []
+            self.halted = True
+
     # ---- 実行 ----
     def run(self, progress: ProgressFn | None = None, every: int = 500) -> Backtester:
         n = len(self.bars)
@@ -489,7 +551,7 @@ class Backtester:
         warmup = int(getattr(self.strategy, "warmup", 0))
         for i in range(n):
             self.i = i
-            if self.ruined:
+            if self.halted:
                 self.equity_curve[i] = self.equity
                 self.balance_curve[i] = self.balance
                 continue
@@ -515,11 +577,10 @@ class Backtester:
             if self.pos is not None and self.pos.entry_idx <= i:
                 self._check_stops(i)
             self._mark(i)
-            if self.equity <= 0:
-                self.ruined = True
+            self._check_ruin(i)
             self.equity_curve[i] = self.equity
             self.balance_curve[i] = self.balance
-            if not self.ruined and i < n - 1:
+            if not self.halted and i < n - 1:
                 if self.force_close[i] and self.pos is not None:
                     self._submit(_Order("close"))
                 elif i >= warmup and self.decide[i]:
