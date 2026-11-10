@@ -1,6 +1,6 @@
 // 画面のスクリーンショットを撮る。web サーバーを起動した状態で:
-//   node scripts/screenshot.mjs [http://localhost:3000] [../docs/screenshots] [runId] [jobId]
-// runId / jobId を省くと、最新の実験と、その中のチャート付きジョブを選ぶ。
+//   node scripts/screenshot.mjs [http://localhost:3000] [../docs/screenshots] [runId] [jobId] [caseId]
+// runId / jobId を省くと、最新の実験と、その中のチャート付きジョブを選ぶ。caseId は検証ページ(既定 V-B007)。
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
@@ -25,6 +25,7 @@ const pick =
   detail.jobs.find((j) => j.detail && j.status !== "skipped" && j.strategy !== "random_entry" && j.n_trades > 0) ??
   detail.jobs.find((j) => j.detail && j.status !== "skipped");
 const jobId = Number(process.argv[5] ?? pick?.id);
+const caseId = process.argv[6] ?? "V-B007";
 
 const browser = await playwright.chromium.launch();
 const shots = [
@@ -32,6 +33,7 @@ const shots = [
   [`02-run-${runId}.png`, `/runs/${runId}`, 2400, false],
   [`03-job-${jobId}.png`, `/jobs/${jobId}`, 1400],
   ["04-cases.png", "/cases", 1200],
+  ["05-verify.png", `/cases/${encodeURIComponent(caseId)}`, 1900],
 ];
 for (const scheme of ["light", "dark"]) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: scheme });

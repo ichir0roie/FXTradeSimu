@@ -68,3 +68,8 @@ def done_jobs_with_metrics(con: sqlite3.Connection, run_id: int) -> list[dict]:
                   p.t_start, p.t_end
            FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ? AND j.status = 'done'"""
     return [dict(r) for r in con.execute(q, (run_id,))]
+
+
+def case_test_ids(con: sqlite3.Connection) -> list[str]:
+    """実行の記録があるテストケースの ID(fxsim verify が作ったものも含む)。"""
+    return [r[0] for r in con.execute("SELECT DISTINCT test_id FROM case_runs ORDER BY test_id")]

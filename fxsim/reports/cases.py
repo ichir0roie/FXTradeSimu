@@ -33,6 +33,17 @@ def cases_overview(con: sqlite3.Connection, root: Path | str | None = None) -> s
         else:
             cells = ["未実行", "-", "-", "-", "-", "-", "-"]
         rows.append([t.id, t.name, t.behavior, t.period_label(), pats, *cells])
+    for tid in queries.case_test_ids(con):         # fxsim verify が作った検証(YAML には無い)
+        if tid in book.tests:
+            continue
+        run_id, summary = queries.latest_case_run(con, tid) or (None, {})
+        p = ((summary.get("all") or {}).get("pnl") or {})
+        if not p.get("n"):
+            continue
+        rows.append([tid, "(fxsim verify)", tid.removeprefix("V-"), "-", "標準パターン", f"#{run_id}",
+                     f"{p['mean']:,.0f}", f"{p['median']:,.0f}", f"{p['total']:,.0f}",
+                     f"{p['positive_ratio'] * 100:.0f}%", f"{p.get('t', 0):.2f}",
+                     (summary.get("verdict") or {}).get("verdict", "-")])
     headers = ["ID", "名前", "動作", "期間", "パターン", "最新 run", "損益 平均", "中央", "合計", "プラス", "t値",
                "判定"]
     lines += ["## テストケース", table(headers, rows)]

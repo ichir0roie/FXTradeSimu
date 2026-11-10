@@ -119,37 +119,64 @@ function YearHeatmap({ years, rows }: { years: string[]; rows: YearRow[] }) {
     const a = Math.round(Math.min(1, Math.abs(v) / maxAbs) * 70) + 8;
     return { background: `color-mix(in srgb, var(${v >= 0 ? "--pos" : "--neg"}) ${a}%, transparent)` };
   };
-  const medians = years.map((y) => {
+  const man = (v: number | undefined) => fmt(v !== undefined ? v / 10000 : undefined, 1);
+  const median = (y: string) => {
     const v = rows.map((r) => r.values[y]).filter((x): x is number => x !== undefined).sort((a, b) => a - b);
     return v.length ? v[Math.floor((v.length - 1) / 2)] : undefined;
-  });
+  };
+  const total = (r: YearRow) => Object.values(r.values).reduce((a, b) => a + b, 0);
+  const label = (r: YearRow) => (r.real ? <span className="badge real">実データ</span> : `#${r.seed}`);
+  // 年が多いときは年を縦に並べる(横にはみ出さないように)
+  const byYearRows = years.length > 12;
   return (
     <>
       <h2>年ごとの損益(実データと並べ替えのパターン、万円)</h2>
       <div className="tablewrap">
-        <table className="heat">
-          <thead>
-            <tr><th className="l">パターン</th>{years.map((y) => <th key={y}>{y}</th>)}<th>合計</th></tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label}>
-                <td className="l">{r.real ? <span className="badge real">実データ</span> : r.label}</td>
-                {years.map((y) => <td key={y} className="num" style={cell(r.values[y])}>{fmt(r.values[y] !== undefined ? r.values[y] / 10000 : undefined, 1)}</td>)}
-                <td className={`num ${tone(Object.values(r.values).reduce((a, b) => a + b, 0))}`}>
-                  {fmt(Object.values(r.values).reduce((a, b) => a + b, 0) / 10000, 1)}
-                </td>
+        {byYearRows ? (
+          <table className="heat">
+            <thead>
+              <tr><th className="l">年</th>{rows.map((r) => <th key={r.label}>{label(r)}</th>)}<th>中央値</th></tr>
+            </thead>
+            <tbody>
+              {years.map((y) => (
+                <tr key={y}>
+                  <td className="l num">{y}</td>
+                  {rows.map((r) => <td key={r.label} className="num" style={cell(r.values[y])}>{man(r.values[y])}</td>)}
+                  <td className="num" style={{ ...cell(median(y)), fontWeight: 600 }}>{man(median(y))}</td>
+                </tr>
+              ))}
+              <tr className="all">
+                <td className="l">合計</td>
+                {rows.map((r) => <td key={r.label} className={`num ${tone(total(r))}`}>{man(total(r))}</td>)}
+                <td />
               </tr>
-            ))}
-            <tr className="all">
-              <td className="l">中央値</td>
-              {medians.map((m, i) => <td key={years[i]} className="num" style={cell(m)}>{fmt(m !== undefined ? m / 10000 : undefined, 1)}</td>)}
-              <td />
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        ) : (
+          <table className="heat">
+            <thead>
+              <tr><th className="l">パターン</th>{years.map((y) => <th key={y}>{y}</th>)}<th>合計</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.label}>
+                  <td className="l">{r.real ? label(r) : r.label}</td>
+                  {years.map((y) => <td key={y} className="num" style={cell(r.values[y])}>{man(r.values[y])}</td>)}
+                  <td className={`num ${tone(total(r))}`}>{man(total(r))}</td>
+                </tr>
+              ))}
+              <tr className="all">
+                <td className="l">中央値</td>
+                {years.map((y) => <td key={y} className="num" style={cell(median(y))}>{man(median(y))}</td>)}
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        )}
       </div>
-      <div className="sub" style={{ marginTop: 4 }}>期間の端の年は数か月分だけのことがある(判定 C4 では半年未満の年を除く)。中央値は並べ替えのパターンと実データを合わせたもの。</div>
+      <div className="sub" style={{ marginTop: 4 }}>
+        # は並べ替えのパターンの番号。期間の端の年は数か月分だけのことがある(判定 C4 では半年未満の年を除く)。中央値は並べ替えのパターンと実データを合わせたもの。
+      </div>
     </>
   );
 }
