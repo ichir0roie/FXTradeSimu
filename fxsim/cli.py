@@ -12,7 +12,9 @@
     cases list                   動作ケース・テストケースと最新の結果
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
+    verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
     init-db                      空の DB を作る
+    compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ from . import catalog  # noqa: F401
 from .backtest import BROKER_PRESETS
 from .markets import MARKETS
 from .paths import DEFAULT_DB
-from .storage import connect, init_db, queries
+from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
 PANEL = ["random_entry", "ma_cross", "donchian_breakout", "bollinger_reversion", "simple_follower"]
@@ -168,11 +170,52 @@ def cmd_cases(args) -> None:
         if not latest:
             sys.exit(f"{args.ids[0]} はまだ実行されていません")
         print(run_report(con, latest[0], patterns=True))
+        if latest[1].get("verdict"):
+            from .verification import format_verdict
+
+            print()
+            print(format_verdict(latest[1]["verdict"]))
+
+
+def cmd_verify(args) -> None:
+    from .cases import run_cases, verification_case
+    from .reports import run_report
+    from .verification import format_verdict
+
+    con = init_db(args.db)
+    t = verification_case(args.behavior, years=args.years, seeds=args.seeds, start=args.start, end=args.end,
+                          block_days=args.block_days, dataset=args.dataset)
+    if args.workers:
+        t.workers = args.workers
+    run_cases(con, args.db, [t.id], force=args.force, extra=[t])
+    latest = queries.latest_case_run(con, t.id)
+    if latest:
+        run_id, summary = latest
+        print()
+        print(run_report(con, run_id, patterns=args.patterns))
+        if summary.get("verdict"):
+            print()
+            print(format_verdict(summary["verdict"]))
 
 
 def cmd_init_db(args) -> None:
     init_db(args.db).close()
     print(f"initialized {args.db}")
+
+
+def cmd_compact(args) -> None:
+    import os
+
+    from .storage import writer
+
+    con = connect(args.db)
+    before = os.path.getsize(args.db)
+    for run_id in args.run_ids:
+        n = writer.compact_equity(con, run_id, args.equity_minutes, args.detail_equity_minutes)
+        print(f"run #{run_id}: removed {n} equity points")
+    vacuum(con)
+    con.close()
+    print(f"{args.db}: {before / 1e6:.1f} MB -> {os.path.getsize(args.db) / 1e6:.1f} MB")
 
 
 # ---- 引数 -------------------------------------------------------------------
@@ -260,7 +303,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true")
     _db(p)
 
+    p = add("verify", cmd_verify)
+    p.add_argument("behavior", help="動作ケースの ID(cases/behaviors)")
+    p.add_argument("--years", type=float, default=10.0)
+    p.add_argument("--seeds", type=parse_seeds, default=parse_seeds("1-8"))
+    p.add_argument("--start")
+    p.add_argument("--end")
+    p.add_argument("--block-days", type=float, default=20.0,
+                   help="並べ替えのブロックの長さ(日)。戦略が見る期間より長くする")
+    p.add_argument("--dataset", help="実データ系に使う CSV(既定: data/real/usdjpy_d1_fred.csv)")
+    p.add_argument("--workers", type=int, default=0)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--patterns", action="store_true")
+    _db(p)
+
     p = add("init-db", cmd_init_db)
+    _db(p)
+
+    p = add("compact", cmd_compact)
+    p.add_argument("run_ids", nargs="+", type=int)
+    p.add_argument("--equity-minutes", type=int, default=129600, help="詳細保存でないジョブの資産曲線の間隔(分)")
+    p.add_argument("--detail-equity-minutes", type=int, default=None,
+                   help="詳細保存のジョブの資産曲線の間隔(分。省略で間引かない)")
     _db(p)
     return ap
 

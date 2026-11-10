@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from fxsim.calendar import NS_HOUR, hour_of_day, trading_times, weekday
-from fxsim.data import make_bars
+from fxsim.data import load_ohlc, make_bars
 from fxsim.markets import MARKETS
 from fxsim.markets.evaluation import compute_facts, score_facts
 from fxsim.numerics import _ar1_chunked, ar1_filter
@@ -99,6 +99,30 @@ def test_malice_events_are_recorded():
 def test_stylized_facts_separate_models():
     rw = compute_facts(MARKETS.create("random_walk").generate(years=1, seed=1))
     st = compute_facts(MARKETS.create("stylized").generate(years=1, seed=1))
-    assert abs(rw["kurt_h1"]) < 1.0 and st["kurt_h1"] > 3.0
+    assert abs(rw["kurt_h1"]) < 1.0 and st["kurt_h1_trim"] > 3.0
     assert st["acf_abs_h1_lag1"] > rw["acf_abs_h1_lag1"] + 0.1
     assert score_facts(st)["realism_score"] > score_facts(rw)["realism_score"]
+
+
+def test_placebo_keeps_real_magnitudes_but_not_direction():
+    from fxsim.markets.components.real import _placebo
+
+    s = load_ohlc("data/real/usdjpy_d1_fred.csv").window(years=2)
+    lc = np.log(s.close)
+    c, o, h, lw = _placebo(lc, np.log(s.open), np.log(s.high), np.log(s.low), np.random.default_rng(0))
+    np.testing.assert_allclose(np.abs(np.diff(c)), np.abs(np.diff(lc)), atol=1e-12)
+    assert np.mean(np.sign(np.diff(c)) == np.sign(np.diff(lc))) < 0.6
+    assert np.all(h >= np.maximum(o, c) - 1e-12) and np.all(lw <= np.minimum(o, c) + 1e-12)
+
+
+def test_bridge_v2_has_no_intraday_mean_reversion():
+    """v1 は 24 時間の分散比が 0.9 を割っていた(R005)。v2 は 1 に近い。
+
+    完全に戻るフラッシュクラッシュ(v3)は本物の平均回帰で、1 回で分散比を大きく下げるので外して測る。
+    """
+    vrs = []
+    for seed in (1, 2, 3):
+        md = MARKETS.create("real_bridge", {"flash_overlay": None}).generate(years=1, seed=seed)
+        c = np.log(md.bars(60).close)
+        vrs.append(np.var(c[24:] - c[:-24]) / (24 * np.var(np.diff(c))))
+    assert 0.93 < np.mean(vrs) < 1.07

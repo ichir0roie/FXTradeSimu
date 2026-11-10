@@ -20,10 +20,11 @@ def run_report(con: sqlite3.Connection, run_id: int, patterns: bool = False) -> 
     ms = queries.market_summary(con, run_id)
     if ms:
         lines += ["## 市場の性質(シード平均)", _table(
-            ["市場", "n", "現実らしさ", "外れ数", "年率ボラ", "尖度H1", "|r|自己相関", "分散比H1→D1",
-             "ダマシ率", "ヒゲ戻り率"],
+            ["市場", "n", "現実らしさ", "外れ数", "年率ボラ", "尖度H1(切詰)", "1%超の足/年", "|r|自己相関",
+             "分散比H1→D1", "ダマシ率", "ヒゲ戻り率"],
             [[m["market_label"], m["n_seeds"], _f(m["realism_score"], 1), _f(m["n_fail"], 1),
-              _f(m["annual_vol"], 3), _f(m["kurt_h1"], 1), _f(m["acf_abs_h1_lag1"], 3), _f(m["vr_h1_d1"], 3),
+              _f(m["annual_vol"], 3), _f(m["kurt_h1_trim"], 1), _f(m["big_h1_moves_per_year"], 1),
+              _f(m["acf_abs_h1_lag1"], 3), _f(m["vr_h1_d1"], 3),
               _f(m["false_breakout_rate"], 3), _f(m["wick_rejection_rate"], 3)] for m in ms]), ""]
     stats = strategy_stats(con, run_id)
     if stats:
@@ -50,6 +51,18 @@ def run_report(con: sqlite3.Connection, run_id: int, patterns: bool = False) -> 
                     continue
                 pats = ", ".join(f"seed{p['seed']}={_f(p['pnl'], 0)}" for p in s["patterns"])
                 lines.append(f"- {s['broker']} / {s['strategy']} / {s['market']}: {pats}")
+    costs = queries.cost_summary(con, run_id)
+    if costs:
+        lines += ["## 費用の内訳(ブローカー x 戦略、パターン平均、円)",
+                  "素の損益 − スプレッド − スリッページ − 手数料 + スワップ = 取引の損益。"
+                  "損益は口座の増減(ゼロカットで免除された分は損に入らない)。狩り・ロスカット・拒否は回数。", "",
+                  _table(["ブローカー", "戦略", "n", "素の損益", "スプレッド", "スリッページ", "手数料", "スワップ",
+                          "損益", "狩り", "ロスカット", "拒否", "ゼロカット"],
+                         [[c["broker"], c["strategy_label"], c["n"], _f(c["gross_pnl"], 0),
+                           *(_f(-c[k] or 0.0, 0) for k in ("spread", "slippage", "commission")),
+                           _f(c["swap"], 0), _f(c["pnl"], 0),
+                           _f(c["hunted"], 1), _f(c["losscut"], 1), _f(c["rejected"], 1), _f(c["zero_cut"], 0)]
+                          for c in costs]), ""]
     skipped = queries.skipped_jobs(con, run_id)
     if skipped:
         lines += ["", "## 回さなかったジョブ"]
@@ -60,9 +73,10 @@ def run_report(con: sqlite3.Connection, run_id: int, patterns: bool = False) -> 
 def leaderboard(con: sqlite3.Connection, kind: str = "strategies", limit: int = 30) -> str:
     if kind == "markets":
         rows = queries.market_summary(con, limit=limit)
-        return _table(["run", "市場", "版", "params", "n", "現実らしさ", "年率ボラ", "尖度H1", "分散比", "ダマシ率"],
+        return _table(["run", "市場", "版", "params", "n", "現実らしさ", "年率ボラ", "尖度H1(切詰)", "分散比",
+                       "ダマシ率"],
                       [[r["run_id"], r["market_label"], r["market_version"], r["params_hash"], r["n_seeds"],
-                        _f(r["realism_score"], 1), _f(r["annual_vol"], 3), _f(r["kurt_h1"], 1),
+                        _f(r["realism_score"], 1), _f(r["annual_vol"], 3), _f(r["kurt_h1_trim"], 1),
                         _f(r["vr_h1_d1"], 3), _f(r["false_breakout_rate"], 3)] for r in rows])
     rows = queries.strategy_ranking(con, limit)
     return _table(["run", "市場", "ブローカー", "戦略", "n", "シャープ", "素のシャープ", "損益平均", "pip/年",

@@ -65,8 +65,12 @@ class PathResult:
 def plan(con, cfg: ExperimentConfig) -> tuple[int, list[PathTask]]:
     tasks: list[PathTask] = []
     with Tx(con):
+        config = cfg.to_dict()
+        # プリセットの中身は版によって変わるので、実際に使った値を記録しておく
+        config["brokers_resolved"] = {b.label: BrokerConfig.preset(b.preset, b.overrides).to_dict()
+                                      for b in cfg.brokers}
         run_id = writer.create_run(con, name=cfg.name, kind=cfg.kind, proposal=cfg.proposal, git_sha=git_sha(),
-                                   years=cfg.years, seeds=cfg.seeds, config=cfg.to_dict(), notes=cfg.notes)
+                                   years=cfg.years, seeds=cfg.seeds, config=config, notes=cfg.notes)
         for m in cfg.markets:
             model = MARKETS.create(m.model, m.params)
             seeds = m.seeds or cfg.seeds
@@ -123,7 +127,7 @@ def run_path(db_path: str, task: PathTask, cfg: ExperimentConfig) -> PathResult:
         facts["_checks"] = score["checks"]
         candle_tf = _candle_timeframe(cfg, md)
         writer.record_path(con, task.path_id, md, seed=task.seed, detail=task.detail, candle_tf=candle_tf,
-                           facts=facts, score=score)
+                           facts=facts, score=score, events=cfg.storage.events)
         for job in task.jobs:
             _run_job(con, job, task, md, cfg, candle_tf)
         writer.set_path_status(con, task.path_id, "done")

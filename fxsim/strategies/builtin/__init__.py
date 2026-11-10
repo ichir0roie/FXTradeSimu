@@ -1,9 +1,35 @@
-"""組み込みの戦略。ファイル 1 つ = 戦略 1 つ。追加したらここで import する。"""
+"""組み込みの戦略。ファイル 1 つ = 戦略 1 つ(betting.py だけは賭け方ごとの名前でも登録する)。
+
+追加したらここで import する。
+"""
 from . import (  # noqa: F401
+    adx_trend,
+    betting,
     bollinger_reversion,
     buy_and_hold,
+    carry_trade,
+    direction_null,
     donchian_breakout,
+    gotobi,
+    heikin_ashi,
+    ichimoku,
+    kalman_trend,
+    london_breakout,
+    long_term_value,
     ma_cross,
+    macd_cross,
+    nanpin_martingale,
+    online_logit,
+    parabolic_sar,
+    perfect_order,
+    pivot_reversal,
     random_entry,
+    regime_adaptive,
+    rsi_reversion,
+    scalping,
     simple_follower,
+    stochastic_reversion,
+    tsmom,
+    turtle,
+    vol_target_trend,
 )

@@ -67,7 +67,7 @@ def pattern_key(md: MarketData, seed: int, candle_tf: int) -> str:
 
 
 def record_path(con: sqlite3.Connection, path_id: int, md: MarketData, *, seed: int, detail: bool, candle_tf: int,
-                facts: dict, score: dict) -> None:
+                facts: dict, score: dict, events: bool = True) -> None:
     """経路の性質を書き、詳細保存なら相場パターンの中身(足・イベント)を 1 度だけ保存する。"""
     key = pattern_key(md, seed, candle_tf)
     with Tx(con):
@@ -75,24 +75,37 @@ def record_path(con: sqlite3.Connection, path_id: int, md: MarketData, *, seed: 
                     " realism_score=?, n_fail=?, data_key=? WHERE id=?",
                     (candle_tf, _sec(md.times[0]), _sec(md.times[-1]), dumps(facts), score["realism_score"],
                      score["n_fail"], key if detail else None, path_id))
-        if not detail or con.execute("SELECT 1 FROM pattern_data WHERE data_key=?", (key,)).fetchone():
+        if not detail:
+            return
+        known = con.execute("SELECT n_events FROM pattern_data WHERE data_key=?", (key,)).fetchone()
+        if known is not None:
+            # 先にイベント無しで保存されたパターンを、イベントを残したい実験が使うときは、イベントだけ足す
+            if events and not known[0]:
+                rows = _event_rows(key, md)
+                con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", rows)
+                con.execute("UPDATE pattern_data SET n_events=? WHERE data_key=?", (len(rows), key))
             return
         b = md.bars(candle_tf)
         con.executemany(
             "INSERT OR REPLACE INTO candles VALUES (?,?,?,?,?,?,?)",
             zip([key] * len(b), (b.t // NS).tolist(), b.open.tolist(), b.high.tolist(), b.low.tolist(),
                 b.close.tolist(), (b.spread_mean / md.pip).tolist(), strict=True))
-        events = []
-        for e in md.events:
-            if e["kind"] in SKIP_EVENT_KINDS:
-                continue
-            d = {k: v for k, v in e.items() if k not in ("idx", "kind")}
-            pips = d.get("pips", d.get("final_pips", d.get("overshoot_pips")))
-            events.append((key, _sec(md.times[e["idx"]]), e["kind"], d.get("direction"), pips, dumps(d)))
-        con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", events)
+        rows = _event_rows(key, md) if events else []
+        con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", rows)
         con.execute("INSERT INTO pattern_data VALUES (?,?,?,?,?,?,?,?,?)",
                     (key, md.model_info["name"], seed, candle_tf, _sec(md.times[0]), _sec(md.times[-1]), len(b),
-                     len(events), now_iso()))
+                     len(rows), now_iso()))
+
+
+def _event_rows(key: str, md: MarketData) -> list[tuple]:
+    rows = []
+    for e in md.events:
+        if e["kind"] in SKIP_EVENT_KINDS:
+            continue
+        d = {k: v for k, v in e.items() if k not in ("idx", "kind")}
+        pips = d.get("pips", d.get("final_pips", d.get("overshoot_pips")))
+        rows.append((key, _sec(md.times[e["idx"]]), e["kind"], d.get("direction"), pips, dumps(d)))
+    return rows
 
 
 def set_path_status(con: sqlite3.Connection, path_id: int, status: str) -> None:
@@ -108,6 +121,37 @@ def _bucket_last(t_ns: np.ndarray, minutes: int) -> tuple[np.ndarray, np.ndarray
     key = (t_ns + off) // (minutes * NS_MIN)
     last = np.flatnonzero(np.r_[key[1:] != key[:-1], True])
     return last, (key[last] * minutes * NS_MIN - off) // NS
+
+
+def compact_equity(con: sqlite3.Connection, run_id: int, minutes: int, detail_minutes: int | None = None) -> int:
+    """保存済みの資産曲線を粗い間隔に間引く(DB を小さくする)。消した行の数を返す。
+
+    各束の最後の点だけを残し、時刻を束の開始にそろえる(書き込み時の間引きと同じ形)。
+    詳細保存の経路のジョブは detail_minutes(None なら間引かない)。成績(jobs)は変えない。
+    """
+    off = BAR_OFFSET_MINUTES * NS_MIN
+    jobs = con.execute("SELECT j.id, p.detail FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ?",
+                       (run_id,)).fetchall()
+    removed = 0
+    with Tx(con):
+        for job_id, detail in jobs:
+            m = detail_minutes if detail else minutes
+            if not m:
+                continue
+            rows = con.execute("SELECT t, balance, equity FROM equity WHERE job_id = ? ORDER BY t",
+                               (job_id,)).fetchall()
+            if not rows:
+                continue
+            keep: dict[int, tuple] = {}
+            for t, bal, eq in rows:
+                keep[(t * NS + off) // (m * NS_MIN)] = (bal, eq)          # 束ごとに最後の点
+            if len(keep) == len(rows):
+                continue
+            con.execute("DELETE FROM equity WHERE job_id = ?", (job_id,))
+            con.executemany("INSERT INTO equity VALUES (?,?,?,?)",
+                            [(job_id, (k * m * NS_MIN - off) // NS, bal, eq) for k, (bal, eq) in keep.items()])
+            removed += len(rows) - len(keep)
+    return removed
 
 
 def mark_job(con: sqlite3.Connection, job_id: int, status: str, note: str) -> None:

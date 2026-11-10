@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePoll } from "@/lib/usePoll";
-import { fmt, pct, tfLabel, tone, tTone, yen } from "@/lib/format";
+import { fmt, neg, pct, tTone, tfLabel, tone, yen } from "@/lib/format";
 import { summarize } from "@/lib/stats";
-import type { JobRow, MetricKey, PathRow, RunDetail } from "@/lib/types";
+import type { CostRow, JobRow, MetricKey, PathRow, RunDetail } from "@/lib/types";
 import { Progress, Status } from "./Progress";
 import { StripPlot, type Pattern } from "./StripPlot";
 
@@ -22,7 +22,9 @@ const METRICS: { key: MetricKey; label: string; f: Fmt; ratio: boolean }[] = [
 
 const FACTS: [string, string, number][] = [
   ["annual_vol", "年率ボラ", 3],
-  ["kurt_h1", "尖度H1", 1],
+  ["kurt_h1_trim", "尖度H1(切詰)", 1],
+  ["max_h1_move_pct", "最大H1変動%", 2],
+  ["big_h1_moves_per_year", "1%超の足/年", 1],
   ["acf_abs_h1_lag1", "|r|自己相関", 3],
   ["vr_h1_d1", "分散比H1→D1", 3],
   ["daily_range_pct", "日足値幅%", 2],
@@ -50,7 +52,47 @@ export default function RunView({ id }: { id: number }) {
       </div>
       <MarketFacts paths={data.paths} />
       <StrategyStats data={data} />
+      {data.costs?.length > 0 && <CostTable rows={data.costs} />}
       <JobTable jobs={data.jobs} />
+    </>
+  );
+}
+
+/** ブローカーの費用と悪意が損益のどこを削ったか。素の損益 − 各費用 + スワップ = 取引の損益。 */
+function CostTable({ rows }: { rows: CostRow[] }) {
+  return (
+    <>
+      <h2>費用の内訳(ブローカー x 戦略、パターン平均)</h2>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="l">ブローカー</th><th className="l">戦略</th><th>n</th><th>素の損益</th><th>スプレッド</th>
+              <th>スリッページ</th><th>手数料</th><th>スワップ</th><th>損益</th><th>狩り</th><th>ロスカット</th>
+              <th>拒否</th><th>ゼロカット</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c) => (
+              <tr key={`${c.broker}/${c.strategy_label}`}>
+                <td className="l">{c.broker}</td>
+                <td className="l">{c.strategy_label}</td>
+                <td className="num">{c.n}</td>
+                <td className={`num ${tone(c.gross_pnl)}`}>{yen(c.gross_pnl)}</td>
+                <td className={`num ${tone(neg(c.spread))}`}>{yen(neg(c.spread))}</td>
+                <td className={`num ${tone(neg(c.slippage))}`}>{yen(neg(c.slippage))}</td>
+                <td className={`num ${tone(neg(c.commission))}`}>{yen(neg(c.commission))}</td>
+                <td className={`num ${tone(c.swap)}`}>{yen(c.swap)}</td>
+                <td className={`num ${tone(c.pnl)}`}>{yen(c.pnl)}</td>
+                <td className="num">{fmt(c.hunted, 1)}</td>
+                <td className="num">{fmt(c.losscut, 1)}</td>
+                <td className="num">{fmt(c.rejected, 1)}</td>
+                <td className="num">{yen(c.zero_cut)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

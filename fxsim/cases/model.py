@@ -89,6 +89,7 @@ class TestCase:
     period: dict = field(default_factory=lambda: {"years": 3})
     detail_seeds: list[int] | None = None
     workers: int = 0
+    verify: bool = False      # True: 方向でたらめ版(direction_null)を対で回し、合否を判定して記録する
     path: str = ""
 
     def __post_init__(self):
@@ -119,4 +120,5 @@ class TestCase:
 
     def definition(self) -> dict:
         return {"id": self.id, "name": self.name, "behavior": self.behavior, "period": self.period,
-                "patterns": [p.__dict__ for p in self.patterns], "detail_seeds": self.detail_seeds}
+                "patterns": [p.__dict__ for p in self.patterns], "detail_seeds": self.detail_seeds,
+                "verify": self.verify}

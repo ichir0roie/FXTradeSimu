@@ -23,6 +23,11 @@ class CrowdSqueeze(Component):
       - 順張りが多い時期: 伸びた分が戻される(トレンドフォローが負ける)
       - 逆張りが多い時期: 伸びた方向にさらに走る(逆張りが焼かれる)
     どちらが多いかは外から見えないので、単純な規則はどちらも安定して勝てない。
+
+    chase_gain > 0(v2)では、群衆は「直近で儲かっている側」に群がる。相場の中で、群衆が見ている
+    順張り(EMA からの乖離の向き)の損益を perf_halflife_days の EMA で測り、勝っている側へ w を寄せる。
+    どの手法が勝ち始めても、群衆がそこへ集まり、相場がそれを狩るので、優位性が長続きしない(適応する悪意)。
+    w はダマシ・ストップ狩りも読むので、それらの結末も一緒に適応する。
     """
 
     key = "crowd_squeeze"
@@ -34,6 +39,8 @@ class CrowdSqueeze(Component):
         ema_hours: float = 24.0         # 群衆が見ている移動平均
         mix_halflife_days: float = 8.0  # 群衆の構成が入れ替わる速さ
         mix_scale: float = 1.2          # w = tanh(u) の u の標準偏差
+        chase_gain: float = 0.0         # 直近で勝っている側へ群衆が寄る強さ(0 = v1、外から決まるだけ)
+        perf_halflife_days: float = 10.0
         block_minutes: int = 15
 
     def apply(self, ctx: GenContext) -> None:
@@ -58,16 +65,25 @@ class CrowdSqueeze(Component):
         scale = sigma_block
         u = ctx.rng.standard_normal() * self.p.mix_scale
         tanh = np.tanh
+        chase = self.p.chase_gain
+        a_perf = 1 - 0.5 ** (1 / (self.p.perf_halflife_days * 24 * blocks_per_hour))
+        perf_norm = np.sqrt(a_perf / (2 - a_perf))     # perf の定常標準偏差(1 ブロックの損益を 1 としたとき)
+        perf = 0.0
+        pos = 0.0
         for b in range(nb):
             p = cl[b] + off
-            scale += a_sc * (abs(p - p_prev) - scale)
+            dp = p - p_prev
+            scale += a_sc * (abs(dp) - scale)
             p_prev = p
+            if chase:
+                perf += a_perf * (pos * dp / (scale + 1e-12) - perf)   # 群衆の順張りの損益(正規化)
             ema += a_ema * (p - ema)
             z = (p - ema) / (scale * np.sqrt(n_ema) * 0.5 + 1e-12)
+            pos = tanh(z)
             u = a_u * u + noise[b]
-            w = tanh(u)
+            w = tanh(u + chase * perf / perf_norm) if chase else tanh(u)
             w_trace[b] = w
-            step = -k * w * tanh(z) * scale
+            step = -k * w * pos * scale
             d[b] = step
             off += step
         apply_block_increments(ctx, d, bs)
@@ -87,6 +103,7 @@ class StopHunt(Component):
     戻りの確率は revert_prob + crowd_gain * w。w は crowd_squeeze が残す群衆の構成
     (+1 順張り勢が多い / -1 逆張り勢が多い)で、無ければ 0。
     つまり順張り勢が多ければ戻し、逆張り勢が多ければ走らせる。どちらに賭けても当てにならない。
+    adapt_gain > 0(v2)では、直近でヒゲの逆張りが儲かっていた(戻りが続いた)ほど連鎖を増やす。
     """
 
     key = "stop_hunt"
@@ -104,6 +121,8 @@ class StopHunt(Component):
         reversal_pips: tuple = (0.0, 12.0)
         revert_prob: float = 0.65
         crowd_gain: float = 0.4
+        adapt_gain: float = 0.0          # v2: 直近でヒゲの逆張りが儲かっていたら連鎖を増やす強さ(0 = v1)
+        adapt_halflife: float = 20.0     # 何回分のストップ狩りの結末を覚えているか(半減期、回数)
         cascade_pips: tuple = (0.0, 6.0)      # 水準までの距離 + overshoot に足す分
         cooldown_hours: float = 4.0
         block_minutes: int = 15
@@ -130,7 +149,10 @@ class StopHunt(Component):
         cooldown = int(p.cooldown_hours * 60 / p.block_minutes)
         last = -10 ** 9
         mix = ctx.meta.get("crowd_mix")
+        a_fade = 1 - 0.5 ** (1 / max(p.adapt_halflife, 1e-9))
+        fade_perf = 0.0                  # ヒゲを逆張りした人の最近の損益(+1 = 戻り続き、-1 = 連鎖続き)
         add = np.zeros(ctx.n)
+        persist = np.zeros(ctx.n + 1)   # 持続するずれは差分で積み、最後に 1 回だけ累積する
         mask = np.zeros(ctx.n, dtype=bool)
         sm = ctx.base.step_minutes
         for b in cand.tolist():
@@ -147,7 +169,9 @@ class StopHunt(Component):
             decay = max(1.0, rng.uniform(*p.decay_minutes) / sm)
             s0 = int(ends[b]) + 1
             w = float(mix[s0 - 1]) if mix is not None else 0.0
-            revert = rng.random() < np.clip(p.revert_prob + p.crowd_gain * w, 0.0, 1.0)
+            prob = p.revert_prob + p.crowd_gain * w - p.adapt_gain * fade_perf
+            revert = rng.random() < np.clip(prob, 0.0, 1.0)
+            fade_perf += a_fade * ((1.0 if revert else -1.0) - fade_perf)
             if revert:
                 final = -ctx.pips_to_log(rng.uniform(*p.reversal_pips))   # ヒゲと逆へ
             else:
@@ -163,10 +187,10 @@ class StopHunt(Component):
             add[s0:s0 + L] += direction * k
             mask[s0:s0 + rise + int(decay)] = True
             if s0 + L < ctx.n:
-                add[s0 + L:] += direction * final   # ずれは持続する
+                persist[s0 + L] += direction * final   # ずれは持続する
             ctx.event(s0, "stop_hunt" if revert else "stop_cascade", direction=int(direction), level=float(level),
                       overshoot_pips=float(over), final_pips=float(ctx.log_to_pips(final)))
-        ctx.logp = ctx.logp + add
+        ctx.logp = ctx.logp + add + np.cumsum(persist[:ctx.n])
         ctx.meta["hunt_mask"] = mask
 
 
@@ -180,6 +204,8 @@ class FalseBreakout(Component):
     順張り勢が多いときは抜けを罠にし、逆張り勢が多いときは抜けを走らせる。
     ダマシだけだと日足が平均回帰しすぎて(分散比が 1 を大きく割る)逆張りが楽に勝つので、
     走りと釣り合わせて、ブレイクアウトを「当たり外れの大きい賭け」にする。
+    adapt_gain > 0(v2)では、直近で抜けに乗った人が儲かっていた(走りが続いた)ほど罠を増やし、
+    罠が続いていたほど走らせる。どちらに賭けても、儲かった分だけ次は裏切られる。
     """
 
     key = "false_breakout"
@@ -197,6 +223,8 @@ class FalseBreakout(Component):
         follow_prob: float = 0.2
         follow_pips: tuple = (5.0, 25.0)
         crowd_gain: float = 0.35
+        adapt_gain: float = 0.0          # v2: 直近で抜けに乗った人が儲かっていたら罠を増やす強さ(0 = v1)
+        adapt_halflife: float = 20.0     # 何回分の抜けの結末を覚えているか(半減期、回数)
         cooldown_hours: float = 6.0
         block_minutes: int = 15
 
@@ -212,6 +240,8 @@ class FalseBreakout(Component):
         u = rng.random(nb).tolist()
         mix = ctx.meta.get("crowd_mix")
         mix_b = mix[ends].tolist() if mix is not None else [0.0] * nb
+        a_bo = 1 - 0.5 ** (1 / max(p.adapt_halflife, 1e-9))
+        bo_perf = 0.0                    # 抜けに乗った人の最近の損益(+1 = 走り続き、-1 = 罠続き)
         pending = np.zeros(nb + 64)   # ブロックごとに加える log 変化
         off = 0.0
         dq_hi: deque = deque()
@@ -233,8 +263,9 @@ class FalseBreakout(Component):
                     r = reg_b[b]
                     w = mix_b[b]
                     prob = p.prob_range if r == 0 else (p.prob_trend if r in (1, 2) else p.prob_other)
-                    prob = min(max(prob + p.crowd_gain * w, 0.0), 1.0)
-                    run = min(max(p.follow_prob - p.crowd_gain * w, 0.0), 1.0 - prob)
+                    adj = p.adapt_gain * bo_perf
+                    prob = min(max(prob + p.crowd_gain * w + adj, 0.0), 1.0)
+                    run = min(max(p.follow_prob - p.crowd_gain * w - adj, 0.0), 1.0 - prob)
                     if u[b] < prob:
                         last = b
                         excess = (c - prior_hi) if direction > 0 else (prior_lo - c)
@@ -244,6 +275,7 @@ class FalseBreakout(Component):
                         pending[b + delay:b + delay + rev] += -direction * total / rev
                         ctx.event(int(ends[b]) + 1, "false_breakout", direction=direction,
                                   pips=float(total / pip_log))
+                        bo_perf += a_bo * (-1.0 - bo_perf)
                     elif u[b] < prob + run:
                         last = b
                         total = rng.uniform(*p.follow_pips) * pip_log
@@ -251,6 +283,7 @@ class FalseBreakout(Component):
                         pending[b + 1:b + 1 + rev] += direction * total / rev
                         ctx.event(int(ends[b]) + 1, "breakout_run", direction=direction,
                                   pips=float(total / pip_log))
+                        bo_perf += a_bo * (1.0 - bo_perf)
             # 窓を更新(単調デック)
             while dq_hi and dq_hi[-1][1] <= h:
                 dq_hi.pop()

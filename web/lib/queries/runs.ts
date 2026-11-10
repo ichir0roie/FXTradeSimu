@@ -1,5 +1,5 @@
 import { all, one, parseJson } from "../db";
-import type { JobGroup, JobRow, PathRow, RunDetail, RunListItem, StrategySummaryRow } from "../types";
+import type { CostRow, JobGroup, JobRow, PathRow, RunDetail, RunListItem, StrategySummaryRow } from "../types";
 import { initialBalance, livePnl } from "./common";
 
 export function listRuns(): RunListItem[] {
@@ -40,6 +40,27 @@ function groupJobs(jobs: JobRow[]): JobGroup[] {
   );
 }
 
+/** ブローカー x 戦略ごとの費用の内訳(円、パターン平均)。fxsim/storage/queries.py の cost_summary と同じ。 */
+function costSummary(id: number): CostRow[] {
+  return all(
+    `SELECT j.broker, j.strategy_label, COUNT(*) AS n,
+            AVG(json_extract(j.metrics_json, '$.costs.gross_pnl')) AS gross_pnl,
+            AVG(json_extract(j.metrics_json, '$.costs.spread')) AS spread,
+            AVG(json_extract(j.metrics_json, '$.costs.slippage')) AS slippage,
+            AVG(json_extract(j.metrics_json, '$.costs.commission')) AS commission,
+            AVG(json_extract(j.metrics_json, '$.costs.swap')) AS swap,
+            AVG(j.pnl) AS pnl,
+            AVG(json_extract(j.metrics_json, '$.hunted')) AS hunted,
+            AVG(json_extract(j.metrics_json, '$.losscut')) AS losscut,
+            AVG(json_extract(j.metrics_json, '$.rejected')) AS rejected,
+            AVG(json_extract(j.metrics_json, '$.zero_cut')) AS zero_cut
+     FROM jobs j WHERE j.run_id = ? AND j.status = 'done'
+       AND json_extract(j.metrics_json, '$.costs') IS NOT NULL
+     GROUP BY j.broker, j.strategy_label ORDER BY j.broker, j.strategy_label`,
+    id,
+  ) as CostRow[];
+}
+
 export function runDetail(id: number): RunDetail | null {
   const run = one(`SELECT * FROM runs WHERE id = ?`, id);
   if (!run) return null;
@@ -74,6 +95,7 @@ export function runDetail(id: number): RunDetail | null {
     paths,
     jobs,
     groups: groupJobs(jobs),
+    costs: costSummary(id),
     progress: { finished, total: jobs.length },
   };
 }

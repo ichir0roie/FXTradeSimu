@@ -23,7 +23,7 @@ export default function CasesView() {
           <thead>
             <tr>
               <th className="l">ID</th><th className="l">名前</th><th className="l">動作</th><th className="l">期間</th><th className="l">パターン</th>
-              <th className="l">状態</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>最小</th><th>最大</th><th>プラスの割合</th><th>t値</th><th>シャープ平均</th><th className="l">run</th>
+              <th className="l">状態</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>最小</th><th>最大</th><th>プラスの割合</th><th>t値</th><th>シャープ平均</th><th className="l">判定</th><th className="l">run</th>
             </tr>
           </thead>
           <tbody>
@@ -34,7 +34,7 @@ export default function CasesView() {
               const per = t.def.period?.years ? `${t.def.period.years} 年` : `${t.def.period?.start}〜${t.def.period?.end}`;
               return (
                 <tr key={t.id}>
-                  <td className="l">{t.id}</td>
+                  <td className="l"><Link href={`/cases/${encodeURIComponent(t.id)}`}>{t.id}</Link></td>
                   <td className="l" style={{ whiteSpace: "normal", minWidth: 220 }}>{t.name}</td>
                   <td className="l">{t.def.behavior}</td>
                   <td className="l">{per}</td>
@@ -54,6 +54,7 @@ export default function CasesView() {
                   <td className="num">{pct(p?.positive_ratio, 0)}</td>
                   <td className={`num ${tTone(p?.t)}`}>{fmt(p?.t)}</td>
                   <td className={`num ${tone(a?.sharpe?.mean)}`}>{fmt(a?.sharpe?.mean)}</td>
+                  <td className="l">{r?.summary?.verdict ? <Link href={`/cases/${encodeURIComponent(t.id)}`}>{r.summary.verdict.verdict}</Link> : "–"}</td>
                   <td className="l">{r?.run_id ? <Link href={`/runs/${r.run_id}`}>#{r.run_id} →</Link> : "–"}</td>
                 </tr>
               );

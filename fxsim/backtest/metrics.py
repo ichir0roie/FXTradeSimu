@@ -14,8 +14,20 @@ def daily_equity(bt: Backtester) -> tuple[np.ndarray, np.ndarray]:
     return days[last] * NS_DAY - 2 * 3_600_000_000_000, bt.equity_curve[last]
 
 
+def yearly_pnl(day_t: np.ndarray, eq: np.ndarray, eq0: float) -> dict[str, float]:
+    """暦年(UTC)ごとの損益(円)。年末の有効証拠金 − 前年末(最初の年は初期資金)。"""
+    years = day_t.astype("datetime64[ns]").astype("datetime64[Y]").astype(int) + 1970
+    out = {}
+    prev = eq0
+    for y in np.unique(years):
+        last = eq[np.flatnonzero(years == y)[-1]]
+        out[str(int(y))] = float(last - prev)
+        prev = last
+    return out
+
+
 def compute_metrics(bt: Backtester) -> dict:
-    _, eq = daily_equity(bt)
+    day_t, eq = daily_equity(bt)
     eq0 = bt.cfg.initial_balance
     years = max(len(eq) / 260.0, 1e-9)
     final = float(eq[-1])
@@ -75,4 +87,26 @@ def compute_metrics(bt: Backtester) -> dict:
         "ruined": bool(bt.ruined),
         "exit_reasons": reasons,
         "years": years,
+        "yearly_pnl": yearly_pnl(day_t, eq, eq0),
+        "costs": cost_breakdown(bt),
+        "rejected": int(bt.stats.get("rejected", 0)),
+        "zero_cut": float(bt.stats.get("zero_cut", 0.0)),
+    }
+
+
+def cost_breakdown(bt: Backtester) -> dict:
+    """費用の内訳(円)。spread + slippage + commission − swap が、素の損益と実際の損益の差。"""
+    pip = bt.pip
+    spread_and_slip = sum(t.cost_pips * pip * t.units for t in bt.trades)
+    slippage = sum(t.slippage for t in bt.trades)
+    commission = sum(t.commission for t in bt.trades)
+    swap = sum(t.swap for t in bt.trades)
+    gross = sum(t.gross_pips * pip * t.units for t in bt.trades)
+    return {
+        "gross_pnl": float(gross),
+        "spread": float(spread_and_slip - slippage),
+        "slippage": float(slippage),
+        "commission": float(commission),
+        "swap": float(swap),
+        "total": float(spread_and_slip + commission - swap),
     }

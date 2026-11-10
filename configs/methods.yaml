@@ -1,0 +1,62 @@
+# E006: よくある投資手法(デイトレード・テクニカル・中長期・新しめの手法・ギャンブルの賭け方)を同じ物差しで比べる。
+# 10 年 x 8 パターン、ランダム相場 4 種 + 実データ(日足の戦略だけ)、ブローカー 2 種。
+# 実行: python -m fxsim run configs/methods.yaml   (4 コアで 10 分前後)
+name: methods
+proposal: E006
+notes: S007〜S031 の手法と random_entry(帰無仮説)、buy_and_hold(基準)
+years: 10
+seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+detail_seeds: [1]
+workers: 4
+engine: {initial_balance: 1000000, sizing: fixed, units: 10000}
+storage:
+  candle_timeframe: 1440
+  equity_detail_timeframe: 10080
+  equity_timeframe: 129600       # それ以外は約 90 日ごと(手法の数が多いので DB を小さく保つ)
+  trades: none
+  events: false
+live: {flush_every: 2000, delay_ms: 0}
+brokers: [fair, malicious]
+markets:
+  - real                    # 実データの再生(日足のみ)
+  - real_bridge             # 実データの日足を骨格に、日中をランダム合成
+  - real_bootstrap          # 実データのリターンを並べ替えた別の歴史
+  - random_walk             # 悪意なしの基準
+  - malicious               # 悪意ある合成相場
+strategies:
+  - random_entry
+  - buy_and_hold
+  # デイトレード
+  - london_breakout
+  - gotobi
+  - pivot_reversal
+  - scalping
+  # オシレーター・テクニカル
+  - rsi_reversion
+  - stochastic_reversion
+  - macd_cross
+  - ichimoku
+  - parabolic_sar
+  - adx_trend
+  - perfect_order
+  - heikin_ashi
+  # 中長期
+  - turtle
+  - carry_trade
+  - {name: carry_trade, label: carry_trend, params: {trend_n: 200}}
+  - long_term_value
+  - vol_target_trend
+  # 新しめの手法
+  - regime_adaptive
+  - online_logit
+  - kalman_trend
+  # ギャンブルの賭け方(コイン投げの向き、±20 pip の賭け)
+  - bet
+  - martingale
+  - paroli
+  - dalembert
+  - fibonacci
+  - labouchere
+  - oscars_grind
+  - kelly
+  - nanpin_martingale

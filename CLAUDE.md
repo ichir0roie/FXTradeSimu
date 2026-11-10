@@ -31,7 +31,9 @@ ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦�
 3. **実装する**
    - 市場の悪意を増やす → 部品クラスを書き、既存モデルを複製した新しいモデル(新 ID・version)に組み込む。
      既存モデルの既定値を書き換えるときは version を上げ、提案書に旧値を残す
-   - 戦略 → `Strategy` を継承。`prepare` は因果的な numpy 計算だけ、`on_bar(i)` は足 i の終値までを見る
+   - 戦略 → `Strategy` を継承。`prepare` は因果的な numpy 計算だけ、`on_bar(i)` は足 i の終値までを見る。
+     量を変える戦略は `ctx.buy(units=)`、ナンピン・積み増しは `ctx.add`、前回の結果は `ctx.trades`。
+     賭け方(マーチンゲールなど)は `fxsim/strategies/staking.py` を使う
 4. **検査する**: `python -m pytest -q` と `python -m fxsim check-lookahead`
 5. **評価する**(下の「物差し」)。結果は自動で SQLite に入る
 6. **記録する**: 提案書に run 番号・主要な数字(表を `python -m fxsim report <run>` から貼る)・判定・次の一手
@@ -49,7 +51,8 @@ python -m fxsim ablate <model> --years 3 --seeds 1-4 --proposal M00X    # どの
 - **悪用されにくさ**: パネル戦略(random_entry 以外)の **素のシャープ(gross_sharpe、コスト抜き)の絶対値の最大**。
   悪意ある市場の目標は「どの単純な規則にも安定した素の優位性が無い」= 0 に近いほど良い(目安 < 0.3)。
   正にも負にも大きいなら、その規則(または逆張り)で稼げる穴がある
-- **コストと悪意の重さ**: random_entry の net と、fair / malicious ブローカーの差
+- **コストと悪意の重さ**: random_entry の net と、fair / ecn / malicious ブローカーの差。
+  どの費用が効いたかは report の「費用の内訳」(スプレッド・スリッページ・手数料・スワップ、狩り・拒否の回数)
 - **判定はパターン単位の t 値**(report / 画面の `t値` 列。平均 ÷ (標準偏差 / √パターン数))。|t| ≥ 2 で有意とみなす。
   取引単位の素のシャープは、同じ経路の中の取引が独立でないので有意さを大きく見せる(E001 の注意を参照)
 - 穴は短い期間では見えないことがある(M003 は 3 年 × 6 では素のシャープ 0.63、10 年 × 8 ではブレイクアウトが 8 本中 7 本プラス)。
@@ -71,14 +74,27 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 `cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
 いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
 
+### ひとつのモデルの長期検証(合否)
+```bash
+python -m fxsim verify <動作ケース> --years 30 --seeds 1-10 --block-days <戦略が見る期間より長い日数>
+```
+- 「このモデルは長期的に利益を出すか」はこれで判定する(E002)。1 本のバックテストの結果で判断しない
+- 有意性は並べ替え(real_bootstrap)で測る。real_bridge は日足の戦略では実データのコピーなので数に入れない
+- 合格の条件と落とし穴は `fxsim/verification.py` の先頭と `docs/proposals/experiments/E002-model-verification.md`
+- 判定の仕組みを変えたら、陽性対照のテスト(`test_verification_passes_a_model_with_a_real_edge`)が合格のままか確かめる
+
 ### 長期の基準実験
-`configs/long_run_baseline.yaml`(E001)。大きな変更の後は回し直し、提案書 E001 の表と比べる。
+`configs/long_run_v2.yaml`(E003、市場モデル v2)。大きな変更の後は回し直し、提案書の表と比べる。
+`configs/long_run_baseline.yaml` は E001(v1 の市場モデルの時点)の設定として残している。
 
 ## コードの約束
 
 - 乱数は必ず市場の部品なら `ctx.rng`、戦略なら `prepare(bars, rng)` の rng から。グローバル乱数を使わない(再現性)
 - 1 つの部品は `GenContext` の配列を読み書きするだけ。部品どうしの受け渡しは `ctx.meta`(例: `crowd_mix`, `regime`)
 - 価格を持続的にずらす悪意は `apply_block_increments`、一時的なヒゲは `ctx.logp` に直接足す
+- 実データの骨格に合わせた後(ANCHOR 段)に値動きを足す部品は、骨格の終値(`ctx.meta["anchor"]["idx"]`)を
+  動かさないこと(`FlashCrashOverlay._limits` を参照)
+- 尖度は数本の急変で大きく動くので、現実らしさの採点は切り詰めた尖度(`kurt_h1_trim`)で行う
 - 新しい部品は `ctx.event(idx, kind, ...)` でイベントを残す(画面のマーカーと集計に出る)。
   画面に色を付けるなら `web/components/Charts.tsx` の `EVENT_STYLE` にも足す
 - pandas 3 は配列を読み取り専用で返すことがある。書き換える配列は `to_numpy(copy=True)`
@@ -95,6 +111,7 @@ python -m fxsim run configs/quick.yaml                 # 動作確認(数十秒)
 python -m fxsim report [RUN_ID] --patterns             # 結果を Markdown で
 python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うためのゆっくりしたシミュレーション
 sqlite3 data/fxsim.sqlite "SELECT * FROM v_strategy_summary WHERE run_id = 1"
+python -m fxsim compact 1 2 --detail-equity-minutes 43200     # DB が大きくなったら資産曲線を間引く(成績は変わらない)
 ```
 
 ## 画面(利用者のローカル)
