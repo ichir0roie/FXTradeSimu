@@ -1,0 +1,7 @@
+numpy>=1.26
+pandas>=2.1
+PyYAML>=6.0
+# 任意: あれば AR(1) フィルタが速くなる
+scipy>=1.11
+# テスト
+pytest>=8
