@@ -28,6 +28,7 @@ class MarketSpec:
     model: str
     label: str
     params: dict = field(default_factory=dict)
+    seeds: list[int] | None = None        # この市場だけシード(パターン)を変えるとき
 
 
 @dataclass
@@ -35,6 +36,7 @@ class StrategySpec:
     name: str
     label: str
     params: dict = field(default_factory=dict)
+    schedule: dict = field(default_factory=dict)   # TradingSchedule(判断の間隔・取引時間)
 
 
 @dataclass
@@ -47,13 +49,13 @@ class BrokerSpec:
 def _market(x) -> MarketSpec:
     if isinstance(x, str):
         return MarketSpec(x, x)
-    return MarketSpec(x["model"], x.get("label") or x["model"], x.get("params") or {})
+    return MarketSpec(x["model"], x.get("label") or x["model"], x.get("params") or {}, x.get("seeds"))
 
 
 def _strategy(x) -> StrategySpec:
     if isinstance(x, str):
         return StrategySpec(x, x)
-    return StrategySpec(x["name"], x.get("label") or x["name"], x.get("params") or {})
+    return StrategySpec(x["name"], x.get("label") or x["name"], x.get("params") or {}, x.get("schedule") or {})
 
 
 def _broker(x) -> BrokerSpec:

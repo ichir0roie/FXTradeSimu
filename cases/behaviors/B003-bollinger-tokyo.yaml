@@ -1,0 +1,13 @@
+id: B003
+name: ボリンジャー逆張り(H1・東京時間だけ・時間外は手仕舞い)
+strategy: bollinger_reversion
+params: {n: 24, k: 2.0, atr_n: 24, sl_atr: 2.5, max_hold: 48}
+timeframe: 60
+schedule:
+  decision_every: 1
+  hours: [["09:00", "15:00"]]
+  tz: JST
+  days: [mon, tue, wed, thu, fri]
+  outside: close
+broker: malicious
+engine: {units: 10000}

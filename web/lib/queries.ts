@@ -165,6 +165,8 @@ export function jobDetail(id: number, q: { candleFrom: number; eqFrom: number; t
       metrics_json: undefined,
       params: parseJson(job.params_json, {}),
       params_json: undefined,
+      schedule: parseJson(job.schedule_json, null),
+      schedule_json: undefined,
       pnl_live: job.status === "done" ? job.pnl : job.equity != null ? job.equity - init : null,
     },
     initialBalance: init,
@@ -175,4 +177,21 @@ export function jobDetail(id: number, q: { candleFrom: number; eqFrom: number; t
     trades,
     events,
   };
+}
+
+export function casesOverview() {
+  const has = one(`SELECT name FROM sqlite_master WHERE type='table' AND name='case_defs'`);
+  if (!has) return { behaviors: [], tests: [] };
+  const defs = all(`SELECT * FROM case_defs ORDER BY id`).map((d): Row => ({ ...d, def: parseJson(d.definition_json, {}), definition_json: undefined }));
+  const runs = all(`SELECT c.*, r.status AS run_status, r.elapsed_sec FROM case_runs c LEFT JOIN runs r ON r.id = c.run_id ORDER BY c.id DESC`).map((r): Row => ({
+    ...r,
+    summary: parseJson(r.summary_json, null),
+    summary_json: undefined,
+  }));
+  const tests = defs.filter((d) => d.kind === "test").map((t) => ({
+    ...t,
+    runs: runs.filter((r) => r.test_id === t.id),
+    current: runs.find((r) => r.test_id === t.id)?.test_hash === t.hash,
+  }));
+  return { behaviors: defs.filter((d) => d.kind === "behavior"), tests };
 }

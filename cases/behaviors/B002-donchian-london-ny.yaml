@@ -1,0 +1,13 @@
+id: B002
+name: ブレイクアウト(H1・ロンドン〜NY 時間だけ・時間外は手仕舞い)
+strategy: donchian_breakout
+params: {entry_n: 48, exit_n: 24, atr_n: 24, sl_atr: 2.0}
+timeframe: 60
+schedule:
+  decision_every: 1
+  hours: [["07:00", "21:00"]]
+  tz: UTC
+  days: [mon, tue, wed, thu, fri]
+  outside: close
+broker: malicious
+engine: {units: 10000}

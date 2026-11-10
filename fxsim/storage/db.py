@@ -8,6 +8,8 @@
     jobs           経路 x ブローカー x 戦略 のバックテスト 1 本。進捗と最終指標
     equity         ジョブの資産曲線(詳細保存はローソク足と同じ間隔、ほかは日次)
     trades         ジョブの取引(既定では詳細保存のみ)
+    case_defs      動作ケース・テストケースの定義のスナップショット
+    case_runs      テストケースの実行記録(どの定義の版を、どの run で回し、要約はどうだったか)
 集計のビュー:
     v_market_summary    実験 x 市場の案ごとに、シードを平均した facts と点数
     v_strategy_summary  実験 x 市場 x ブローカー x 戦略ごとに、シードを平均した成績
@@ -85,6 +87,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     strategy_version TEXT,
     params_hash TEXT,
     params_json TEXT,
+    schedule_json TEXT,
     timeframe INTEGER,
     status TEXT NOT NULL,
     bars_total INTEGER,
@@ -120,6 +123,31 @@ CREATE TABLE IF NOT EXISTS trades (
     reason TEXT, bars_held INTEGER,
     PRIMARY KEY (job_id, seq)
 ) WITHOUT ROWID;
+
+-- 動作ケース・テストケースの定義(実行時点のスナップショット)と、テストケースの実行記録
+CREATE TABLE IF NOT EXISTS case_defs (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,              -- behavior | test
+    name TEXT,
+    path TEXT,
+    definition_json TEXT,
+    hash TEXT,
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS case_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_id TEXT NOT NULL,
+    behavior_id TEXT NOT NULL,
+    run_id INTEGER REFERENCES runs(id) ON DELETE CASCADE,
+    test_hash TEXT,
+    behavior_hash TEXT,
+    code_sha TEXT,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    finished_at TEXT,
+    summary_json TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_case_runs_test ON case_runs(test_id);
 
 DROP VIEW IF EXISTS v_market_summary;
 CREATE VIEW v_market_summary AS

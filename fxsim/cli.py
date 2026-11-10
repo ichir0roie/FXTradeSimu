@@ -9,6 +9,9 @@
     report RUN_ID                実験結果を Markdown で表示
     leaderboard                  全実験の横断ランキング
     check-lookahead [NAME...]    戦略が未来を見ていないか検査
+    cases list                   動作ケース・テストケースと最新の結果
+    cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
+    cases show ID                テストケースの最新結果
 """
 from __future__ import annotations
 
@@ -161,6 +164,29 @@ def cmd_check_lookahead(args) -> None:
     sys.exit(1 if bad else 0)
 
 
+def cmd_cases(args) -> None:
+    from .cases import list_cases, run_cases
+    from .experiments.report import run_report
+
+    con = init_db(args.db)
+    if args.action == "list":
+        print(list_cases(con))
+    elif args.action == "run":
+        if not args.ids and not args.all:
+            sys.exit("テストケースの ID を指定するか --all を付けてください")
+        run_cases(con, args.db, args.ids or None, force=args.force)
+        print()
+        print(list_cases(con))
+    elif args.action == "show":
+        if not args.ids:
+            sys.exit("テストケースの ID を指定してください")
+        row = con.execute("SELECT run_id FROM case_runs WHERE test_id=? AND status='done' ORDER BY id DESC LIMIT 1",
+                          (args.ids[0],)).fetchone()
+        if not row:
+            sys.exit(f"{args.ids[0]} はまだ実行されていません")
+        print(run_report(con, row[0], patterns=True))
+
+
 def cmd_init_db(args) -> None:
     init_db(args.db).close()
     print(f"initialized {args.db}")
@@ -229,6 +255,14 @@ def main(argv=None) -> None:
     p = sub.add_parser("check-lookahead")
     p.add_argument("names", nargs="*")
     p.set_defaults(func=cmd_check_lookahead)
+
+    p = sub.add_parser("cases")
+    p.add_argument("action", choices=["list", "run", "show"])
+    p.add_argument("ids", nargs="*")
+    p.add_argument("--all", action="store_true")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--db", default=str(DEFAULT_DB))
+    p.set_defaults(func=cmd_cases)
 
     p = sub.add_parser("init-db")
     p.add_argument("--db", default=str(DEFAULT_DB))

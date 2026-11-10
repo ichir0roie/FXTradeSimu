@@ -1,0 +1,8 @@
+id: B004
+name: EMA 交差のドテン(日足・1 日 1 回判断)
+strategy: ma_cross
+params: {fast: 10, slow: 50, atr_n: 20, sl_atr: 3.0}
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

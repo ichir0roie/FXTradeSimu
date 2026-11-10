@@ -78,6 +78,14 @@ export default function JobView({ id }: { id: number }) {
         {j.strategy_label} <span className="muted">on</span> {j.market_label} <span className="muted">seed {j.seed} / {j.broker}</span>{" "}
         <Status s={j.status} />
       </h1>
+      <div className="sub">
+        足 {j.timeframe >= 1440 ? "D1" : j.timeframe >= 60 ? `H${j.timeframe / 60}` : `M${j.timeframe}`}
+        {j.schedule && (
+          <> / 判断 {j.schedule.decision_every} 本ごと / 取引時間 {j.schedule.hours?.length ? j.schedule.hours.map((h: string[]) => `${h[0]}–${h[1]}`).join(", ") + " " + j.schedule.tz : "終日"}
+            {" "}/ 時間外 {j.schedule.outside === "close" ? "手仕舞い" : "持ち越し"}</>
+        )}
+        {" "}/ パラメータ <code>{JSON.stringify(j.params)}</code>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 12px" }}>
         <div style={{ flex: 1 }}><Progress value={j.bars_total ? j.bars_done / j.bars_total : 0} /></div>
         <span className="num muted">{j.bars_done ?? 0}/{j.bars_total ?? 0} 本</span>

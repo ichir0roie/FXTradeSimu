@@ -19,6 +19,7 @@ import numpy as np
 from ..calendar import rollover_weight, trading_day
 from ..data import Bars
 from .broker import BrokerConfig
+from .schedule import TradingSchedule
 
 
 @dataclass
@@ -108,12 +109,25 @@ class StrategyContext:
         return self._e.strategy_rng
 
     # ---- 注文 ----
+    @property
+    def can_enter(self) -> bool:
+        """いま新規注文を出せるか(動作ケースの取引時間)。"""
+        return bool(self._e.can_enter[self._e.i])
+
     def buy(self, sl: float | None = None, tp: float | None = None, units: float | None = None) -> None:
-        """買い。sl / tp は約定価格からの距離(価格単位)。売り持ちなら決済してから買う(ドテン)。"""
-        self._e._submit(_Order("enter", 1, sl, tp, units))
+        """買い。sl / tp は約定価格からの距離(価格単位)。売り持ちなら決済してから買う(ドテン)。
+        取引時間外なら新規は出さない(売り持ちの決済だけ行う)。"""
+        self._enter(1, sl, tp, units)
 
     def sell(self, sl: float | None = None, tp: float | None = None, units: float | None = None) -> None:
-        self._e._submit(_Order("enter", -1, sl, tp, units))
+        self._enter(-1, sl, tp, units)
+
+    def _enter(self, side: int, sl, tp, units) -> None:
+        e = self._e
+        if e.can_enter[e.i]:
+            e._submit(_Order("enter", side, sl, tp, units))
+        elif e.pos is not None and e.pos.side == -side:
+            e._submit(_Order("close"))
 
     def close(self) -> None:
         if self._e.pos is not None:
@@ -134,8 +148,11 @@ ProgressFn = Callable[["Backtester", int], None]
 
 class Backtester:
     def __init__(self, bars: Bars, strategy, broker: BrokerConfig | None = None,
-                 config: EngineConfig | None = None, pip: float = 0.01, seed: int = 0):
+                 config: EngineConfig | None = None, pip: float = 0.01, seed: int = 0,
+                 schedule: TradingSchedule | None = None):
         self.bars = bars
+        self.schedule = schedule or TradingSchedule()
+        self.decide, self.can_enter, self.force_close = self.schedule.masks(bars.t, bars.timeframe)
         self.strategy = strategy
         self.broker = broker or BrokerConfig()
         self.cfg = config or EngineConfig()
@@ -310,8 +327,11 @@ class Backtester:
                 self.ruined = True
             self.equity_curve[i] = self.equity
             self.balance_curve[i] = self.balance
-            if i >= warmup and not self.ruined and i < n - 1:
-                self.strategy.on_bar(i, ctx)
+            if not self.ruined and i < n - 1:
+                if self.force_close[i] and self.pos is not None:
+                    self._submit(_Order("close"))
+                elif i >= warmup and self.decide[i]:
+                    self.strategy.on_bar(i, ctx)
             if progress is not None and (i % every == every - 1):
                 progress(self, i)
         if self.pos is not None:
