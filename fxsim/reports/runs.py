@@ -64,6 +64,17 @@ def run_report(con: sqlite3.Connection, run_id: int, patterns: bool = False) -> 
                            _f(c["swap"], 0), _f(c["pnl"], 0),
                            _f(c["hunted"], 1), _f(c["losscut"], 1), _f(c["rejected"], 1), _f(c["zero_cut"], 0)]
                           for c in costs]), ""]
+    by_market = queries.cost_summary(con, run_id, by_market=True)
+    if costs and len({c["market_label"] for c in by_market}) > 1:
+        lines += ["## 市場ごとの素の損益とスワップ(パターン平均、円)",
+                  "勝ちの中身の切り分け。偽薬・完全ランダムで素の損益が残るなら作り方の癖、"
+                  "勝ちがスワップだけなら金利差を受け取っているだけ。"
+                  "売買の費用 = スプレッド + スリッページ + 手数料。", "",
+                  _table(["ブローカー", "戦略", "市場", "n", "素の損益", "スワップ", "売買の費用", "損益"],
+                         [[c["broker"], c["strategy_label"], c["market_label"], c["n"], _f(c["gross_pnl"], 0),
+                           _f(c["swap"], 0),
+                           _f(-sum(c[k] or 0.0 for k in ("spread", "slippage", "commission")), 0), _f(c["pnl"], 0)]
+                          for c in by_market]), ""]
     skipped = queries.skipped_jobs(con, run_id)
     if skipped:
         lines += ["", "## 回さなかったジョブ"]

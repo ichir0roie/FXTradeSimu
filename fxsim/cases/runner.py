@@ -11,7 +11,6 @@ from ..experiments.runner import git_sha, run_experiment
 from ..experiments.stats import strategy_stats
 from ..markets import MARKETS
 from ..storage import Tx, queries, writer
-from ..strategies import STRATEGIES
 from ..verification import NULL_LABEL, compute_verdict
 from .loader import load_cases
 from .model import BehaviorCase, TestCase
@@ -47,8 +46,7 @@ def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
         null_params = {"inner": b.strategy, "inner_params": dict(b.params)}
         if tf:
             null_params["timeframe"] = int(tf)
-        multi = getattr(STRATEGIES.create(b.strategy, b.strategy_params()), "multi", False)
-        strategies.append({"name": "basket_direction_null" if multi else "direction_null", "label": NULL_LABEL,
+        strategies.append({"name": "basket_direction_null" if b.is_multi() else "direction_null", "label": NULL_LABEL,
                            "params": null_params, "schedule": b.schedule})
     return ExperimentConfig.from_dict({
         "name": f"{t.id} {t.name}".strip(),
@@ -134,6 +132,23 @@ def run_cases(con: sqlite3.Connection, db_path: str, ids: list[str] | None = Non
     return run_ids
 
 
+def _span(years: float, dataset: str | None, multi: bool) -> tuple[str, str]:
+    """実データの末尾 years 年の最初と最後の日付。"""
+    if multi:
+        from ..markets.models.basket import BasketModel
+
+        t = BasketModel("basket_real", "1", "replay", {"source": {"path": dataset}} if dataset else {}) \
+            .window(years, None).index.to_numpy()
+        first, last = int(t[0]), int(t[-1])
+    else:
+        from ..data import load_ohlc
+        from ..markets.components.real import DEFAULT_DATASET
+
+        s = load_ohlc(dataset or DEFAULT_DATASET).window(years=years)
+        first, last = int(s.times[0]), int(s.times[-1])
+    return str(np.datetime64(first, "ns"))[:10], str(np.datetime64(last, "ns"))[:10]
+
+
 def verification_case(behavior_id: str, *, years: float = 10.0, seeds: list[int] | None = None,
                       start: str | None = None, end: str | None = None, block_days: float = 20.0,
                       dataset: str | None = None, multi: bool | None = None) -> TestCase:
@@ -145,43 +160,25 @@ def verification_case(behavior_id: str, *, years: float = 10.0, seeds: list[int]
     dataset は実データ系のパターンに使う CSV(既定は同梱の USDJPY 日足。複数ペアなら対円 7 ペアの日足)。
     multi は複数ペアの戦略か(省略で動作ケースのファイルから調べる)。複数ペアなら標準のパターンは basket_*。
     """
-    from ..data import load_ohlc
-    from ..markets.components.real import DEFAULT_DATASET
-    from ..verification import BASKET_PATTERNS, STANDARD_PATTERNS
+    from ..verification import pattern_set
     from .loader import load_cases
 
     seeds = seeds or list(range(1, 9))
     if multi is None:     # 動作ケースのファイルから、戦略が複数ペアかを調べる(ファイルに無ければ 1 ペア)
         b = load_cases().behaviors.get(behavior_id)
-        multi = b is not None and getattr(STRATEGIES.create(b.strategy, b.strategy_params()), "multi", False)
-    if multi:
-        if start is None or end is None:
-            from ..markets.models.basket import BasketModel
-
-            w = BasketModel("basket_real", "1", "replay", {"source": {"path": dataset}} if dataset else {})
-            t = w._window(years, None).index.to_numpy()
-            start = str(np.datetime64(int(t[0]), "ns"))[:10]
-            end = str(np.datetime64(int(t[-1]), "ns"))[:10]
-        patterns = [{"market": m, "seeds": seeds[:1] if m == "basket_real" else seeds} for m in BASKET_PATTERNS]
-        for p in patterns:
-            src = {"path": dataset} if dataset else {}
-            if p["market"] == "basket_bootstrap":
-                src["block_days"] = float(block_days)
-            if src:
-                p["params"] = {"source": src}
-    else:
-        if start is None or end is None:
-            s = load_ohlc(dataset or DEFAULT_DATASET).window(years=years)
-            start = str(np.datetime64(int(s.times[0]), "ns"))[:10]
-            end = str(np.datetime64(int(s.times[-1]), "ns"))[:10]
-        patterns = [{"market": m, "seeds": seeds[:1] if m == "real" else seeds} for m in STANDARD_PATTERNS]
-        for p in patterns:
-            if p["market"].startswith("real"):
-                src = {"path": dataset} if dataset else {}
-                if p["market"] == "real_bootstrap":
-                    src["block_days"] = float(block_days)
-                if src:
-                    p["params"] = {"source": src}
+        multi = b is not None and b.is_multi()
+    if start is None or end is None:
+        start, end = _span(years, dataset, multi)
+    ps = pattern_set(multi)
+    patterns = []
+    for m in ps.markets:
+        p = {"market": m, "seeds": seeds[:1] if m == ps.real else seeds}
+        src = {"path": dataset} if dataset and ps.uses_data(m) else {}
+        if m == ps.bootstrap:
+            src["block_days"] = float(block_days)
+        if src:
+            p["params"] = {"source": src}
+        patterns.append(p)
     return TestCase(id=f"V-{behavior_id}", behavior=behavior_id, patterns=patterns,
                     name=f"{behavior_id} の長期検証(標準パターン、並べ替え {block_days:g} 日ブロック)",
                     period={"start": start, "end": end},

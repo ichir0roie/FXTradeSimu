@@ -155,21 +155,19 @@ def cmd_leaderboard(args) -> None:
 
 def cmd_check_lookahead(args) -> None:
     from .backtest.lookahead import check_lookahead
-    from .backtest.portfolio import check_lookahead_portfolio
-
     md = MARKETS.create("malicious").generate(years=1, seed=11)
     basket = None
     bad = 0
     for name in args.names or STRATEGIES.names():
         strat = STRATEGIES.create(name)
         tf = strat.timeframe
-        if getattr(strat, "multi", False):
+        if strat.multi:
             if basket is None:     # 複数ペアの戦略は、見る期間が長いので 10 年の並べ替えた相場で
                 basket = MARKETS.create("basket_bootstrap").generate(years=10, seed=11).meta["legs"]
-            probs = check_lookahead_portfolio(lambda name=name: STRATEGIES.create(name),
-                                              {p: leg.bars(tf) for p, leg in basket.items()})
+            bars = {p: leg.bars(tf) for p, leg in basket.items()}
         else:
-            probs = check_lookahead(lambda name=name: STRATEGIES.create(name), md.bars(tf))
+            bars = md.bars(tf)
+        probs = check_lookahead(lambda name=name: STRATEGIES.create(name), bars)
         print(f"{name}: {'OK' if not probs else 'NG ' + '; '.join(probs)}")
         bad += bool(probs)
     sys.exit(1 if bad else 0)

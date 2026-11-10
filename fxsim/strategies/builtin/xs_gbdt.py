@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .. import STRATEGIES
-from ..basket import MULTI_RATES, CrossSectional, lagged_log_return, rate_differentials
+from ..basket import MULTI_RATES, CrossSectional, lagged_log_return, rate_differentials, rolling_vol
 from ..indicators import sma
 
 FEATURES = ("r5", "r21", "r63", "r126", "r252", "vol63", "ma200", "carry", "r21_x", "r63_x", "carry_x")
@@ -28,10 +28,7 @@ FEATURES = ("r5", "r21", "r63", "r126", "r252", "vol63", "ma200", "carry", "r21_
 def features(c: np.ndarray, diff: np.ndarray) -> np.ndarray:
     """(足 x ペア x 特徴量)。"""
     r = {k: lagged_log_return(c, k) for k in (5, 21, 63, 126, 252)}
-    d = np.vstack([np.full((1, c.shape[1]), np.nan), np.diff(np.log(c), axis=0)])
-    vol = np.full(c.shape, np.nan)
-    for i in range(63, len(c)):
-        vol[i] = d[i - 62:i + 1].std(axis=0) * np.sqrt(260)
+    vol = rolling_vol(c, 63)
     ma = np.column_stack([sma(c[:, j], 200) for j in range(c.shape[1])])
     with np.errstate(invalid="ignore", divide="ignore"):
         dev = np.log(c / ma)

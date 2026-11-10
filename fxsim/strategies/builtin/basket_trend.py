@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .. import STRATEGIES
-from ..basket import BasketStrategy, closes, lagged_log_return
+from ..basket import BasketStrategy, closes, every, lagged_log_return, rolling_vol
 
 
 @STRATEGIES.register("basket_trend", version="1", description="7 ペアそれぞれの向きに乗る(ボラで量をそろえる)")
@@ -30,17 +30,11 @@ class BasketTrend(BasketStrategy):
         self.pairs, c = closes(bars_by_pair)
         self.c = c
         mom = lagged_log_return(c, self.p.lookback)
-        r = np.vstack([np.full((1, c.shape[1]), np.nan), np.diff(np.log(c), axis=0)])
-        w = self.p.vol_window
-        vol = np.full(c.shape, np.nan)
-        for i in range(w, len(c)):
-            vol[i] = r[i - w + 1:i + 1].std(axis=0) * np.sqrt(260)
         self.side = np.where(np.isfinite(mom), np.sign(mom), 0).astype(int)
-        self.vol = vol
-        first = max(self.p.lookback, w)
+        self.vol = rolling_vol(c, self.p.vol_window)
+        first = max(self.p.lookback, self.p.vol_window)
         self.warmup = first
-        self.rebalance = np.zeros(len(c), dtype=bool)
-        self.rebalance[first::max(1, int(self.p.hold_days))] = True
+        self.rebalance = every(len(c), first, self.p.hold_days)
 
     def on_bar(self, i, ctx):
         if not self.rebalance[i]:

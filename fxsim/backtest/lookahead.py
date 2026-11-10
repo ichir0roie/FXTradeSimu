@@ -2,19 +2,33 @@
 
 足の先頭 k 本だけで走らせた結果と、全部で走らせた結果を比べ、
 k-1 本目までの判断(注文)が一致しなければ、prepare か on_bar が未来を見ている。
+bars が dict(ペア -> Bars)なら複数ペアの戦略として PortfolioBacktester で回す。
 """
 from __future__ import annotations
 
 from ..data import Bars
 from .engine import Backtester
+from .portfolio import PortfolioBacktester
 
 
-def check_lookahead(make_strategy, bars: Bars, cut_points=(0.3, 0.6), seed: int = 0) -> list[str]:
-    full = Backtester(bars, make_strategy(), seed=seed).run()
+def _run(make_strategy, bars: Bars | dict[str, Bars], seed: int):
+    if isinstance(bars, dict):
+        return PortfolioBacktester(bars, make_strategy(), seed=seed).run()
+    return Backtester(bars, make_strategy(), seed=seed).run()
+
+
+def _head(bars: Bars | dict[str, Bars], k: int):
+    return {p: b.slice(k) for p, b in bars.items()} if isinstance(bars, dict) else bars.slice(k)
+
+
+def check_lookahead(make_strategy, bars: Bars | dict[str, Bars], cut_points=(0.3, 0.6),
+                    seed: int = 0) -> list[str]:
+    full = _run(make_strategy, bars, seed)
+    n = len(next(iter(bars.values()))) if isinstance(bars, dict) else len(bars)
     problems = []
     for frac in cut_points:
-        k = int(len(bars) * frac)
-        part = Backtester(bars.slice(k), make_strategy(), seed=seed).run()
+        k = int(n * frac)
+        part = _run(make_strategy, _head(bars, k), seed)
         a = [d for d in full.decisions if d[0] < k - 1]
         b = [d for d in part.decisions if d[0] < k - 1]
         if a != b:
@@ -23,4 +37,3 @@ def check_lookahead(make_strategy, bars: Bars, cut_points=(0.3, 0.6), seed: int 
             first = first or (a[len(b):len(b) + 1] or b[len(a):len(a) + 1])
             problems.append(f"cut={k}: decisions differ (first mismatch near {first})")
     return problems
-

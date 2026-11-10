@@ -6,6 +6,7 @@
     3. on_bar(i, ctx) で足 i の終値時点の判断をする。ctx.buy / sell / close / set_sl。
        注文は次の足の始値で約定する。
     4. ``@STRATEGIES.register("名前")`` で登録し、builtin/__init__.py で import する。
+複数ペアの戦略は strategies/basket.py の BasketStrategy を継承する(multi = True)。
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from ..registry import params_hash
 class Strategy:
     name: ClassVar[str] = "strategy"
     version: ClassVar[str] = "1"
+    multi: ClassVar[bool] = False       # True なら複数ペアの戦略(strategies/basket.py、相場は basket_*)
 
     @dataclass
     class Params:

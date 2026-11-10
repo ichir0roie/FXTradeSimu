@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from fxsim.backtest import Backtester, BrokerConfig, EngineConfig, compute_metrics
-from fxsim.backtest.portfolio import PortfolioBacktester, check_lookahead_portfolio
+from fxsim.backtest.lookahead import check_lookahead
+from fxsim.backtest.portfolio import PortfolioBacktester
 from fxsim.data import load_rates
 from fxsim.data.rates import DEFAULT_RATES, MULTI_RATES
 from fxsim.markets import MARKETS
@@ -164,7 +165,7 @@ def test_rank_sides_and_lagged_returns():
 @pytest.mark.parametrize("name", ["xs_carry", "xs_momentum", "xs_value", "basket_trend", "basket_direction_null"])
 def test_basket_strategies_do_not_look_ahead(name):
     legs = _legs("basket_bootstrap", years=8)
-    assert check_lookahead_portfolio(lambda: STRATEGIES.create(name), {p: m.bars(1440) for p, m in legs.items()}) == []
+    assert check_lookahead(lambda: STRATEGIES.create(name), {p: m.bars(1440) for p, m in legs.items()}) == []
 
 
 def test_basket_null_keeps_the_timing_of_the_inner_strategy():

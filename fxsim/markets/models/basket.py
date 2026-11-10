@@ -79,7 +79,8 @@ class BasketModel:
         return {"name": self.name, "version": self.version, "components": ["basket", self.mode], "params": params,
                 "params_hash": params_hash(params)}
 
-    def _window(self, years: float | None, days: float | None) -> pd.DataFrame:
+    def window(self, years: float | None, days: float | None) -> pd.DataFrame:
+        """使う期間の実データ(日 x ペア)。"""
         df = load_wide(self.src.path)[self.p.pairs].dropna()
         t = df.index.to_numpy()
         lo, hi = 0, len(t)
@@ -122,7 +123,7 @@ class BasketModel:
 
     def generate(self, *, years: float | None = None, days: float | None = None, seed: int = 0) -> MarketData:
         rng = np.random.default_rng([seed, 4242])
-        w = self._window(years, days)
+        w = self.window(years, days)
         t_end = w.index.to_numpy().astype(np.int64)
         prices = np.exp(self._paths(np.log(w.to_numpy(float)), rng))
         sec = 1_000_000_000

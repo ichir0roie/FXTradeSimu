@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..data import Bars, load_rates
+from ..data import Bars, MarketData, load_rates
 from ..data.rates import MULTI_RATES
 from .broker import BrokerConfig
 from .engine import Backtester, EngineConfig, ProgressFn, Trade, _Order
@@ -312,19 +312,15 @@ class PortfolioBacktester:
         return self
 
 
-def check_lookahead_portfolio(make_strategy, bars_by_pair: dict[str, Bars], cut_points=(0.3, 0.6),
-                              seed: int = 0) -> list[str]:
-    """backtest.lookahead.check_lookahead の複数ペア版。"""
-    full = PortfolioBacktester(bars_by_pair, make_strategy(), seed=seed).run()
-    problems = []
-    n = len(next(iter(bars_by_pair.values())))
-    for frac in cut_points:
-        k = int(n * frac)
-        part = PortfolioBacktester({p: b.slice(k) for p, b in bars_by_pair.items()}, make_strategy(), seed=seed).run()
-        a = [d for d in full.decisions if d[0] < k - 1]
-        b = [d for d in part.decisions if d[0] < k - 1]
-        if a != b:
-            first = next((x for x, y in zip(a, b, strict=False) if x != y), None)
-            first = first or (a[len(b):len(b) + 1] or b[len(a):len(a) + 1])
-            problems.append(f"cut={k}: decisions differ (first mismatch near {first})")
-    return problems
+
+def build_backtester(md: MarketData, strategy, broker: BrokerConfig, config: EngineConfig, *, seed: int,
+                     schedule: TradingSchedule | None = None) -> Backtester | PortfolioBacktester:
+    """相場と戦略から、バックテストを組み立てる。複数ペアの戦略は相場の legs(basket_*)の全ペアで回す。"""
+    tf = strategy.timeframe
+    if strategy.multi:
+        legs = md.meta.get("legs")
+        if not legs:
+            raise ValueError("multi-pair strategy needs a basket market (basket_*)")
+        return PortfolioBacktester({p: leg.bars(tf) for p, leg in legs.items()}, strategy, broker, config,
+                                   pip=md.pip, seed=seed, schedule=schedule)
+    return Backtester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule)

@@ -47,6 +47,10 @@ class BehaviorCase:
     def trading_schedule(self) -> TradingSchedule:
         return TradingSchedule.from_dict(self.schedule)
 
+    def is_multi(self) -> bool:
+        """複数ペアの戦略か(相場は basket_*、帰無は basket_direction_null)。"""
+        return STRATEGIES.create(self.strategy, self.strategy_params()).multi
+
     def validate(self) -> None:
         STRATEGIES.create(self.strategy, self.strategy_params())
         self.trading_schedule()

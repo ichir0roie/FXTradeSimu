@@ -53,6 +53,24 @@ STANDARD_PATTERNS = ["real", "real_bridge", "real_bootstrap", "real_bridge_place
 BASKET_PATTERNS = ["basket_real", "basket_bootstrap", "basket_placebo", "basket_random_walk"]
 
 
+@dataclass(frozen=True)
+class PatternSet:
+    """検証の標準のパターンの組。real は 1 本だけ回す実データ、bootstrap はブロックの長さを渡す並べ替え。"""
+    markets: tuple[str, ...]
+    real: str
+    bootstrap: str
+    data_prefix: str          # この接頭辞の市場は実データ(dataset)を使う
+
+    def uses_data(self, market: str) -> bool:
+        return market.startswith(self.data_prefix)
+
+
+def pattern_set(multi: bool) -> PatternSet:
+    if multi:
+        return PatternSet(tuple(BASKET_PATTERNS), "basket_real", "basket_bootstrap", "basket_")
+    return PatternSet(tuple(STANDARD_PATTERNS), "real", "real_bootstrap", "real")
+
+
 @dataclass
 class Criteria:
     min_t: float = 2.0

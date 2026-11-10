@@ -47,6 +47,27 @@ def lagged_log_return(c: np.ndarray, lookback: int, skip: int = 0) -> np.ndarray
     return out
 
 
+def log_returns(c: np.ndarray) -> np.ndarray:
+    """(足 x ペア)の 1 本ごとの log リターン。先頭の足は nan。"""
+    return np.vstack([np.full((1, c.shape[1]), np.nan), np.diff(np.log(c), axis=0)])
+
+
+def rolling_vol(c: np.ndarray, window: int, per_year: float = 260.0) -> np.ndarray:
+    """足 i までの window 本の log リターンの標準偏差(年率)。足りない足は nan。"""
+    r = log_returns(c)
+    vol = np.full(c.shape, np.nan)
+    for i in range(window, len(c)):
+        vol[i] = r[i - window + 1:i + 1].std(axis=0) * np.sqrt(per_year)
+    return vol
+
+
+def every(n: int, first: int, step: int) -> np.ndarray:
+    """足 first から step 本ごとに True(入れ替えの足)。"""
+    out = np.zeros(n, dtype=bool)
+    out[first::max(1, int(step))] = True
+    return out
+
+
 def rate_differentials(pairs: list[str], t: np.ndarray, rates_path: str = MULTI_RATES) -> np.ndarray:
     rt = load_rates(rates_path)
     return np.column_stack([rt.pair_differential(p, t) for p in pairs])
@@ -88,8 +109,7 @@ class CrossSectional(BasketStrategy):
         ready = np.flatnonzero(np.isfinite(s).sum(axis=1) >= self.p.n_long + self.p.n_short)
         first = int(ready[0]) if len(ready) else len(c)
         self.warmup = first
-        self.rebalance = np.zeros(len(c), dtype=bool)
-        self.rebalance[first::max(1, int(self.p.hold_days))] = True
+        self.rebalance = every(len(c), first, self.p.hold_days)
         self.sides = np.zeros(c.shape, dtype=int)
         for i in np.flatnonzero(self.rebalance):
             self.sides[i] = rank_sides(s[i], self.p.n_long, self.p.n_short)
@@ -107,5 +127,5 @@ class CrossSectional(BasketStrategy):
             ctx.target(pair, int(self.sides[i, j]), self.leg_units(ctx, j, i))
 
 
-__all__ = ["MULTI_RATES", "BasketStrategy", "CrossSectional", "closes", "lagged_log_return", "rank_sides",
-           "rate_differentials"]
+__all__ = ["MULTI_RATES", "BasketStrategy", "CrossSectional", "closes", "every", "lagged_log_return", "log_returns",
+           "rank_sides", "rate_differentials", "rolling_vol"]

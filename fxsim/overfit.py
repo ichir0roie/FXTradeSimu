@@ -18,6 +18,7 @@ PBO(バックテストの過剰適合の確率、Bailey ら 2017 の CSCV)
 from __future__ import annotations
 
 import itertools
+import json
 import math
 
 import numpy as np
@@ -105,8 +106,6 @@ def run_overfit(con, run_id: int, *, market: str | None = None, broker: str | No
     market は市場のラベル(省略で最初のもの)、broker はブローカーのラベル(省略で最初のもの)。
     同じ市場に経路が複数(シード)あれば、経路ごとに PBO を出して平均する。試した数 N は集まりの戦略の数。
     """
-    import json
-
     from .storage import queries
 
     rows = queries.jobs_for_overfit(con, run_id)
@@ -139,7 +138,7 @@ def run_overfit(con, run_id: int, *, market: str | None = None, broker: str | No
     per = []
     for n in names:
         if dsr_rows[n]:
-            a = np.array([(x[0], x[1]) for x in dsr_rows[n]])
+            a = np.array(dsr_rows[n])
             per.append({"strategy": n, "sharpe": float(a[:, 0].mean()), "dsr": float(a[:, 1].mean())})
     return {"run_id": run_id, "market": market, "broker": broker, "n_strategies": len(names), "n_paths": len(pbos),
             "years": years_used, "pbo": float(np.mean([p["pbo"] for p in pbos])) if pbos else float("nan"),

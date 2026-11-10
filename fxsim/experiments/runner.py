@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .. import catalog  # noqa: F401  (ワーカーでも登録を済ませる)
-from ..backtest import Backtester, BrokerConfig, compute_metrics
-from ..backtest.portfolio import PortfolioBacktester
+from ..backtest import BrokerConfig, compute_metrics
+from ..backtest.portfolio import build_backtester
 from ..data import MarketData
 from ..markets import MARKETS
 from ..markets.evaluation import compute_facts, score_facts
@@ -102,8 +102,7 @@ def _run_job(con, job: JobTask, task: PathTask, md: MarketData, cfg: ExperimentC
     if tf < md.step_minutes or tf % md.step_minutes:
         writer.mark_job(con, job.job_id, "skipped", f"timeframe {tf}m is finer than the data ({md.step_minutes}m)")
         return
-    legs = md.meta.get("legs")
-    if getattr(strat, "multi", False) and not legs:
+    if strat.multi and not md.meta.get("legs"):
         writer.mark_job(con, job.job_id, "skipped", "multi-pair strategy needs a basket market (basket_*)")
         return
     bars = md.bars(tf)
@@ -111,13 +110,8 @@ def _run_job(con, job: JobTask, task: PathTask, md: MarketData, cfg: ExperimentC
                       else cfg.storage.equity_timeframe)
     w = writer.JobWriter(con, job.job_id, bars, store_trades=cfg.storage.store_trades(task.detail),
                          equity_minutes=equity_minutes, delay_ms=cfg.live.delay_ms if task.detail else 0.0)
-    broker = BrokerConfig.preset(job.broker.preset, job.broker.overrides)
-    if getattr(strat, "multi", False):
-        bt = PortfolioBacktester({p: leg.bars(tf) for p, leg in legs.items()}, strat, broker, cfg.engine,
-                                 pip=md.pip, seed=task.seed, schedule=job.strategy.trading_schedule())
-    else:
-        bt = Backtester(bars, strat, broker, cfg.engine, pip=md.pip, seed=task.seed,
-                        schedule=job.strategy.trading_schedule())
+    bt = build_backtester(md, strat, BrokerConfig.preset(job.broker.preset, job.broker.overrides), cfg.engine,
+                          seed=task.seed, schedule=job.strategy.trading_schedule())
     try:
         bt.run(progress=w.progress, every=cfg.live.flush_every)
     except Exception as e:

@@ -55,9 +55,11 @@ def job_rows(con: sqlite3.Connection, run_id: int) -> list[dict]:
     return [dict(r) for r in con.execute(q, (run_id,))]
 
 
-def cost_summary(con: sqlite3.Connection, run_id: int) -> list[dict]:
-    """ブローカー x 戦略ごとの費用の内訳(円、パターン平均)。費用の内訳を記録していない古い run は空。"""
-    q = """SELECT j.broker, j.strategy_label, COUNT(*) AS n,
+def cost_summary(con: sqlite3.Connection, run_id: int, by_market: bool = False) -> list[dict]:
+    """ブローカー x 戦略(by_market なら x 市場)ごとの費用の内訳(円、パターン平均)。
+    費用の内訳を記録していない古い run は空。"""
+    market = "p.market_label" if by_market else "'ALL'"
+    q = f"""SELECT j.broker, j.strategy_label, {market} AS market_label, COUNT(*) AS n,
                   AVG(json_extract(j.metrics_json, '$.costs.gross_pnl')) AS gross_pnl,
                   AVG(json_extract(j.metrics_json, '$.costs.spread')) AS spread,
                   AVG(json_extract(j.metrics_json, '$.costs.slippage')) AS slippage,
@@ -68,9 +70,9 @@ def cost_summary(con: sqlite3.Connection, run_id: int) -> list[dict]:
                   AVG(json_extract(j.metrics_json, '$.losscut')) AS losscut,
                   AVG(json_extract(j.metrics_json, '$.rejected')) AS rejected,
                   AVG(json_extract(j.metrics_json, '$.zero_cut')) AS zero_cut
-           FROM jobs j WHERE j.run_id = ? AND j.status = 'done'
+           FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ? AND j.status = 'done'
              AND json_extract(j.metrics_json, '$.costs') IS NOT NULL
-           GROUP BY j.broker, j.strategy_label ORDER BY j.broker, j.strategy_label"""
+           GROUP BY j.broker, j.strategy_label, market_label ORDER BY j.broker, j.strategy_label, market_label"""
     return [dict(r) for r in con.execute(q, (run_id,))]
 
 
