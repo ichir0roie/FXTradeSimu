@@ -1,0 +1,8 @@
+id: B001
+name: EMA 交差のドテン(H1・毎時判断・終日)
+strategy: ma_cross
+params: {fast: 20, slow: 100, atr_n: 24, sl_atr: 4.0}
+timeframe: 60
+schedule: {decision_every: 1, days: [mon, tue, wed, thu, fri], outside: hold}
+broker: malicious
+engine: {units: 10000}

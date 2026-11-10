@@ -1,0 +1,8 @@
+id: B005
+name: 旧 simpleFollower(M5 の足・15 分ごとに判断・終日)
+strategy: simple_follower
+params: {window: 10, drop: 0.2}
+timeframe: 5
+schedule: {decision_every: 3, outside: hold}
+broker: malicious
+engine: {units: 10000}

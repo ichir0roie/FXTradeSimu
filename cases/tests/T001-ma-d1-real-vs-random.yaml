@@ -1,0 +1,10 @@
+id: T001
+name: 日足 EMA 交差を、実データ 10 年と、その範囲のランダム化・完全ランダムで比べる
+behavior: B004
+period: {start: "2016-11-01", end: "2026-10-30"}
+patterns:
+  - {market: real}                                   # 実データ(USDJPY 日足)
+  - {market: real_bridge, seeds: "1-10"}             # 実相場の日足を通る、足の中だけランダム
+  - {market: real_bootstrap, seeds: "1-10"}          # 実相場のリターンを並べ替えた別の相場
+  - {market: malicious, seeds: "1-5"}                # 完全なランダム相場(悪意あり)
+detail_seeds: [1]
