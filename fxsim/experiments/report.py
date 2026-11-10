@@ -47,11 +47,11 @@ def run_report(con: sqlite3.Connection, run_id: int, patterns: bool = False) -> 
                 continue
             rows.append([s["broker"], s["strategy"], s["market"], p["n"], _f(p["mean"], 0), _f(p["median"], 0),
                          _f(p["total"], 0), _f(p["std"], 0), _f(p["min"], 0), _f(p["max"], 0),
-                         _f(p["positive_ratio"], 0, pct=True), _f(s["sharpe"]["mean"]),
+                         _f(p["positive_ratio"], 0, pct=True), _f(p["t"]), _f(s["sharpe"]["mean"]),
                          _f(s["gross_sharpe"]["mean"]), _f(s["max_dd"]["mean"], 1, pct=True),
                          _f(s["trades_per_year"]["mean"], 0)])
         lines.append(_table(["ブローカー", "戦略", "市場", "n", "損益 平均", "中央", "合計", "標準偏差", "最小", "最大",
-                             "勝ちパターン", "シャープ", "素のシャープ", "最大DD", "取引/年"], rows))
+                             "勝ちパターン", "t値", "シャープ", "素のシャープ", "最大DD", "取引/年"], rows))
         lines.append("")
         if patterns:
             lines.append("## パターンごとの損益")

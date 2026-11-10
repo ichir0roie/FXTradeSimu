@@ -29,17 +29,18 @@ const jobId = Number(process.argv[5] ?? pick?.id);
 const browser = await playwright.chromium.launch();
 const shots = [
   ["01-runs.png", "/", 900],
-  [`02-run-${runId}.png`, `/runs/${runId}`, 1600],
+  [`02-run-${runId}.png`, `/runs/${runId}`, 2400, false],
   [`03-job-${jobId}.png`, `/jobs/${jobId}`, 1400],
+  ["04-cases.png", "/cases", 1200],
 ];
 for (const scheme of ["light", "dark"]) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: scheme });
-  for (const [name, url, h] of shots) {
+  for (const [name, url, h, full = true] of shots) {
     await page.setViewportSize({ width: 1440, height: h });
     await page.goto(base + url, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
     const file = path.join(out, name.replace(".png", `-${scheme}.png`));
-    await page.screenshot({ path: file, fullPage: true });
+    await page.screenshot({ path: file, fullPage: full });
     console.log(file);
   }
   await page.close();

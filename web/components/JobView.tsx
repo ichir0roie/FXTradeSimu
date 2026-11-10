@@ -18,7 +18,8 @@ export default function JobView({ id }: { id: number }) {
   const [tf, setTf] = useState<number | null>(null);
   const [st, setSt] = useState<State | null>(null);
   const [showTrades, setShowTrades] = useState(true);
-  const [showEvents, setShowEvents] = useState(true);
+  // 悪意イベントは数が多いので、既定では H1 以下の足のときだけ表示する(ボタンで切り替え)
+  const [showEventsSel, setShowEvents] = useState<boolean | null>(null);
   const cur = useRef({ candleFrom: 0, eqFrom: 0, tradeFrom: 0, eventFrom: 0 });
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function JobView({ id }: { id: number }) {
   }, [st]);
 
   if (!st) return <div className="empty">読み込み中…</div>;
+  const showEvents = showEventsSel ?? st.tf <= 60;
   const j = st.job;
   const elapsedDays = j.sim_t && j.t_start ? (j.sim_t - j.t_start) / 86400 : null;
   const m = j.metrics;

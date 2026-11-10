@@ -14,11 +14,12 @@ Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.
 | 戦略の案 | `fxsim/strategies/builtin/<案>.py`(1 ファイル = 1 案、`@STRATEGIES.register`) |
 | 実データ | `data/real/`(README に出典とライセンス) |
 | 実験の設定 | `configs/*.yaml` |
+| 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
 | 実験の結果(全部) | `data/fxsim.sqlite`(runs / paths / jobs / equity / trades / candles / market_events) |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
 | 全体の設計 | `docs/ARCHITECTURE.md`、悪意の一覧 `docs/MARKET_MALICE.md` |
 
-ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`。
+ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`、動作ケース `B###`、テストケース `T###`。
 既存の最大番号 + 1 を使う(`ls docs/proposals/*/`)。
 
 ## 1 周の回し方
@@ -49,7 +50,10 @@ python -m fxsim ablate <model> --years 3 --seeds 1-4 --proposal M00X    # どの
   悪意ある市場の目標は「どの単純な規則にも安定した素の優位性が無い」= 0 に近いほど良い(目安 < 0.3)。
   正にも負にも大きいなら、その規則(または逆張り)で稼げる穴がある
 - **コストと悪意の重さ**: random_entry の net と、fair / malicious ブローカーの差
-- ノイズの目安: シャープの標準誤差 ≈ 1 / √(年数 × パターン数)。3 年 × 6 パターンなら ±0.24。これ未満の差で判定しない
+- **判定はパターン単位の t 値**(report / 画面の `t値` 列。平均 ÷ (標準偏差 / √パターン数))。|t| ≥ 2 で有意とみなす。
+  取引単位の素のシャープは、同じ経路の中の取引が独立でないので有意さを大きく見せる(E001 の注意を参照)
+- 穴は短い期間では見えないことがある(M003 は 3 年 × 6 では素のシャープ 0.63、10 年 × 8 ではブレイクアウトが 8 本中 7 本プラス)。
+  採用の前に 10 年 × 8 パターン以上で確かめる
 
 ### 戦略の案
 ```bash
@@ -57,8 +61,15 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 ```
 - 実データ(`real`、日足のみなので日足の戦略だけ)と、ランダム相場の複数パターン(`real_bridge` / `real_bootstrap` /
   `real_bridge_malicious`)で回る。パターンごとの損益と、平均・中央値・合計(総合)・標準偏差・最小/最大・プラスの割合が出る
-- 判定は **中央値とプラスの割合**、次に **malicious ブローカーでの平均**。実データ 1 本だけ良い戦略は過剰適合を疑う
+- 判定は **パターン単位の t 値・中央値・プラスの割合**、次に **malicious ブローカーでの平均**。実データ 1 本だけ良い戦略は過剰適合を疑う
+- 市場側の穴(M003 の順張り、R002/R004/M002 の逆張り)に乗っただけの勝ちを、戦略の力と取り違えない。
+  穴の一覧は各提案書の「次の一手」
 - random_entry(`--null`)より悪いなら、その戦略はコスト以下の情報しか持っていない
+
+### 動作ケースとテストケース(機械的な評価)
+「どう取引するか」を `cases/behaviors/B###-*.yaml`、「どの相場パターンで、どれだけの期間試すか」を
+`cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
+いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
 
 ### 長期の基準実験
 `configs/long_run_baseline.yaml`(E001)。大きな変更の後は回し直し、提案書 E001 の表と比べる。
