@@ -450,7 +450,10 @@ class Backtester:
                 return
             if js > 0 and (jt <= 0 or js <= jt):
                 slip = self._slip(i, stop=True)
-                jumped = cross_s and q[js - 1] - q[js] > gap
+                # 1 つ前の点ですでに越えていた(set_sl で今の値段の向こう側に置いた、など)なら、その時の値段で約定する。
+                # 損切りの価格で約定させると、売りを今より安く買い戻せてしまう(方向でたらめ版の parabolic_sar で
+                # 30 年 +3,000 万円になっていた)
+                jumped = cross_s and (q[js - 1] <= stop or q[js - 1] - q[js] > gap)
                 fill = (min(q[js], stop) if jumped else stop) - slip
                 reason = "losscut" if lc is not None and stop == lc and (sl is None or lc > sl) else "sl"
                 if reason == "losscut":
@@ -458,7 +461,7 @@ class Backtester:
                 at = float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd))   # 損切り価格に届いた瞬間
                 self._close(i, fill * sd, at, reason, slip)
             else:
-                jumped = cross_t and q[jt] - q[jt - 1] > gap
+                jumped = cross_t and (q[jt - 1] >= tp or q[jt] - q[jt - 1] > gap)
                 fill = q[jt] if (self.broker.positive_slippage and jumped and q[jt] > tp) else tp
                 # 素の損益の mid: 飛びなら越えた点の mid、ふつうの 1 歩なら利確価格に届いた瞬間の mid
                 at = float(mid[jt]) if jumped else float(tp * sd + (mid[jt] - q[jt] * sd))

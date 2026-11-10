@@ -190,3 +190,15 @@ def test_bridge_touch_probability_matches_the_brownian_bridge():
     assert _first_touch(np.array([100.03, 99.99]), 100.0, sig2, 1.0, None) == (1, True)
     # 飛び(|1 歩| > gap)は拡散ではないので、間で触れたことにしない
     assert _first_touch(q, 100.0, sig2, gap=0.001, u=np.zeros(2)) == (-1, False)
+
+
+def test_stop_placed_beyond_the_market_fills_at_the_market():
+    # 売りを持ったまま、損切り(買い戻しの逆指値)を今の値段より下に置く。実際の逆指値はその時の値段で約定する
+    prices = [100.0] * 180 + [100.0 + 0.0001 * k for k in range(600)]
+    bars = bars_from_minutes(prices)
+    plan = {0: [("sell", {})], 2: [("set_sl", {"price": 99.50})]}
+    bt = Backtester(bars, Script(plan), BrokerConfig(slippage_pips=0), pip=PIP).run()
+    t = bt.trades[0]
+    assert t.reason == "sl"
+    assert t.exit_price >= 100.0                 # 99.50 ではなく、その時の ask
+    assert t.pips <= 0
