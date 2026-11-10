@@ -15,8 +15,8 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from ...calendar import NS_DAY, NS_MIN, trading_times
+from ...data.real import RealSeries, load_ohlc
 from ..base import BaseParams, Component, GenContext, Stage
-from ..real import RealSeries, load_ohlc
 
 DEFAULT_DATASET = "data/real/usdjpy_d1_fred.csv"
 
@@ -202,13 +202,13 @@ def _fit_envelope(x, idx, high, low, rng):
         if mx > top:
             up = inner > top
             inner[up] = top + (inner[up] - top) * (H - top) / (mx - top)
-        elif H > top:
+        elif top < H:
             j = int(rng.integers(0, len(inner)))
             inner[j] = H
         if mn < bot:
             dn = inner < bot
             inner[dn] = bot + (inner[dn] - bot) * (L - bot) / (mn - bot)
-        elif L < bot:
+        elif bot > L:
             j = int(rng.integers(0, len(inner)))
             inner[j] = L
         seg[1:-1] = inner

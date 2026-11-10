@@ -76,7 +76,7 @@ class NewsShocks(Component):
         decay_steps = max(1.0, self.p.vol_decay_min / ctx.base.step_minutes)
         L = int(decay_steps * 6)
         kern = 1 + self.p.vol_boost * np.exp(-np.arange(L) / decay_steps)
-        for i, s in zip(idx.tolist(), sc.tolist()):
+        for i, s in zip(idx.tolist(), sc.tolist(), strict=True):
             m = min(L, ctx.n - i)
             ctx.vol[i:i + m] *= kern[:m]
             jump = s * student_t_unit(rng, self.p.df, 1)[0]
@@ -108,7 +108,7 @@ class WeekendGap(Component):
             return
         g = self.p.gap_pips * student_t_unit(ctx.rng, self.p.df, len(gaps))
         ctx.jumps[gaps] += ctx.pips_to_log(g)
-        for i, x in zip(gaps.tolist(), g.tolist()):
+        for i, x in zip(gaps.tolist(), g.tolist(), strict=True):
             if abs(x) >= 2 * self.p.gap_pips:
                 ctx.event(i, "weekend_gap", pips=float(x))
         ctx.meta["week_open_idx"] = gaps

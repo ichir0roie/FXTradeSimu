@@ -5,8 +5,16 @@
 """
 from .. import MARKETS
 from ..base import MarketModel
-from ..components import (DynamicSpread, FatTails, NewsShocks, RangeMeanReversion, RegimeSwitching,
-                          SessionSeasonality, StochasticVolatility, WeekendGap)
+from ..components import (
+    DynamicSpread,
+    FatTails,
+    NewsShocks,
+    RangeMeanReversion,
+    RegimeSwitching,
+    SessionSeasonality,
+    StochasticVolatility,
+    WeekendGap,
+)
 
 
 def stylized_components():

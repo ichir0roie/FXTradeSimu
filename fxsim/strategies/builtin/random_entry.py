@@ -12,7 +12,8 @@ from ..base import Strategy
 from ..indicators import atr
 
 
-@STRATEGIES.register("random_entry", version="1", description="ランダムな方向に入り、ATR 基準の損切り/利確で出る(帰無仮説)")
+@STRATEGIES.register("random_entry", version="1",
+                     description="ランダムな方向に入り、ATR 基準の損切り/利確で出る(帰無仮説)")
 class RandomEntry(Strategy):
     name = "random_entry"
 

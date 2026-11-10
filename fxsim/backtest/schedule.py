@@ -32,7 +32,7 @@ class TradingSchedule:
     outside: str = "hold"                   # 時間外の持ち高: hold(持ち越す)/ close(手仕舞う)
 
     @classmethod
-    def from_dict(cls, d: dict | None) -> "TradingSchedule":
+    def from_dict(cls, d: dict | None) -> TradingSchedule:
         return cls(**(d or {}))
 
     def to_dict(self) -> dict:

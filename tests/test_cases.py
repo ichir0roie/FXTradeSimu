@@ -54,15 +54,15 @@ def test_engine_respects_schedule():
 
 
 def test_repository_cases_are_valid_and_map_to_experiments():
-    behaviors, tests = load_cases()
-    assert tests and behaviors
-    for t in tests.values():
-        cfg = to_experiment(t, behaviors[t.behavior])
+    book = load_cases()
+    assert book.tests and book.behaviors
+    for t in book.tests.values():
+        cfg = to_experiment(t, book.behaviors[t.behavior])
         assert cfg.kind == "test_case" and cfg.proposal == t.id
         assert [m.seeds for m in cfg.markets] == [p.seeds for p in t.patterns]
 
 
-def test_run_cases_records_and_skips_unchanged(tmp_path, monkeypatch):
+def test_run_cases_records_and_skips_unchanged(tmp_path):
     root = tmp_path / "cases"
     (root / "behaviors").mkdir(parents=True)
     (root / "tests").mkdir()
@@ -71,13 +71,10 @@ def test_run_cases_records_and_skips_unchanged(tmp_path, monkeypatch):
     (root / "tests" / "T1.yaml").write_text(
         "id: T9\nbehavior: B9\nperiod: {start: '2024-01-01', end: '2024-06-30'}\n"
         "patterns:\n  - {market: real}\n  - {market: real_bridge, seeds: '1-2'}\n", encoding="utf-8")
-    import fxsim.cases as cases
-
-    monkeypatch.setattr(cases, "CASES_DIR", root)
     db = tmp_path / "t.sqlite"
     con = init_db(db)
     log = []
-    ids = run_cases(con, str(db), ["T9"], log=log.append)
+    ids = run_cases(con, str(db), ["T9"], root=root, log=log.append)
     assert len(ids) == 1
     row = con.execute("SELECT status, summary_json FROM case_runs WHERE test_id='T9'").fetchone()
     assert row[0] == "done" and '"by_market"' in row[1]
@@ -85,6 +82,6 @@ def test_run_cases_records_and_skips_unchanged(tmp_path, monkeypatch):
     assert n_paths == 3   # real 1 本 + real_bridge 2 本
     t0 = con.execute("SELECT MIN(t_start) FROM paths WHERE market='real'").fetchone()[0]
     assert t0 >= int(np.datetime64("2024-01-01", "s").astype(np.int64))
-    assert run_cases(con, str(db), ["T9"], log=log.append) == []   # 変わっていないので飛ばす
+    assert run_cases(con, str(db), ["T9"], root=root, log=log.append) == []   # 変わっていないので飛ばす
     assert any("飛ばします" in m for m in log)
     assert isinstance(con, sqlite3.Connection)

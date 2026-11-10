@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..base import Component, GenContext, Stage, apply_block_increments, block_view
+from ..base import Component, GenContext, Stage
+from ..blocks import apply_block_increments, block_view
 
 REGIME_NAMES = ("range", "trend_up", "trend_down", "turbulent")
 

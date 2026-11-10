@@ -15,8 +15,7 @@ import numpy as np
 import pandas as pd
 
 from ..calendar import NS_HOUR, NS_MIN
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from ..paths import resolve
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,7 @@ class RealSeries:
     def __len__(self) -> int:
         return len(self.times)
 
-    def window(self, start: str | None = None, end: str | None = None, years: float | None = None) -> "RealSeries":
+    def window(self, start: str | None = None, end: str | None = None, years: float | None = None) -> RealSeries:
         t = self.times
         lo = 0 if start is None else int(np.searchsorted(t, np.datetime64(start, "ns").astype(np.int64)))
         hi = len(t) if end is None else int(np.searchsorted(t, np.datetime64(end, "ns").astype(np.int64), "right"))
@@ -43,11 +42,6 @@ class RealSeries:
         sl = slice(lo, hi)
         return RealSeries(t[sl], self.open[sl], self.high[sl], self.low[sl], self.close[sl], self.has_ohlc,
                           self.step_minutes, self.source)
-
-
-def resolve(path: str | Path) -> Path:
-    p = Path(path)
-    return p if p.is_absolute() else REPO_ROOT / p
 
 
 @lru_cache(maxsize=8)

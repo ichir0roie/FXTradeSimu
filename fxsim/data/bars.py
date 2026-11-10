@@ -1,37 +1,15 @@
-"""市場モデルが出す価格列(MarketData)と、そこから作る足(Bars)。
+"""時間足(Bars)と、その組み立て。
 
-MarketData は基準解像度(既定 1 分)の mid とスプレッドを持つ。
-戦略は Bars(任意の時間足)を見る。Bars は mid の OHLC に加え、
-bid/ask の OHLC を持つので、スプレッドの拡大で逆指値が刺さる様子も再現できる。
+Bars は mid の OHLC に加え bid/ask の OHLC を持つので、スプレッドの拡大で逆指値が刺さる様子も再現できる。
+足の区切りは 22:00 UTC(NY クローズ)に揃える。日足 = 取引日。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 
-from .calendar import NS_MIN
-
-
-@dataclass
-class MarketData:
-    times: np.ndarray          # int64 ns
-    mid: np.ndarray            # float64
-    spread: np.ndarray         # 価格単位(pip ではない)
-    pip: float
-    step_minutes: int
-    events: list[dict] = field(default_factory=list)   # 悪意イベントの記録(idx, kind, ...)
-    meta: dict = field(default_factory=dict)            # regime 列など(大きい配列を含みうる)
-    model_info: dict = field(default_factory=dict)      # name / version / params
-
-    def __len__(self) -> int:
-        return len(self.times)
-
-    def bars(self, minutes: int) -> "Bars":
-        cache = self.meta.setdefault("_bars_cache", {})
-        if minutes not in cache:
-            cache[minutes] = make_bars(self.times, self.mid, self.spread, minutes, self.step_minutes)
-        return cache[minutes]
+from ..calendar import NS_MIN
 
 
 @dataclass
@@ -59,7 +37,7 @@ class Bars:
     def __len__(self) -> int:
         return len(self.t)
 
-    def slice(self, stop: int) -> "Bars":
+    def slice(self, stop: int) -> Bars:
         """先頭から stop 本だけの Bars(先読み検査用)。"""
         kw = {k: (v[:stop] if isinstance(v, np.ndarray) else v) for k, v in self.__dict__.items()}
         return Bars(**kw)

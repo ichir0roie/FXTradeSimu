@@ -68,7 +68,8 @@ def test_tp_gap_kept_by_malicious_broker():
     bars = make([[100, 100, 100, 100], [100, 100, 100, 100], [101.0, 101, 101, 101]])
     plan = {0: [("buy", {"tp": 0.3})]}
     fair = Backtester(bars, Script(plan), BrokerConfig(slippage_pips=0), pip=0.01).run().trades[0]
-    evil = Backtester(bars, Script(plan), BrokerConfig(slippage_pips=0, positive_slippage=False), pip=0.01).run().trades[0]
+    evil_broker = BrokerConfig(slippage_pips=0, positive_slippage=False)
+    evil = Backtester(bars, Script(plan), evil_broker, pip=0.01).run().trades[0]
     assert fair.exit_price > evil.exit_price
     assert evil.exit_price == pytest.approx(100.01 + 0.3)
 

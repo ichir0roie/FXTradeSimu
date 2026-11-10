@@ -38,7 +38,7 @@ class BrokerConfig:
     losscut_level: float = 0.5        # 有効証拠金 / 必要証拠金
 
     @classmethod
-    def preset(cls, name: str, overrides: dict | None = None) -> "BrokerConfig":
+    def preset(cls, name: str, overrides: dict | None = None) -> BrokerConfig:
         if name not in BROKER_PRESETS:
             raise KeyError(f"unknown broker preset '{name}'. known: {sorted(BROKER_PRESETS)}")
         return cls(name=name, **{**BROKER_PRESETS[name], **(overrides or {})})

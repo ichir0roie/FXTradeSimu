@@ -8,8 +8,17 @@ R004 real_bootstrap        実データのリターンをブロック単位で�
 """
 from .. import MARKETS
 from ..base import MarketModel
-from ..components import (ConstantSpread, CrowdSqueeze, DynamicSpread, FalseBreakout, FatTails, NewsShocks,
-                          SessionSeasonality, StochasticVolatility, StopHunt)
+from ..components import (
+    ConstantSpread,
+    CrowdSqueeze,
+    DynamicSpread,
+    FalseBreakout,
+    FatTails,
+    NewsShocks,
+    SessionSeasonality,
+    StochasticVolatility,
+    StopHunt,
+)
 from ..components.real import AnchorBridge, RealReplay, RealSkeleton
 
 
@@ -40,7 +49,8 @@ def build_bridge_malicious(params: dict) -> MarketModel:
 
 
 @MARKETS.register("real_bootstrap", version="1",
-                  description="実データのリターンをブロック単位で並べ替えた骨格 + 足の中の合成", tags=("real", "random"))
+                  description="実データのリターンをブロック単位で並べ替えた骨格 + 足の中の合成",
+                  tags=("real", "random"))
 def build_bootstrap(params: dict) -> MarketModel:
     comps = [RealSkeleton(mode="bootstrap"), *_intraday(), AnchorBridge(), DynamicSpread()]
     return MarketModel("real_bootstrap", "1", comps).with_params(params)
