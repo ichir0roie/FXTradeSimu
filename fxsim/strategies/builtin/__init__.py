@@ -4,6 +4,8 @@
 """
 from . import (  # noqa: F401
     adx_trend,
+    basket_direction_null,
+    basket_trend,
     betting,
     bollinger_reversion,
     buy_and_hold,
@@ -25,6 +27,7 @@ from . import (  # noqa: F401
     pivot_reversal,
     random_entry,
     regime_adaptive,
+    repeat_grid,
     rsi_reversion,
     scalping,
     simple_follower,
@@ -32,4 +35,8 @@ from . import (  # noqa: F401
     tsmom,
     turtle,
     vol_target_trend,
+    xs_carry,
+    xs_gbdt,
+    xs_momentum,
+    xs_value,
 )

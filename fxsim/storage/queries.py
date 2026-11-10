@@ -105,6 +105,14 @@ def done_jobs_with_metrics(con: sqlite3.Connection, run_id: int) -> list[dict]:
     return [dict(r) for r in con.execute(q, (run_id,))]
 
 
+def jobs_for_overfit(con: sqlite3.Connection, run_id: int) -> list[dict]:
+    """完了したジョブの成績の JSON と、ブローカー・市場・シード(試した数の補正の材料)。"""
+    q = """SELECT j.strategy_label, j.broker, j.metrics_json, p.id AS path_id, p.market, p.market_label, p.seed
+           FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ? AND j.status = 'done'
+           ORDER BY p.id, j.id"""
+    return [dict(r) for r in con.execute(q, (run_id,))]
+
+
 def case_test_ids(con: sqlite3.Connection) -> list[str]:
     """実行の記録があるテストケースの ID(fxsim verify が作ったものも含む)。"""
     return [r[0] for r in con.execute("SELECT DISTINCT test_id FROM case_runs ORDER BY test_id")]

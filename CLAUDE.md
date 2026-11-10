@@ -13,7 +13,8 @@ DB(`data/fxsim.sqlite`)は手元だけのもので、コミットしない。
 | 市場モデルの部品(悪意の種類) | `fxsim/markets/components/*.py`(1 クラス = 1 つの仕組み) |
 | 市場モデルの案 | `fxsim/markets/models/<案>.py`(1 ファイル = 1 案、`@MARKETS.register`) |
 | 戦略の案 | `fxsim/strategies/builtin/<案>.py`(1 ファイル = 1 案、`@STRATEGIES.register`) |
-| 実データ | `data/real/`(README に出典とライセンス) |
+| 複数ペアの戦略の案 | 同じ場所。`fxsim/strategies/basket.py` の `BasketStrategy` / `CrossSectional` を継承(`multi = True`)。相場は `basket_*` |
+| 実データ | `data/real/`(README に出典とライセンス)。対円 7 ペアと 8 通貨の金利は `python -m fxsim fetch-fred` で取り直せる |
 | 実験の設定 | `configs/*.yaml` |
 | 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
 | 実験の結果(コミットする) | 概要 `docs/results/<run_key>/`(run.json・paths.csv・jobs.csv。書式は `docs/results/README.md`) |
@@ -122,6 +123,7 @@ python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うため�
 python -m fxsim summary <run_key>                      # 概要を docs/results/ に書き出し直す(--all で DB の全実行)
 sqlite3 data/fxsim.sqlite "SELECT * FROM v_strategy_summary WHERE run_id = 1"
 python -m fxsim compact <run_key> --detail-equity-minutes 43200   # 手元の DB の資産曲線を間引く(成績は変わらない)
+python -m fxsim overfit <run_key> --market basket_bootstrap   # 戦略の集まりの PBO と Deflated Sharpe(試した数の補正)
 ```
 
 ## 画面(利用者のローカル)

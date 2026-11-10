@@ -21,20 +21,22 @@ fxsim/
     market.py            MarketData(基準解像度の mid とスプレッド、時間足のキャッシュ)
     bars.py              Bars(任意の時間足、bid/ask の OHLC)と make_bars
     real.py              実データの読み込み(汎用 CSV / HistData)
-    rates.py             政策金利の表(スワップの計算に使う)
+    rates.py             金利の表(スワップの計算に使う。通貨ごとの列も持てる)
+    fred.py              FRED から対円 7 ペアの日足と 8 通貨の短期金利を取る(fetch-fred)
   markets/             市場モデル
     base.py              Stage / Component / GenContext / MarketModel
     blocks.py            経路をブロック単位で扱う補助(POST_PATH の部品が使う)
     components/          部品(volatility, regime, shocks, malice, extreme, real, spread)
-    models/              案(random_walk, stylized, malicious, real_based)
+    models/              案(random_walk, stylized, malicious, real_based, basket(複数ペア))
     evaluation.py        現実らしさ(stylized facts)と悪意の指標
   backtest/            バックテスト
     broker.py            ブローカー(スプレッドの上乗せ、手数料、スワップ、スリッページ、約定の仕方、悪意)
     schedule.py          判断の間隔・取引時間
     engine.py            1 ポジションのバックテスト
+    portfolio.py         複数ペアを 1 つの口座で回すバックテスト(ペアごとに engine の Leg、残高・証拠金は共有)
     metrics.py           成績
     lookahead.py         先読み検査
-  strategies/          戦略(base.py / indicators.py / staking.py(賭け方)/ builtin/ に 1 ファイル 1 戦略)
+  strategies/          戦略(base.py / basket.py(複数ペア)/ indicators.py / staking.py(賭け方)/ builtin/ に 1 ファイル 1 戦略)
   catalog.py           組み込みの案をすべて登録する
   storage/             SQLite
     schema.py            テーブルとビュー
@@ -49,7 +51,8 @@ fxsim/
     model.py             BehaviorCase / TestCase / Pattern
     loader.py            YAML を読んで検査する
     runner.py            テストケースを実験に直して回し、記録する
-  verification.py      ひとつのモデルの長期検証の判定(C1〜C4、パターンの組、年ごと)
+  verification.py      ひとつのモデルの長期検証の判定(C1〜C4、パターンの組、年ごと、参考の Deflated Sharpe)
+  overfit.py           試した数の補正(Deflated Sharpe Ratio、PBO)
   reports/             Markdown のレポート(run_report / leaderboard / cases_overview)
   cli.py               python -m fxsim ...
 web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-charts
@@ -94,6 +97,19 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 足の中の振れ幅は、骨格の足ごとに「直前の局所ボラを中心にした事前分布」と「その足のリターン」から事後分布で引いた g に合わせ、
 終値とのずれは事前の分散の時計で配る(`AnchorBridge`、v4 / R008)。足の中の荒れ方から日足のリターンの大きさが漏れないようにするため。
 
+### 複数ペア(basket_*)
+
+| モデル | 中身 |
+|---|---|
+| `basket_real` | 対円 7 ペアの実データ(FRED 日足、終値だけ)をそのまま再生 |
+| `basket_bootstrap` | 日次リターンを全ペア同じブロック(同じ日付の並び)で並べ替える。ペアどうしの相関は残る |
+| `basket_placebo` | 日次リターンに全ペア共通の日ごとの符号を掛ける(偽薬) |
+| `basket_random_walk` | 実データの共分散を持つ正規乱数(ドリフト 0) |
+
+生成した MarketData は先頭のペア(既定 usdjpy)のもので、全ペアは `meta["legs"]` に入る。1 ペアの戦略は先頭のペアで回り、
+複数ペアの戦略(`Strategy.multi`)は `PortfolioBacktester` で全ペアを回す。足の中の経路は無い(日足の 2 点)。
+検証(`fxsim verify`)は戦略が複数ペアなら、この 4 つを標準のパターンにし、帰無は `basket_direction_null`。
+
 ## バックテスト
 
 - 足 i の終値で判断し、注文は足 i+1 の始値で約定(買いは ask、売りは bid)。先読みは構造上起きない
@@ -107,6 +123,10 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 - 破綻: 有効証拠金が一度でも初期の `ruin_frac`(既定 1 割)以下になったら `ruined`。損益は変えない。
   `stop_at_ruin: true` なら、その足で手仕舞いして取引をやめる(E007)
 - スワップは政策金利の差から毎日(`fxsim/data/rates.py`)。ロスカットは証拠金維持率を割った点の価格で
+- 一部決済(`ctx.reduce(units)`): 建玉の一部だけを次の足の始値で決済する(リピート系)。取得単価は平均のまま
+- 複数ペア(`backtest/portfolio.py`): ペアごとの約定・費用・スワップ・損切りは 1 ペアのエンジンと同じ。残高・有効証拠金・
+  建てられる量(有効証拠金 x レバレッジ − ほかのペアの建玉)は口座で共有する。ロスカットは口座全体を足の終値で見る。
+  スワップはペアごとの金利差(`data/real/short_rates_monthly_fred.csv`)
 - ブローカーの悪意(`malicious` プリセット): 不利な方向だけのスリッページ、利確の有利な窓を渡さない、
   逆指値の近くまで来たら確率で刺す、スワップとスプレッドの上乗せ、ラストルック、ゼロカットなし(docs/MARKET_MALICE.md)
 

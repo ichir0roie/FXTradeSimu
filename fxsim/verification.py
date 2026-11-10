@@ -40,6 +40,8 @@ GROUPS = {
     "real_bridge_placebo": "placebo",
     "stylized": "synthetic", "malicious": "synthetic", "random_walk": "synthetic",
     "real_bridge_malicious": "stress",
+    "basket_real": "real", "basket_bootstrap": "bootstrap", "basket_placebo": "placebo",
+    "basket_random_walk": "synthetic",
 }
 GROUP_LABELS = {"real": "実データ", "bootstrap": "並べ替え(独立)", "bridge": "実データ + 日中ランダム",
                 "placebo": "偽薬", "synthetic": "完全ランダム", "stress": "ストレス"}
@@ -47,6 +49,8 @@ GROUP_LABELS = {"real": "実データ", "bootstrap": "並べ替え(独立)", "br
 # 検証の標準のパターン(seeds は実行時に入る。real は決定的なので 1 本)
 STANDARD_PATTERNS = ["real", "real_bridge", "real_bootstrap", "real_bridge_placebo", "stylized", "malicious",
                      "real_bridge_malicious"]
+# 複数ペアの戦略(Strategy.multi)の標準のパターン。日足だけなので「日中ランダム」「ストレス」は無い
+BASKET_PATTERNS = ["basket_real", "basket_bootstrap", "basket_placebo", "basket_random_walk"]
 
 
 @dataclass
@@ -68,6 +72,7 @@ def _rows(con: sqlite3.Connection, run_id: int) -> list[dict]:
     for d in queries.done_jobs_with_metrics(con, run_id):
         m = json.loads(d.pop("metrics_json") or "{}")
         d["yearly"] = m.get("yearly_pnl", {})
+        d["metrics"] = {k: m[k] for k in ("sharpe", "n_days", "daily_skew", "daily_kurt") if k in m}
         d["group"] = GROUPS.get(d["market"], "synthetic")
         out.append(d)
     return out
@@ -88,7 +93,7 @@ def _year_coverage(rows: list[dict]) -> dict[str, float]:
 
 
 def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
-                    criteria: Criteria | None = None) -> dict:
+                    criteria: Criteria | None = None, n_trials: int | None = None) -> dict:
     """run の結果から判定を作る。model_label は戦略のラベル(動作ケースの ID)。"""
     c = criteria or Criteria()
     rows = _rows(con, run_id)
@@ -149,6 +154,8 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     check("C4", "時間の安定性", pos_years >= c.min_positive_years and first > 0 and second > 0,
           f"中央値がプラスの年 {pos_years:.0%}({len(full_years)} 年中)/ 前半 {first:,.0f} 円 / 後半 {second:,.0f} 円")
 
+    overfit = _deflated(model, n_trials)
+
     ok = {ch["key"]: ch["ok"] for ch in checks}
     if all(ok.values()):
         verdict = "合格"
@@ -174,7 +181,32 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
         "yearly": yearly,
         "criteria": c.__dict__,
         "model": model_label,
+        "overfit": overfit,
     }
+
+
+def default_trials() -> int:
+    """試した数の既定: 登録済みの戦略の数(帰無は除く)。このリポジトリで同じデータに当てた規則の数の目安。"""
+    from .strategies import STRATEGIES
+
+    return len([n for n in STRATEGIES.names() if "null" not in n])
+
+
+def _deflated(model: list[dict], n_trials: int | None) -> dict | None:
+    """参考: 実データ 1 本の日次シャープを、試した数で割り引いた Deflated Sharpe(判定には使わない)。"""
+    from .overfit import deflated_sharpe
+
+    real = [r for r in model if r["group"] == "real"]
+    if not real:
+        return None
+    m = real[0].get("metrics") or {}
+    if "n_days" not in m:
+        return None
+    n = n_trials or default_trials()
+    sr = float(m["sharpe"]) / np.sqrt(260)
+    d = deflated_sharpe(sr, int(m["n_days"]), n, float(m["daily_skew"]), float(m["daily_kurt"]))
+    return {"n_trials": n, "sharpe_annual": float(m["sharpe"]), "sr0_annual": d["sr0"] * np.sqrt(260),
+            "dsr": d["dsr"], "psr": d["psr"]}
 
 
 def format_verdict(v: dict) -> str:
@@ -186,6 +218,12 @@ def format_verdict(v: dict) -> str:
     for g in v["groups"].values():
         lines.append(f"| {g['label']} | {g['n']} | {g['mean']:,.0f} | {g['median']:,.0f} | {g['positive_ratio']:.0%} | "
                      f"{g['t']:.2f} | {g.get('ruin_ratio', 0.0):.0%} | {g.get('null_mean', float('nan')):,.0f} |")
+    o = v.get("overfit")
+    if o:
+        lines += ["", f"参考(判定には使わない): 実データの年率シャープ {o['sharpe_annual']:.2f}、"
+                      f"試した数 {o['n_trials']} 個の中身の無い最大の期待値 {o['sr0_annual']:.2f} → "
+                      f"Deflated Sharpe {o['dsr']:.2f}(0.95 以上で偶然では説明しにくい)/ "
+                      f"試した数を考えない場合 {o['psr']:.2f}"]
     if v["yearly"]:
         lines += ["", "年ごと(並べ替えの中央値): " + ", ".join(f"{y['year']} {y['median']:+,.0f}" for y in v["yearly"])]
     return "\n".join(lines)

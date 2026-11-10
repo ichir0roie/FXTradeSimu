@@ -1,23 +1,18 @@
+# DB は手元だけ(コミットするのは概要 docs/results/<run_key>/)。WAL・SHM も含む
+*.sqlite*
+
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
-desktop.ini
-# DB はコミットしない(手元だけ)。コミットするのは概要 docs/results/<run_key>/ だけ
-*.sqlite
-# 以前の結果パック(コミットしていた頃の置き場)
-data/results/
-data/patterns/
-fxsim.egg-info/
-# SQLite の一時ファイル
-*.sqlite-wal
-*.sqlite-shm
-*.sqlite-journal
-*.sqlite.tmp
+*.egg-info/
+.venv/
+
 # web
 web/node_modules/
 web/.next/
 web/next-env.d.ts
 web/tsconfig.tsbuildinfo
-# IDE の設定(各自のローカル)
+
+# 各自の環境
 .idea/
 .vscode/
+desktop.ini

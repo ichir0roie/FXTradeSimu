@@ -1,0 +1,7 @@
+id: B016
+name: 買いのリピート(USDJPY、1% 刻み 20 段、1 段 1,000 通貨、1 段ずつ利確、損切りなし、日足で判定)
+strategy: repeat_grid
+params: {side: long, step_pct: 1.0, n_levels: 20, units_per_level: 1000, recenter_days: 60}
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious

@@ -16,6 +16,8 @@
     summary [RUN...] [--all]     実験の概要を docs/results/<run_key>/ に書き出す(既定の DB への実験は終わったら自動)
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
+    fetch-fred                   FRED から対円 7 ペアの日足と 8 通貨の短期金利を取って data/real/ に書く
+    overfit RUN                  実験の中の戦略の集まりの PBO と Deflated Sharpe(試した数の補正)
 """
 from __future__ import annotations
 
@@ -153,12 +155,21 @@ def cmd_leaderboard(args) -> None:
 
 def cmd_check_lookahead(args) -> None:
     from .backtest.lookahead import check_lookahead
+    from .backtest.portfolio import check_lookahead_portfolio
 
     md = MARKETS.create("malicious").generate(years=1, seed=11)
+    basket = None
     bad = 0
     for name in args.names or STRATEGIES.names():
-        tf = STRATEGIES.create(name).timeframe
-        probs = check_lookahead(lambda name=name: STRATEGIES.create(name), md.bars(tf))
+        strat = STRATEGIES.create(name)
+        tf = strat.timeframe
+        if getattr(strat, "multi", False):
+            if basket is None:     # 複数ペアの戦略は、見る期間が長いので 10 年の並べ替えた相場で
+                basket = MARKETS.create("basket_bootstrap").generate(years=10, seed=11).meta["legs"]
+            probs = check_lookahead_portfolio(lambda name=name: STRATEGIES.create(name),
+                                              {p: leg.bars(tf) for p, leg in basket.items()})
+        else:
+            probs = check_lookahead(lambda name=name: STRATEGIES.create(name), md.bars(tf))
         print(f"{name}: {'OK' if not probs else 'NG ' + '; '.join(probs)}")
         bad += bool(probs)
     sys.exit(1 if bad else 0)
@@ -210,6 +221,20 @@ def cmd_verify(args) -> None:
         if summary.get("verdict"):
             print()
             print(format_verdict(summary["verdict"]))
+
+
+def cmd_fetch_fred(args) -> None:
+    from .data.fred import fetch
+
+    fetch()
+
+
+def cmd_overfit(args) -> None:
+    from .overfit import format_overfit, run_overfit
+
+    con = init_db(args.db)
+    run_id = queries.resolve_run(con, args.run_id) or queries.latest_run_id(con)
+    print(format_overfit(run_overfit(con, run_id, market=args.market, broker=args.broker, n_blocks=args.blocks)))
 
 
 def cmd_summary(args) -> None:
@@ -350,6 +375,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--all", action="store_true", help="demo 以外の全実行")
     p.add_argument("--out", default=str(SUMMARIES_DIR))
     _db(p)
+
+    p = add("overfit", cmd_overfit, help="戦略の集まりの PBO と Deflated Sharpe")
+    p.add_argument("run_id", nargs="?", help="番号か run_key(省略で最新)")
+    p.add_argument("--market", help="市場のラベル(省略で最初のもの)")
+    p.add_argument("--broker", help="ブローカーのラベル(省略で最初のもの)")
+    p.add_argument("--blocks", type=int, default=10, help="CSCV の塊の数(偶数)")
+    _db(p)
+
+    add("fetch-fred", cmd_fetch_fred, help="複数通貨ペアの実データと金利を FRED から取る")
 
     p = add("init-db", cmd_init_db)
     _db(p)

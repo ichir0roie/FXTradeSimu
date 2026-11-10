@@ -34,6 +34,9 @@ def compute_metrics(bt: Backtester) -> dict:
     rets = np.diff(np.r_[eq0, eq]) / np.maximum(np.r_[eq0, eq][:-1], 1e-9)
     sd = rets.std()
     sharpe = float(rets.mean() / sd * np.sqrt(260)) if sd > 0 else 0.0
+    # 日次リターンの歪度・尖度(正規 = 3)。試した数の補正(fxsim/overfit.py の Deflated Sharpe)に使う
+    z = (rets - rets.mean()) / sd if sd > 0 else np.zeros_like(rets)
+    skew, kurt = (float(np.mean(z ** 3)), float(np.mean(z ** 4))) if sd > 0 else (0.0, 3.0)
     downside = rets[rets < 0]
     sortino = float(rets.mean() / downside.std() * np.sqrt(260)) if len(downside) > 1 and downside.std() > 0 else 0.0
     peak = np.maximum.accumulate(np.r_[eq0, eq])
@@ -66,6 +69,9 @@ def compute_metrics(bt: Backtester) -> dict:
         "total_return": final / eq0 - 1,
         "cagr": cagr,
         "sharpe": sharpe,
+        "daily_skew": skew,
+        "daily_kurt": kurt,
+        "n_days": int(len(rets)),
         "sortino": sortino,
         "max_dd": max_dd,
         "max_dd_days": int(longest),

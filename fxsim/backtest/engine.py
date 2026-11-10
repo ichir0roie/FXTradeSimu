@@ -74,6 +74,7 @@ class Trade:
     bars_held: int
     commission: float = 0.0   # 円(往復)
     slippage: float = 0.0     # 円(往復、不利な向きを正)
+    pair: str = ""            # 通貨ペア(複数ペアのバックテストのとき)
 
 
 @dataclass
@@ -167,6 +168,12 @@ class StrategyContext:
         if e.pos is not None and e.can_enter[e.i]:
             e._submit(_Order("add", e.pos.side, sl, tp, units, sl_from_average))
 
+    def reduce(self, units: float) -> None:
+        """今の建玉のうち units だけ決済する(一部利確。リピート系)。次の足の始値で約定する。
+        取得単価は平均のまま(残りの建玉の単価は変わらない)。建玉以上なら全部決済する。"""
+        if self._e.pos is not None and units > 0:
+            self._e._submit(_Order("reduce", self._e.pos.side, units=units))
+
     def set_sl(self, price: float | None) -> None:
         """損切り価格(絶対値)を変える。次の足から有効。"""
         if self._e.pos is not None:
@@ -214,7 +221,9 @@ def _first_touch(q: np.ndarray, level: float, sig2: float, gap: float, u: np.nda
 class Backtester:
     def __init__(self, bars: Bars, strategy, broker: BrokerConfig | None = None,
                  config: EngineConfig | None = None, pip: float = 0.01, seed: int = 0,
-                 schedule: TradingSchedule | None = None):
+                 schedule: TradingSchedule | None = None, rate_diff: np.ndarray | None = None):
+        # rate_diff: 足ごとの金利差(基軸 − 決済、年率)。省くと broker.rates_path の USD − JPY(複数ペアで差し替える)
+        self._rate_diff_override = rate_diff
         self.bars = bars
         self.schedule = schedule or TradingSchedule()
         self.decide, self.can_enter, self.force_close = self.schedule.masks(bars.t, bars.timeframe)
@@ -280,7 +289,9 @@ class Backtester:
             mean_abs = np.add.reduceat(d, starts) / np.maximum(n_steps, 1)
             self.touch_margin = (4.0 * np.sqrt(np.pi / 2) * mean_abs).tolist()
         if b.swap_mode == "rates":
-            self.rate_diff = load_rates(b.rates_path).differential(bars.t).tolist()
+            diff = (self._rate_diff_override if self._rate_diff_override is not None
+                    else load_rates(b.rates_path).differential(bars.t))
+            self.rate_diff = np.asarray(diff, dtype=float).tolist()
 
     # ---- 注文の受付 ----
     def _submit(self, order: _Order) -> None:
@@ -366,6 +377,32 @@ class Backtester:
         if o.sl_dist is not None:
             base = p.entry_price if o.sl_from_average else price
             p.sl = base - p.side * o.sl_dist
+
+    def _reduce(self, i: int, o: _Order) -> None:
+        """建玉のうち o.units だけ始値で決済する。スワップ・手数料・滑りは数量で按分して、その取引に付ける。"""
+        p = self.pos
+        u = float(np.floor(min(o.units or 0.0, p.units) / 1000.0) * 1000.0)
+        if u <= 0:
+            return
+        if u >= p.units:
+            self._close_at_open(i, "signal")
+            return
+        frac = u / p.units
+        slip = self._slip(i)
+        price = self.bo[i] - slip if p.side > 0 else self.ao[i] + slip
+        fee = self._commission(u)
+        self.stats["slippage_total"] += slip * u
+        swap, comm, slp = p.swap * frac, p.commission * frac, p.slippage * frac
+        pips = (price - p.entry_price) * p.side / self.pip
+        gross = (self.o[i] - p.entry_mid) * p.side / self.pip
+        pnl = (price - p.entry_price) * p.side * u + swap - comm - fee
+        self.balance += (price - p.entry_price) * p.side * u
+        self.trades.append(Trade(p.side, u, int(self.t[p.entry_idx]), int(self.t[i]), p.entry_price, price, pnl, pips,
+                                 gross, gross - pips, swap, "reduce", i - p.entry_idx, comm + fee, slp + slip * u))
+        p.units -= u
+        p.swap -= swap
+        p.commission -= comm
+        p.slippage -= slp
 
     def _close(self, i: int, price: float, mid: float, reason: str, slip: float = 0.0) -> None:
         p = self.pos
@@ -547,6 +584,33 @@ class Backtester:
             self.halted = True
 
     # ---- 実行 ----
+    def _fill(self, i: int) -> None:
+        """足 i の始値までに起きること: スワップ、前の足で出した注文の約定、足の中の損切り・利確。"""
+        self._swap(i)
+        if self.pending:
+            orders, self.pending = self.pending, []
+            for o in orders:
+                if o.kind == "close":
+                    if self.pos is not None:
+                        self._close_at_open(i, "signal")
+                elif o.kind == "add":
+                    if self.pos is not None and self.pos.side == o.side:
+                        self._add(i, o)
+                elif o.kind == "reduce":
+                    if self.pos is not None and self.pos.side == o.side:
+                        self._reduce(i, o)
+                else:
+                    if self.pos is not None:
+                        if self.pos.side == o.side:
+                            continue
+                        self._close_at_open(i, "reverse")
+                    if self._last_look_rejects(i, o.side):
+                        self.pending.append(o)          # 拒否された注文は次の足で約定し直す
+                        continue
+                    self._open(i, o)
+        if self.pos is not None and self.pos.entry_idx <= i:
+            self._check_stops(i)
+
     def run(self, progress: ProgressFn | None = None, every: int = 500) -> Backtester:
         n = len(self.bars)
         self.strategy.prepare(self.bars, self.strategy_rng)
@@ -558,27 +622,7 @@ class Backtester:
                 self.equity_curve[i] = self.equity
                 self.balance_curve[i] = self.balance
                 continue
-            self._swap(i)
-            if self.pending:
-                orders, self.pending = self.pending, []
-                for o in orders:
-                    if o.kind == "close":
-                        if self.pos is not None:
-                            self._close_at_open(i, "signal")
-                    elif o.kind == "add":
-                        if self.pos is not None and self.pos.side == o.side:
-                            self._add(i, o)
-                    else:
-                        if self.pos is not None:
-                            if self.pos.side == o.side:
-                                continue
-                            self._close_at_open(i, "reverse")
-                        if self._last_look_rejects(i, o.side):
-                            self.pending.append(o)          # 拒否された注文は次の足で約定し直す
-                            continue
-                        self._open(i, o)
-            if self.pos is not None and self.pos.entry_idx <= i:
-                self._check_stops(i)
+            self._fill(i)
             self._mark(i)
             self._check_ruin(i)
             self.equity_curve[i] = self.equity

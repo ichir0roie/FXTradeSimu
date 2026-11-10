@@ -1,0 +1,30 @@
+# E010: 複数通貨の手法を、ブローカーごとに並べる。設定違いも並べて、試した数の補正(fxsim overfit)の材料にする
+name: E010 basket methods
+proposal: E010
+years: 30
+seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+workers: 8
+storage: {candle_timeframe: 1440, equity_detail_timeframe: 10080, equity_timeframe: 43200, trades: none, events: false}
+brokers: [fair, ecn, malicious]
+markets:
+  - basket_real
+  - {model: basket_bootstrap, params: {source: {block_days: 250}}}
+  - basket_placebo
+  - {model: basket_random_walk, seeds: [1, 2, 3, 4]}
+strategies:
+  - {name: xs_carry, label: carry_1x1, params: {n_long: 1, n_short: 1}}
+  - {name: xs_carry, label: carry_2x2}
+  - {name: xs_carry, label: carry_3x3, params: {n_long: 3, n_short: 3}}
+  - {name: xs_momentum, label: mom_21, params: {lookback: 21}}
+  - {name: xs_momentum, label: mom_63}
+  - {name: xs_momentum, label: mom_126, params: {lookback: 126}}
+  - {name: xs_momentum, label: mom_252_21, params: {lookback: 252, skip: 21}}
+  - {name: xs_value, label: value_756, params: {lookback: 756}}
+  - {name: xs_value, label: value_1260}
+  - {name: basket_trend, label: trend_63, params: {lookback: 63}}
+  - {name: basket_trend, label: trend_126}
+  - {name: basket_trend, label: trend_252, params: {lookback: 252}}
+  - {name: xs_gbdt, label: gbdt}
+  - {name: carry_trade, label: usdjpy_carry, params: {rates_path: data/real/short_rates_monthly_fred.csv}}
+  - {name: buy_and_hold, label: usdjpy_hold}
+  - {name: random_entry, label: usdjpy_random, params: {timeframe: 1440}}

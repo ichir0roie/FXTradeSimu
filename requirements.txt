@@ -3,5 +3,7 @@ pandas>=2.1
 PyYAML>=6.0
 # 任意: あれば AR(1) フィルタが速くなる
 scipy>=1.11
+# 任意: 勾配ブースティングの戦略(xs_gbdt)に要る。CPU だけで動く(MIT ライセンス)
+lightgbm>=4.0
 # テスト
 pytest>=8

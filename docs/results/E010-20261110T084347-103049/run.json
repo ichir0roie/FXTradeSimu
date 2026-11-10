@@ -1,0 +1,316 @@
+{
+ "run_key": "E010-20261110T084347-103049",
+ "name": "E010 basket methods",
+ "kind": "experiment",
+ "proposal": "E010",
+ "status": "done",
+ "created_at": "2026-11-10T08:43:47Z",
+ "finished_at": "2026-11-10T08:48:02Z",
+ "git_sha": "7fed7bf+dirty",
+ "years": 30.0,
+ "notes": "",
+ "elapsed_sec": 255.14256858825684,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "config": {
+  "name": "E010 basket methods",
+  "markets": [
+   {
+    "model": "basket_real",
+    "label": "basket_real",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "basket_bootstrap",
+    "label": "basket_bootstrap",
+    "params": {
+     "source": {
+      "block_days": 250
+     }
+    },
+    "seeds": null
+   },
+   {
+    "model": "basket_placebo",
+    "label": "basket_placebo",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "basket_random_walk",
+    "label": "basket_random_walk",
+    "params": {},
+    "seeds": [
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  ],
+  "strategies": [
+   {
+    "name": "xs_carry",
+    "label": "carry_1x1",
+    "params": {
+     "n_long": 1,
+     "n_short": 1
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_carry",
+    "label": "carry_2x2",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "xs_carry",
+    "label": "carry_3x3",
+    "params": {
+     "n_long": 3,
+     "n_short": 3
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_momentum",
+    "label": "mom_21",
+    "params": {
+     "lookback": 21
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_momentum",
+    "label": "mom_63",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "xs_momentum",
+    "label": "mom_126",
+    "params": {
+     "lookback": 126
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_momentum",
+    "label": "mom_252_21",
+    "params": {
+     "lookback": 252,
+     "skip": 21
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_value",
+    "label": "value_756",
+    "params": {
+     "lookback": 756
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_value",
+    "label": "value_1260",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "basket_trend",
+    "label": "trend_63",
+    "params": {
+     "lookback": 63
+    },
+    "schedule": {}
+   },
+   {
+    "name": "basket_trend",
+    "label": "trend_126",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "basket_trend",
+    "label": "trend_252",
+    "params": {
+     "lookback": 252
+    },
+    "schedule": {}
+   },
+   {
+    "name": "xs_gbdt",
+    "label": "gbdt",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "carry_trade",
+    "label": "usdjpy_carry",
+    "params": {
+     "rates_path": "data/real/short_rates_monthly_fred.csv"
+    },
+    "schedule": {}
+   },
+   {
+    "name": "buy_and_hold",
+    "label": "usdjpy_hold",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "random_entry",
+    "label": "usdjpy_random",
+    "params": {
+     "timeframe": 1440
+    },
+    "schedule": {}
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "fair",
+    "label": "fair",
+    "overrides": {}
+   },
+   {
+    "preset": "ecn",
+    "label": "ecn",
+    "overrides": {}
+   },
+   {
+    "preset": "malicious",
+    "label": "malicious",
+    "overrides": {}
+   }
+  ],
+  "years": 30,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "detail_seeds": [
+   1
+  ],
+  "workers": 8,
+  "kind": "experiment",
+  "proposal": "E010",
+  "notes": "",
+  "engine": {
+   "initial_balance": 1000000.0,
+   "sizing": "fixed",
+   "units": 10000.0,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0,
+   "ruin_frac": 0.1,
+   "stop_at_ruin": false
+  },
+  "storage": {
+   "candle_timeframe": 1440,
+   "trades": "none",
+   "equity_timeframe": 43200,
+   "equity_detail_timeframe": 10080,
+   "events": false
+  },
+  "live": {
+   "flush_every": 500,
+   "delay_ms": 0.0
+  },
+  "brokers_resolved": {
+   "fair": {
+    "name": "fair",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "ecn": {
+    "name": "ecn",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.2,
+    "stop_slippage_mult": 1.5,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": -0.2,
+    "spread_floor_pips": 0.05,
+    "commission_per_10k": 50.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "malicious": {
+    "name": "malicious",
+    "slippage_pips": 0.2,
+    "adverse_only": true,
+    "slippage_spread_k": 0.5,
+    "stop_slippage_mult": 2.5,
+    "positive_slippage": false,
+    "hunt_prob": 0.35,
+    "hunt_pips": 3.0,
+    "spread_markup_pips": 0.3,
+    "spread_floor_pips": 0.5,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.01,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.3,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   }
+  }
+ },
+ "case_runs": []
+}

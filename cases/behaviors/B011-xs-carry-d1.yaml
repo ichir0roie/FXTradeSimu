@@ -1,0 +1,7 @@
+id: B011
+name: 通貨のキャリー(対円 7 ペア、金利の上位 2 を買い・下位 2 を売る、21 日ごとに入れ替え)
+strategy: xs_carry
+params: {hold_days: 21, n_long: 2, n_short: 2, gross: 1.5}
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
