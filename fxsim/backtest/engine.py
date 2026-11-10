@@ -363,12 +363,14 @@ class Backtester:
                 reason = "losscut" if lc is not None and stop == lc and (sl is None or lc > sl) else "sl"
                 if reason == "losscut":
                     self.stats["losscut"] += 1
-                self._close(i, fill * sd, float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd)),
-                            reason, slip)
+                at = float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd))   # 損切り価格に届いた瞬間
+                self._close(i, fill * sd, at, reason, slip)
             else:
                 jumped = q[jt] - q[jt - 1] > gap
                 fill = q[jt] if (self.broker.positive_slippage and jumped and q[jt] > tp) else tp
-                self._close(i, fill * sd, float(mid[jt]), "tp")
+                # 素の損益の mid: 飛びなら越えた点の mid、ふつうの 1 歩なら利確価格に届いた瞬間の mid
+                at = float(mid[jt]) if jumped else float(tp * sd + (mid[jt] - q[jt] * sd))
+                self._close(i, fill * sd, at, "tp")
             return
         # 経路が無い足: 足の高安だけで判定(両方届いたら損切りが先 = 悲観的)
         half = self.sm[i] / 2
