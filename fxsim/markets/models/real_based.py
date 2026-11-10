@@ -2,7 +2,9 @@
 
 R001 real                  実データをそのまま再生(シードで変わらない)
 R002 real_bridge           実データの足(既定: USDJPY 日足)を骨格に、足の中をランダムに合成
-R003 real_bridge_malicious R002 + 悪意(群衆の逆突き・ダマシ・ストップ狩り)
+R003 real_bridge_malicious R002 + ストップ狩り(適応つき)。ブローカーとストップ狩りへの耐性を見るストレス試験。
+                           日足の終値が実データに固定されるため、持続するずれを作る悪意(群衆の逆突き・ダマシ)は
+                           その日のうちに戻る動きに変わり、日中の逆張りの穴になる。v2 ではそれらを外した
 R004 real_bootstrap        実データのリターンをブロック単位で並べ替えた骨格 + 足の中の合成
 R006 real_bridge_placebo   実データのリターンの符号だけでたらめにした骨格 + 同じ合成(作り方の癖を測る偽薬)
 
@@ -16,9 +18,7 @@ from .. import MARKETS
 from ..base import MarketModel
 from ..components import (
     ConstantSpread,
-    CrowdSqueeze,
     DynamicSpread,
-    FalseBreakout,
     FatTails,
     NewsShocks,
     SessionSeasonality,
@@ -47,10 +47,9 @@ def build_bridge(params: dict) -> MarketModel:
 
 
 @MARKETS.register("real_bridge_malicious", version="2",
-                  description="real_bridge + 群衆の逆突き・ダマシ・ストップ狩り", tags=("real", "random", "malice"))
+                  description="real_bridge + 適応するストップ狩り(ストレス試験)", tags=("real", "random", "malice"))
 def build_bridge_malicious(params: dict) -> MarketModel:
-    comps = [RealSkeleton(mode="replay"), *_intraday(), CrowdSqueeze(), FalseBreakout(), StopHunt(),
-             AnchorBridge(), DynamicSpread()]
+    comps = [RealSkeleton(mode="replay"), *_intraday(), StopHunt(adapt_gain=1.0), AnchorBridge(), DynamicSpread()]
     return MarketModel("real_bridge_malicious", "2", comps).with_params(params)
 
 
