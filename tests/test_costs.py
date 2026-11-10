@@ -54,6 +54,18 @@ def test_stop_fills_at_the_price_after_a_crash_not_at_the_stop():
     assert t2.exit_price == pytest.approx(100.001 - 0.20)       # 足の高安だけだと損切り価格で約定(甘い)
 
 
+def test_stop_fills_at_the_stop_when_the_price_moves_continuously():
+    # 1 分ごとに ±0.5〜1 pip ずつ下がる(飛びの無い下げ)。点の間も連続して動くので、損切り価格で約定する
+    rng = np.random.default_rng(0)
+    steps = -np.abs(rng.uniform(0.5, 1.0, 120)) * PIP
+    prices = flat_then(list(100.0 + np.cumsum(steps)), n_before=60)
+    bars = bars_from_minutes(prices)
+    bt = Backtester(bars, Script({0: [("buy", {"sl": 0.20})]}), BrokerConfig(slippage_pips=0), pip=PIP).run()
+    t = bt.trades[0]
+    assert t.reason == "sl"
+    assert t.exit_price == pytest.approx(t.entry_price - 0.20)
+
+
 def test_first_touch_wins_when_stop_and_target_are_in_the_same_bar():
     # 2 本目の足で先に +0.5 円上がり、その後 -0.5 円下がる -> 利確が先
     prices = flat_then([100.0] * 10 + [100.6] * 20 + [99.4] * 30, n_before=60)

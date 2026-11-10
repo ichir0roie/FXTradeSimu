@@ -46,13 +46,20 @@ class Bars:
               for k, v in self.__dict__.items()}
         return Bars(**kw)
 
-    def path(self, i: int) -> tuple[np.ndarray, np.ndarray] | None:
-        """足 i の中の基準解像度の (mid, spread)。経路を持たない足では None。"""
+    def path(self, i: int, prev: bool = False) -> tuple[np.ndarray, np.ndarray] | None:
+        """足 i の中の基準解像度の (mid, spread)。経路を持たない足では None。
+
+        prev=True なら、先頭に 1 つ前の点(前の足の最後の点。系列の先頭なら足の最初の点の複製)を付ける。
+        """
         if self.base_mid is None:
             return None
         a = int(self.start_idx[i])
         b = int(self.start_idx[i + 1]) if i + 1 < len(self.start_idx) else len(self.base_mid)
-        return self.base_mid[a:b], self.base_spread[a:b]
+        if not prev:
+            return self.base_mid[a:b], self.base_spread[a:b]
+        if a > 0:
+            return self.base_mid[a - 1:b], self.base_spread[a - 1:b]
+        return np.r_[self.base_mid[a], self.base_mid[a:b]], np.r_[self.base_spread[a], self.base_spread[a:b]]
 
 
 BAR_OFFSET_MINUTES = 120   # 足の区切りを 22:00 UTC(NY クローズ)に揃える。日足 = 取引日
