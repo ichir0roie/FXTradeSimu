@@ -33,14 +33,26 @@ class Bars:
     spread_max: np.ndarray
     ticks: np.ndarray
     start_idx: np.ndarray      # 基準解像度での開始位置
+    # 基準解像度の経路(足の中で何が先に起きたかを調べるため。make_bars が元の配列をそのまま参照する)
+    base_mid: np.ndarray | None = None
+    base_spread: np.ndarray | None = None
 
     def __len__(self) -> int:
         return len(self.t)
 
     def slice(self, stop: int) -> Bars:
         """先頭から stop 本だけの Bars(先読み検査用)。"""
-        kw = {k: (v[:stop] if isinstance(v, np.ndarray) else v) for k, v in self.__dict__.items()}
+        kw = {k: (v[:stop] if isinstance(v, np.ndarray) and not k.startswith("base_") else v)
+              for k, v in self.__dict__.items()}
         return Bars(**kw)
+
+    def path(self, i: int) -> tuple[np.ndarray, np.ndarray] | None:
+        """足 i の中の基準解像度の (mid, spread)。経路を持たない足では None。"""
+        if self.base_mid is None:
+            return None
+        a = int(self.start_idx[i])
+        b = int(self.start_idx[i + 1]) if i + 1 < len(self.start_idx) else len(self.base_mid)
+        return self.base_mid[a:b], self.base_spread[a:b]
 
 
 BAR_OFFSET_MINUTES = 120   # 足の区切りを 22:00 UTC(NY クローズ)に揃える。日足 = 取引日
@@ -74,4 +86,6 @@ def make_bars(times: np.ndarray, mid: np.ndarray, spread: np.ndarray, minutes: i
         spread_max=np.maximum.reduceat(spread, starts),
         ticks=cnt,
         start_idx=starts.astype(np.int64),
+        base_mid=mid,
+        base_spread=spread,
     )
