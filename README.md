@@ -26,6 +26,7 @@ python -m fxsim eval-strategy ma_cross --params '{"timeframe": 1440}' --null --p
 python -m fxsim eval-market malicious                 # 市場の案の評価
 python -m fxsim ablate malicious                      # どの悪意が効いているか
 python -m pytest -q
+ruff check fxsim tests
 ```
 
 画面(ローカル):

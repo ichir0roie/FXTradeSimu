@@ -2,13 +2,9 @@
 import { useEffect, useRef } from "react";
 import {
   CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,
-  type IChartApi, type ISeriesApi, type SeriesMarker, type Time, type UTCTimestamp,
+  type IChartApi, type IRange, type ISeriesApi, type SeriesMarker, type Time, type UTCTimestamp,
 } from "lightweight-charts";
-
-export type Candle = { time: number; open: number; high: number; low: number; close: number };
-export type EqPoint = { t: number; balance: number; equity: number };
-export type Trade = { seq: number; side: number; entry_t: number; exit_t: number; pnl: number; reason: string; pips: number };
-export type MarketEvent = { t: number; kind: string; direction: number | null; pips: number | null };
+import type { Candle, EqPoint, MarketEvent, Trade } from "@/lib/types";
 
 const OFF = 7200; // 足の区切り = 22:00 UTC
 const bucket = (t: number, tfMin: number) => Math.floor((t + OFF) / (tfMin * 60)) * tfMin * 60 - OFF;
@@ -30,7 +26,8 @@ function baseOptions(height: number) {
   };
 }
 
-const EVENT_STYLE: Record<string, { color: string; text: string; label: string }> = {
+// 悪意イベントのマーカー。市場の部品が ctx.event() で残す kind ごと(新しい kind を足したらここにも)
+export const EVENT_STYLE: Record<string, { color: string; text: string; label: string }> = {
   stop_hunt: { color: "#e07a10", text: "狩", label: "ストップ狩り(戻り)" },
   stop_cascade: { color: "#b8336a", text: "連", label: "ストップの連鎖" },
   false_breakout: { color: "#8a5cd6", text: "騙", label: "ダマシ" },
@@ -38,10 +35,11 @@ const EVENT_STYLE: Record<string, { color: string; text: string; label: string }
   news: { color: "#6b7280", text: "N", label: "指標" },
   weekend_gap: { color: "#6b7280", text: "窓", label: "週明けの窓" },
 };
-export const EVENT_LEGEND = EVENT_STYLE;
 
-export function PriceChart({ candles, trades, events, tf, showTrades, showEvents, height = 420 }: {
-  candles: Candle[]; trades: Trade[]; events: MarketEvent[]; tf: number; showTrades: boolean; showEvents: boolean; height?: number;
+export function PriceChart({ candles, trades, events, tf, showTrades, showEvents, onChart, height = 420 }: {
+  candles: Candle[]; trades: Trade[]; events: MarketEvent[]; tf: number; showTrades: boolean; showEvents: boolean;
+  onChart?: (chart: IChartApi | null) => void; // 資産曲線と表示期間をそろえるために、作ったチャートを親へ渡す
+  height?: number;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
@@ -59,8 +57,9 @@ export function PriceChart({ candles, trades, events, tf, showTrades, showEvents
     chart.current = c;
     series.current = s;
     markers.current = createSeriesMarkers(s, []);
-    (window as any).__fxPriceChart = c;
+    onChart?.(c);
     return () => {
+      onChart?.(null);
       c.remove();
       chart.current = null;
       series.current = null;
@@ -132,7 +131,9 @@ export function PriceChart({ candles, trades, events, tf, showTrades, showEvents
   return <div ref={el} className="chart" style={{ height }} />;
 }
 
-export function EquityChart({ equity, initial, height = 200 }: { equity: EqPoint[]; initial: number; height?: number }) {
+export function EquityChart({ equity, initial, syncWith, height = 200 }: {
+  equity: EqPoint[]; initial: number; syncWith?: IChartApi | null; height?: number;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const eq = useRef<ISeriesApi<"Line"> | null>(null);
   const bal = useRef<ISeriesApi<"Line"> | null>(null);
@@ -145,31 +146,37 @@ export function EquityChart({ equity, initial, height = 200 }: { equity: EqPoint
     eq.current = c.addSeries(LineSeries, { color: css("--accent"), lineWidth: 2, priceLineVisible: false, title: "有効証拠金" });
     eq.current.createPriceLine({ price: initial, color: css("--border"), lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: "" });
     chart.current = c;
-    // 価格チャートと表示期間をそろえる
-    const pc: IChartApi | undefined = (window as any).__fxPriceChart;
-    const sync = (r: any) => {
-      if (!r) return;
-      try { c.timeScale().setVisibleRange(r); } catch { /* 範囲外は無視 */ }
-    };
-    pc?.timeScale().subscribeVisibleTimeRangeChange(sync);
     return () => {
-      try { pc?.timeScale().unsubscribeVisibleTimeRangeChange(sync); } catch { /* removed */ }
+      chart.current = null;
       c.remove();
     };
   }, [height, initial]);
+
+  // 価格チャートの表示期間に追従する
+  useEffect(() => {
+    if (!syncWith) return;
+    const follow = (r: IRange<Time> | null) => {
+      if (!r) return;
+      try { chart.current?.timeScale().setVisibleRange(r); } catch { /* 範囲外は無視 */ }
+    };
+    syncWith.timeScale().subscribeVisibleTimeRangeChange(follow);
+    return () => {
+      try { syncWith.timeScale().unsubscribeVisibleTimeRangeChange(follow); } catch { /* 先に消えている */ }
+    };
+  }, [syncWith]);
 
   useEffect(() => {
     if (!eq.current || !bal.current) return;
     eq.current.setData(equity.map((p) => ({ time: p.t as UTCTimestamp, value: p.equity })));
     bal.current.setData(equity.map((p) => ({ time: p.t as UTCTimestamp, value: p.balance })));
-    const pc: IChartApi | undefined = (window as any).__fxPriceChart;
-    const r = pc?.timeScale().getVisibleRange();
-    if (r) {
-      try { chart.current?.timeScale().setVisibleRange(r); } catch { chart.current?.timeScale().fitContent(); }
-    } else {
+    const r = syncWith?.timeScale().getVisibleRange();
+    try {
+      if (r) chart.current?.timeScale().setVisibleRange(r);
+      else chart.current?.timeScale().fitContent();
+    } catch {
       chart.current?.timeScale().fitContent();
     }
-  }, [equity]);
+  }, [equity, syncWith]);
 
   return <div ref={el} className="chart" style={{ height }} />;
 }

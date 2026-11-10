@@ -1,18 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePoll } from "@/lib/usePoll";
-import { fmt, pct, yen, tone } from "@/lib/format";
+import { fmt, hoursLabel, outsideLabel, pct, tfLabel, tone, tTone, yen } from "@/lib/format";
+import type { CasesResponse, Summary } from "@/lib/types";
 import { Status } from "./Progress";
 
-function hours(s: any): string {
-  if (!s?.hours?.length) return "終日";
-  return s.hours.map((h: string[]) => `${h[0]}–${h[1]}`).join(", ") + ` ${s.tz}`;
-}
-
 export default function CasesView() {
-  const { data } = usePoll<any>("/api/cases", (d) => !!d?.tests?.some((t: any) => t.runs[0]?.status === "running"), 2000);
+  const { data } = usePoll<CasesResponse>("/api/cases", (d) => !!d?.tests.some((t) => t.runs[0]?.status === "running"), 2000);
   if (!data) return <div className="empty">読み込み中…</div>;
-  const behaviors = new Map<string, any>(data.behaviors.map((b: any) => [b.id, b]));
+  const behaviors = data.behaviors;
   return (
     <>
       <h1>テストケース</h1>
@@ -31,10 +27,10 @@ export default function CasesView() {
             </tr>
           </thead>
           <tbody>
-            {data.tests.map((t: any) => {
+            {data.tests.map((t) => {
               const r = t.runs[0];
               const a = r?.summary?.all;
-              const p = a?.pnl;
+              const p: Summary | undefined = a?.pnl;
               const per = t.def.period?.years ? `${t.def.period.years} 年` : `${t.def.period?.start}〜${t.def.period?.end}`;
               return (
                 <tr key={t.id}>
@@ -43,7 +39,7 @@ export default function CasesView() {
                   <td className="l">{t.def.behavior}</td>
                   <td className="l">{per}</td>
                   <td className="l" style={{ whiteSpace: "normal" }}>
-                    {t.def.patterns.map((x: any) => `${x.label ?? x.market}×${x.seeds.length}`).join(", ")}
+                    {(t.def.patterns ?? []).map((x) => `${x.label ?? x.market}×${x.seeds.length}`).join(", ")}
                   </td>
                   <td className="l">
                     {r ? <Status s={r.status} /> : <span className="badge">未実行</span>}
@@ -56,7 +52,7 @@ export default function CasesView() {
                   <td className={`num ${tone(p?.min)}`}>{yen(p?.min)}</td>
                   <td className={`num ${tone(p?.max)}`}>{yen(p?.max)}</td>
                   <td className="num">{pct(p?.positive_ratio, 0)}</td>
-                  <td className={`num ${Math.abs(p?.t ?? 0) >= 2 ? tone(p?.t) : "muted"}`}>{fmt(p?.t)}</td>
+                  <td className={`num ${tTone(p?.t)}`}>{fmt(p?.t)}</td>
                   <td className={`num ${tone(a?.sharpe?.mean)}`}>{fmt(a?.sharpe?.mean)}</td>
                   <td className="l">{r?.run_id ? <Link href={`/runs/${r.run_id}`}>#{r.run_id} →</Link> : "–"}</td>
                 </tr>
@@ -73,9 +69,9 @@ export default function CasesView() {
             <tr><th className="l">テスト</th><th className="l">相場パターン</th><th>n</th><th>平均</th><th>中央</th><th>合計</th><th>標準偏差</th><th>プラスの割合</th><th>t値</th><th>シャープ平均</th><th>最大DD平均</th></tr>
           </thead>
           <tbody>
-            {data.tests.flatMap((t: any) => {
+            {data.tests.flatMap((t) => {
               const bm = t.runs[0]?.summary?.by_market ?? {};
-              return Object.entries(bm).map(([m, v]: [string, any]) => (
+              return Object.entries(bm).map(([m, v]) => (
                 <tr key={`${t.id}-${m}`}>
                   <td className="l">{t.id}</td>
                   <td className="l">{m} {m === "real" && <span className="badge real">実データ</span>}</td>
@@ -85,7 +81,7 @@ export default function CasesView() {
                   <td className={`num ${tone(v.pnl?.total)}`}>{yen(v.pnl?.total)}</td>
                   <td className="num">{fmt(v.pnl?.std, 0)}</td>
                   <td className="num">{pct(v.pnl?.positive_ratio, 0)}</td>
-                  <td className={`num ${Math.abs(v.pnl?.t ?? 0) >= 2 ? tone(v.pnl?.t) : "muted"}`}>{fmt(v.pnl?.t)}</td>
+                  <td className={`num ${tTone(v.pnl?.t)}`}>{fmt(v.pnl?.t)}</td>
                   <td className={`num ${tone(v.sharpe?.mean)}`}>{fmt(v.sharpe?.mean)}</td>
                   <td className="num">{pct(v.max_dd?.mean)}</td>
                 </tr>
@@ -102,20 +98,20 @@ export default function CasesView() {
             <tr><th className="l">ID</th><th className="l">名前</th><th className="l">戦略</th><th className="l">パラメータ</th><th>足</th><th>判断の間隔</th><th className="l">取引時間</th><th className="l">曜日</th><th className="l">時間外</th><th className="l">ブローカー</th></tr>
           </thead>
           <tbody>
-            {[...behaviors.values()].map((b: any) => {
+            {behaviors.map((b) => {
               const d = b.def;
-              const tf = d.timeframe ?? d.params?.timeframe;
+              const tf = d.timeframe ?? (d.params?.timeframe as number | undefined);
               return (
                 <tr key={b.id}>
                   <td className="l">{b.id}</td>
                   <td className="l" style={{ whiteSpace: "normal", minWidth: 200 }}>{b.name}</td>
                   <td className="l">{d.strategy}</td>
                   <td className="l muted" style={{ whiteSpace: "normal" }}><code>{JSON.stringify(d.params)}</code></td>
-                  <td className="num">{tf ? (tf >= 1440 ? "D1" : tf >= 60 ? `H${tf / 60}` : `M${tf}`) : "既定"}</td>
+                  <td className="num">{tfLabel(tf)}</td>
                   <td className="num">{d.schedule?.decision_every} 本ごと</td>
-                  <td className="l">{hours(d.schedule)}</td>
+                  <td className="l">{hoursLabel(d.schedule)}</td>
                   <td className="l">{d.schedule?.days?.join(" ")}</td>
-                  <td className="l">{d.schedule?.outside === "close" ? "手仕舞い" : "持ち越し"}</td>
+                  <td className="l">{outsideLabel(d.schedule?.outside)}</td>
                   <td className="l">{typeof d.broker === "string" ? d.broker : d.broker?.preset}</td>
                 </tr>
               );
