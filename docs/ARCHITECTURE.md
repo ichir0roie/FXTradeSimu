@@ -9,36 +9,53 @@ configs/*.yaml ──> fxsim.experiments.runner ──> data/fxsim.sqlite <─�
 
 ## パッケージ構成
 
+依存の向きは上から下だけ(下の層は上の層を知らない)。SQL は `storage/`(Python)と `web/lib/queries/`(画面)にだけ書く。
+
 ```
 fxsim/
+  paths.py             リポジトリ内の決まった場所(DB・cases・実データ)。場所はここからだけ取る
   calendar.py          取引カレンダー(UTC、週は日曜 22:00〜金曜 22:00、ロールオーバー 22:00)
-  data.py              MarketData(基準解像度の mid とスプレッド)と Bars(任意の時間足、bid/ask の OHLC)
   numerics.py          AR(1) フィルタ、t 分布など
   registry.py          名前 -> ファクトリ(市場モデル・戦略で共用)
+  data/                データ型
+    market.py            MarketData(基準解像度の mid とスプレッド、時間足のキャッシュ)
+    bars.py              Bars(任意の時間足、bid/ask の OHLC)と make_bars
+    real.py              実データの読み込み(汎用 CSV / HistData)
+  markets/             市場モデル
+    base.py              Stage / Component / GenContext / MarketModel
+    blocks.py            経路をブロック単位で扱う補助(POST_PATH の部品が使う)
+    components/          部品(volatility, regime, shocks, malice, real, spread)
+    models/              案(random_walk, stylized, malicious, real_based)
+    evaluation.py        現実らしさ(stylized facts)と悪意の指標
+  backtest/            バックテスト
+    broker.py            ブローカー(スリッページ、スワップ、ロスカット、ストップ狩り)
+    schedule.py          判断の間隔・取引時間
+    engine.py            1 ポジションのバックテスト
+    metrics.py           成績
+    lookahead.py         先読み検査
+  strategies/          戦略(base.py / indicators.py / builtin/ に 1 ファイル 1 戦略)
   catalog.py           組み込みの案をすべて登録する
-  markets/
-    base.py            Stage / Component / GenContext / MarketModel
-    components/        部品(volatility, regime, shocks, malice, real, spread)
-    models/            案(random_walk, stylized, malicious, real_based)
-    real.py            実データの読み込み
-    evaluation.py      現実らしさ(stylized facts)と悪意の指標
-  backtest/
-    broker.py          ブローカー(スリッページ、スワップ、ロスカット、ストップ狩り)
-    engine.py          1 ポジションのバックテスト
-    metrics.py         成績
-    lookahead.py       先読み検査
-  strategies/
-    base.py            Strategy(prepare / on_bar)
-    indicators.py      因果的な指標
-    builtin/           案(1 ファイル = 1 戦略)
-  storage/db.py        SQLite のスキーマ・ビュー
-  experiments/
-    config.py          YAML の実験設定
-    runner.py          経路ごとに 1 プロセス、途中経過を逐次書き込み
-    stats.py           パターンごとの統計(平均・中央値・合計・標準偏差・最小/最大・プラスの割合)
-    report.py          Markdown の表
+  storage/             SQLite
+    schema.py            テーブルとビュー
+    db.py                接続・トランザクション・JSON
+    writer.py            書き込み(計画の行、相場パターン、ジョブの途中経過と結果、ケースの記録)
+    queries.py           読み出し(レポート・統計・ケース)
+  experiments/         実験
+    config.py            設定(ExperimentConfig と StorageConfig / LiveConfig、YAML の書式)
+    runner.py            計画(plan)と実行(経路ごとに 1 プロセス)。PathTask / JobTask
+    stats.py             パターンごとの統計(平均・中央値・合計・t 値など)
+  cases/               動作ケースとテストケース
+    model.py             BehaviorCase / TestCase / Pattern
+    loader.py            YAML を読んで検査する
+    runner.py            テストケースを実験に直して回し、記録する
+  reports/             Markdown のレポート(run_report / leaderboard / cases_overview)
   cli.py               python -m fxsim ...
 web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-charts
+  lib/types.ts           API の型(サーバーと画面で共有)
+  lib/queries/           SQL(runs / jobs / cases)
+  lib/stats.ts           パターンごとの統計(Python の stats.py と同じ定義・同じキー)
+  lib/useJobStream.ts    ジョブの差分を 1 秒ごとに取りに行くフック
+  components/            画面(RunsView / RunView / JobView / CasesView / Charts)
 ```
 
 ## 市場モデル = 部品の並び
@@ -93,7 +110,10 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 - 詳細保存のシード(`detail_seeds`)だけ、ローソク足・イベント・取引・細かい資産曲線を持つ。
   ほかのパターンは成績と粗い資産曲線だけ(DB を小さく保つため)
 - 集計ビュー `v_market_summary` / `v_strategy_summary`。中央値などは `experiments/stats.py`(Python)と
-  `web/lib/stats.ts`(画面)で同じ定義で計算する
+  `web/lib/stats.ts`(画面)で同じ定義・同じキーで計算する。画面の API は「どのジョブがどのグループか」だけ返し、
+  統計は選んだ指標ごとに画面側で取る
+- 同じモデル・パラメータ・シード・期間の相場パターンは、中身(ローソク足・イベント)を `data_key` で 1 つだけ持ち、
+  実験をまたいで共有する(`pattern_data`)
 - WAL モード。Python が書いている間も画面は読み取り専用で読める。実験の終わりに WAL を本体へ書き戻す
 
 ## 画面(web/)

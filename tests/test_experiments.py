@@ -48,3 +48,23 @@ def test_identical_patterns_share_stored_data(tmp_path):
     assert con.execute("SELECT COUNT(*) FROM paths").fetchone()[0] == 2
     assert con.execute("SELECT COUNT(DISTINCT data_key) FROM paths").fetchone()[0] == 1
     assert con.execute("SELECT COUNT(*) FROM pattern_data").fetchone()[0] == 1
+
+
+def test_config_parses_short_forms_and_rejects_unknown_keys():
+    import pytest
+
+    cfg = ExperimentConfig.from_dict({
+        "name": "c", "markets": ["random_walk", {"model": "malicious", "label": "m2", "seeds": [3]}],
+        "strategies": ["ma_cross"], "brokers": ["fair", {"preset": "malicious", "label": "evil"}],
+        "storage": {"candle_timeframe": 240}, "engine": {"units": 5000},
+    })
+    assert [m.label for m in cfg.markets] == ["random_walk", "m2"]
+    assert cfg.markets[1].seeds == [3]
+    assert cfg.storage.equity_detail_timeframe == 240        # 既定は足と同じ
+    assert cfg.engine.units == 5000
+    again = ExperimentConfig.from_dict(cfg.to_dict())       # DB に保存した形から戻せる
+    assert again.to_dict() == cfg.to_dict()
+    with pytest.raises(KeyError):
+        ExperimentConfig.from_dict({"name": "x", "markets": [], "strategies": [], "storage": {"candle_tf": 60}})
+    with pytest.raises(ValueError):
+        ExperimentConfig.from_dict({"name": "x", "markets": ["random_walk", "random_walk"], "strategies": []})

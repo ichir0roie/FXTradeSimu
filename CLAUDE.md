@@ -17,7 +17,7 @@ Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.
 | 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
 | 実験の結果(全部) | `data/fxsim.sqlite`(runs / paths / jobs / equity / trades / candles / market_events) |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
-| 全体の設計 | `docs/ARCHITECTURE.md`、悪意の一覧 `docs/MARKET_MALICE.md` |
+| 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
 
 ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`、動作ケース `B###`、テストケース `T###`。
 既存の最大番号 + 1 を使う(`ls docs/proposals/*/`)。
@@ -82,6 +82,9 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 - 新しい部品は `ctx.event(idx, kind, ...)` でイベントを残す(画面のマーカーと集計に出る)。
   画面に色を付けるなら `web/components/Charts.tsx` の `EVENT_STYLE` にも足す
 - pandas 3 は配列を読み取り専用で返すことがある。書き換える配列は `to_numpy(copy=True)`
+- SQL は `fxsim/storage/`(writer.py / queries.py)と `web/lib/queries/` にだけ書く。場所(パス)は `fxsim/paths.py` から取る
+- コミット前に `ruff check fxsim tests` と `python -m pytest -q`。画面を触ったら `cd web && npx next build`
+- 結果に影響しないはずの整理をしたら、同じ設定を回して成績が 1 円も変わらないことを確かめる(結果は乱数のシードで決まる)
 - 指標・コミット・PR の本文は普通の文体で書く
 
 ## よく使うコマンド

@@ -2,12 +2,15 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePoll } from "@/lib/usePoll";
-import { fmt, pct, yen, tone } from "@/lib/format";
+import { fmt, pct, tfLabel, tone, tTone, yen } from "@/lib/format";
 import { summarize } from "@/lib/stats";
+import type { JobRow, MetricKey, PathRow, RunDetail } from "@/lib/types";
 import { Progress, Status } from "./Progress";
-import { StripPlot } from "./StripPlot";
+import { StripPlot, type Pattern } from "./StripPlot";
 
-const METRICS: { key: string; label: string; f: (x: number | null | undefined) => string; ratio: boolean }[] = [
+type Fmt = (x: number | null | undefined) => string;
+
+const METRICS: { key: MetricKey; label: string; f: Fmt; ratio: boolean }[] = [
   { key: "pnl", label: "損益(円)", f: yen, ratio: false },
   { key: "net_pips_per_year", label: "pip/年", f: (x) => fmt(x, 0), ratio: false },
   { key: "sharpe", label: "シャープ", f: (x) => fmt(x), ratio: false },
@@ -29,52 +32,37 @@ const FACTS: [string, string, number][] = [
 ];
 
 export default function RunView({ id }: { id: number }) {
-  const { data } = usePoll<any>(`/api/runs/${id}`, (d) => !d || d.run?.status === "running", 1500);
-  const [metric, setMetric] = useState("pnl");
-  const [broker, setBroker] = useState<string | null>(null);
-  const [jobFilter, setJobFilter] = useState<"detail" | "all">("detail");
-  const [jobLimit, setJobLimit] = useState(40);
-
-  const jobsById = useMemo(() => new Map<number, any>((data?.jobs ?? []).map((j: any) => [j.id, j])), [data]);
-  const brokers: string[] = useMemo(() => [...new Set<string>((data?.jobs ?? []).map((j: any) => j.broker))], [data]);
-  const markets = useMemo(() => {
-    const g = new Map<string, any[]>();
-    for (const p of data?.paths ?? []) {
-      if (!g.has(p.market_label)) g.set(p.market_label, []);
-      g.get(p.market_label)!.push(p);
-    }
-    return [...g.entries()];
-  }, [data]);
-
+  const { data } = usePoll<RunDetail & { error?: string }>(`/api/runs/${id}`, (d) => !d || d.run?.status === "running", 1500);
   if (!data) return <div className="empty">読み込み中…</div>;
   if (data.error) return <div className="empty">run #{id} は見つかりません</div>;
-  const { run, progress, stats } = data;
-  const m = METRICS.find((x) => x.key === metric)!;
-  const b = broker ?? brokers[0];
-  const rows = stats
-    .filter((s: any) => s.broker === b)
-    .map((s: any) => {
-      const vals = s.patterns.map((p: any) => ({ ...p, value: jobsById.get(p.jobId)?.[metric] ?? null }));
-      return { ...s, vals, st: summarize(vals.map((v: any) => v.value)) };
-    });
-  const allVals = rows.flatMap((r: any) => r.vals.map((v: any) => v.value)).filter((v: any) => v != null);
-  const lo = Math.min(0, ...allVals);
-  const hi = Math.max(0, ...allVals);
-  const jobs = data.jobs.filter((j: any) => jobFilter === "all" || j.detail || j.status === "running");
-
+  const { run, progress } = data;
   return (
     <>
       <div className="sub"><Link href="/">← 実験一覧</Link></div>
       <h1>#{run.id} {run.name} <Status s={run.status} /></h1>
       <div className="sub">
-        {run.kind} / 期間 {fmt(run.years, 1)} 年 / シード {run.seeds_json} / git {run.git_sha ?? "–"} / 初期資金 {fmt(data.initialBalance, 0)} 円
-        {run.proposal && <> / 提案 {run.proposal}</>}
+        {run.kind} / 期間 {fmt(run.years, 1)} 年 / シード {run.seeds_json} / git {run.git_sha ?? "–"} / 初期資金{" "}
+        {fmt(data.initialBalance, 0)} 円{run.proposal && <> / 提案 {run.proposal}</>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "10px 0" }}>
         <div style={{ flex: 1 }}><Progress value={progress.total ? progress.finished / progress.total : 0} /></div>
         <span className="num muted">{progress.finished}/{progress.total} ジョブ</span>
       </div>
+      <MarketFacts paths={data.paths} />
+      <StrategyStats data={data} />
+      <JobTable jobs={data.jobs} />
+    </>
+  );
+}
 
+function MarketFacts({ paths }: { paths: PathRow[] }) {
+  const markets = useMemo(() => {
+    const g = new Map<string, PathRow[]>();
+    for (const p of paths) g.set(p.market_label, [...(g.get(p.market_label) ?? []), p]);
+    return [...g.entries()];
+  }, [paths]);
+  return (
+    <>
       <h2>市場の性質(シード平均)</h2>
       <div className="tablewrap">
         <table>
@@ -87,22 +75,47 @@ export default function RunView({ id }: { id: number }) {
           <tbody>
             {markets.map(([label, ps]) => {
               const done = ps.filter((p) => p.status === "done" || p.status === "running");
-              const avg = (k: string) => summarize(done.map((p) => p.facts?.[k]))?.mean;
-              const real = ps.some((p) => p.market === "real");
+              const mean = (f: (p: PathRow) => number | null | undefined) => summarize(done.map(f))?.mean;
               return (
                 <tr key={label}>
-                  <td className="l">{label} {real && <span className="badge real">実データ</span>}</td>
+                  <td className="l">{label} {ps.some((p) => p.market === "real") && <span className="badge real">実データ</span>}</td>
                   <td className="num">{ps.length}</td>
-                  <td className="num">{fmt(summarize(done.map((p) => p.realism_score))?.mean, 1)}</td>
-                  <td className="num">{fmt(summarize(done.map((p) => p.n_fail))?.mean, 1)}</td>
-                  {FACTS.map(([k, , d]) => <td key={k} className="num">{fmt(avg(k), d)}</td>)}
+                  <td className="num">{fmt(mean((p) => p.realism_score), 1)}</td>
+                  <td className="num">{fmt(mean((p) => p.n_fail), 1)}</td>
+                  {FACTS.map(([k, , d]) => <td key={k} className="num">{fmt(mean((p) => p.facts?.[k]), d)}</td>)}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
 
+function StrategyStats({ data }: { data: RunDetail }) {
+  const [metric, setMetric] = useState<MetricKey>("pnl");
+  const [brokerChoice, setBroker] = useState<string | null>(null);
+  const jobsById = useMemo(() => new Map(data.jobs.map((j) => [j.id, j])), [data.jobs]);
+  const brokers = useMemo(() => [...new Set(data.jobs.map((j) => j.broker))], [data.jobs]);
+  const m = METRICS.find((x) => x.key === metric)!;
+  const broker = brokerChoice ?? brokers[0];
+
+  const rows = data.groups
+    .filter((g) => g.broker === broker)
+    .map((g) => {
+      const patterns: Pattern[] = g.jobIds.map((id) => {
+        const j = jobsById.get(id)!;
+        return { value: j[metric], real: j.market === "real", seed: j.seed, market: j.market_label };
+      });
+      return { ...g, patterns, st: summarize(patterns.map((p) => p.value)) };
+    });
+  const values = rows.flatMap((r) => r.patterns.map((p) => p.value)).filter((v): v is number => v != null);
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(0, ...values);
+
+  return (
+    <>
       <h2>戦略の成績(パターンごとの統計)</h2>
       <div className="controls">
         {METRICS.map((x) => (
@@ -110,7 +123,7 @@ export default function RunView({ id }: { id: number }) {
         ))}
         <span className="muted" style={{ marginLeft: 12 }}>ブローカー:</span>
         {brokers.map((x) => (
-          <button key={x} className={x === b ? "on" : ""} onClick={() => setBroker(x)}>{x}</button>
+          <button key={x} className={x === broker ? "on" : ""} onClick={() => setBroker(x)}>{x}</button>
         ))}
       </div>
       <div className="legend">
@@ -123,11 +136,12 @@ export default function RunView({ id }: { id: number }) {
           <thead>
             <tr>
               <th className="l">戦略</th><th className="l">市場</th><th>n</th><th>平均</th><th>中央</th>
-              {!m.ratio && <th>合計</th>}<th>標準偏差</th><th>最小</th><th>最大</th><th>プラスの割合</th><th title="パターン単位の t 値。|t| > 2 が有意の目安">t値</th><th className="l">分布</th>
+              {!m.ratio && <th>合計</th>}<th>標準偏差</th><th>最小</th><th>最大</th><th>プラスの割合</th>
+              <th title="パターン単位の t 値。|t| ≥ 2 が有意の目安">t値</th><th className="l">分布</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r: any) => (
+            {rows.map((r) => (
               <tr key={`${r.strategy}-${r.market}`} className={r.market === "ALL" ? "all" : ""}>
                 <td className="l">{r.strategy}</td>
                 <td className="l">{r.market === "ALL" ? "総合" : r.market}</td>
@@ -138,21 +152,28 @@ export default function RunView({ id }: { id: number }) {
                 <td className="num">{m.f(r.st?.std)}</td>
                 <td className={`num ${tone(r.st?.min)}`}>{m.f(r.st?.min)}</td>
                 <td className={`num ${tone(r.st?.max)}`}>{m.f(r.st?.max)}</td>
-                <td className="num">{pct(r.st?.positiveRatio, 0)}</td>
-                <td className={`num ${Math.abs(r.st?.t ?? 0) >= 2 ? tone(r.st?.t) : "muted"}`}>{fmt(r.st?.t)}</td>
-                <td className="l">
-                  <StripPlot patterns={r.vals} lo={lo} hi={hi} mean={r.st?.mean} median={r.st?.median} />
-                </td>
+                <td className="num">{pct(r.st?.positive_ratio, 0)}</td>
+                <td className={`num ${tTone(r.st?.t)}`}>{fmt(r.st?.t)}</td>
+                <td className="l"><StripPlot patterns={r.patterns} lo={lo} hi={hi} mean={r.st?.mean} median={r.st?.median} /></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
 
+function JobTable({ jobs: allJobs }: { jobs: JobRow[] }) {
+  const [filter, setFilter] = useState<"detail" | "all">("detail");
+  const [limit, setLimit] = useState(40);
+  const jobs = allJobs.filter((j) => filter === "all" || j.detail || j.status === "running");
+  return (
+    <>
       <h2>ジョブ</h2>
       <div className="controls">
-        <button className={jobFilter === "detail" ? "on" : ""} onClick={() => setJobFilter("detail")}>詳細保存のみ</button>
-        <button className={jobFilter === "all" ? "on" : ""} onClick={() => setJobFilter("all")}>すべて</button>
+        <button className={filter === "detail" ? "on" : ""} onClick={() => setFilter("detail")}>詳細保存のみ</button>
+        <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>すべて</button>
       </div>
       <div className="tablewrap">
         <table>
@@ -163,16 +184,18 @@ export default function RunView({ id }: { id: number }) {
             </tr>
           </thead>
           <tbody>
-            {jobs.slice(0, jobLimit).map((j: any) => (
+            {jobs.slice(0, limit).map((j) => (
               <tr key={j.id}>
                 <td className="l">{j.market_label}</td>
                 <td className="num">{j.seed}</td>
                 <td className="l">{j.broker}</td>
                 <td className="l">{j.strategy_label}</td>
-                <td className="num">{j.timeframe >= 1440 ? "D1" : j.timeframe >= 60 ? `H${j.timeframe / 60}` : `M${j.timeframe}`}</td>
+                <td className="num">{tfLabel(j.timeframe)}</td>
                 <td className="l"><Status s={j.status} /></td>
                 <td className="l" style={{ minWidth: 110 }}>
-                  {j.status === "skipped" ? <span className="muted" title={j.note}>{j.note}</span> : <Progress value={j.bars_total ? j.bars_done / j.bars_total : 0} />}
+                  {j.status === "skipped"
+                    ? <span className="muted" title={j.note ?? ""}>{j.note}</span>
+                    : <Progress value={j.bars_total ? (j.bars_done ?? 0) / j.bars_total : 0} />}
                 </td>
                 <td className="num">{j.n_trades ?? "–"}</td>
                 <td className={`num ${tone(j.pnl_live)}`}>{yen(j.pnl_live)}</td>
@@ -184,10 +207,10 @@ export default function RunView({ id }: { id: number }) {
           </tbody>
         </table>
       </div>
-      {jobs.length > jobLimit && (
+      {jobs.length > limit && (
         <div className="controls" style={{ justifyContent: "center", marginTop: 10 }}>
-          <span className="muted">{jobLimit} / {jobs.length} 件を表示</span>
-          <button onClick={() => setJobLimit(jobs.length)}>すべて表示</button>
+          <span className="muted">{limit} / {jobs.length} 件を表示</span>
+          <button onClick={() => setLimit(jobs.length)}>すべて表示</button>
         </div>
       )}
     </>

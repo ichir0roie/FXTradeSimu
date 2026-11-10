@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { usePoll } from "@/lib/usePoll";
 import { fmt, pct, yen, tone } from "@/lib/format";
+import type { RunsResponse } from "@/lib/types";
 import { Progress, Status } from "./Progress";
 
-type Data = { db: string; missing?: boolean; runs: any[]; leaderboard: any[] };
 
 export default function RunsView() {
-  const { data } = usePoll<Data>("/api/runs", () => true, 2000);
+  const { data } = usePoll<RunsResponse>("/api/runs", () => true, 2000);
   if (!data) return <div className="empty">読み込み中…</div>;
   if (data.missing)
     return (
