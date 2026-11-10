@@ -76,7 +76,12 @@ class RealReplay(Component):
 class RealSkeleton(Component):
     """実データを骨格にした 1 分足の時刻列を用意し、骨格(終値・高値・安値)を meta に置く。
 
-    骨格の時間足は実データの解像度(日足なら日足)。block_days は bootstrap のブロック長。
+    骨格の時間足は実データの解像度(日足なら日足)。
+    mode:
+      replay     骨格 = 実データそのまま
+      bootstrap  骨格 = 実データのリターンを block_days 日のブロック単位で並べ替えたもの(標本の平均ドリフトは残る)
+      placebo    骨格 = 実データの日次リターンの符号だけをでたらめにしたもの。大きさ・ボラの塊・裾の厚さは同じで、
+                 方向の情報だけが無い。ここで勝つ戦略は「合成の作り方の癖」で勝っている(偽薬の対照)
     """
 
     key = "source"
@@ -84,7 +89,7 @@ class RealSkeleton(Component):
 
     @dataclass
     class Params(_SourceParams):
-        mode: str = "replay"          # replay | bootstrap
+        mode: str = "replay"          # replay | bootstrap | placebo
         block_days: float = 20.0
 
     def prepare_times(self, base: BaseParams, years, days, rng):
@@ -97,6 +102,8 @@ class RealSkeleton(Component):
         ll = np.log(np.minimum(s.low, np.minimum(s.open, s.close)))
         if self.p.mode == "bootstrap":
             lc, lo_, lh, ll = _block_bootstrap(lc, lo_, lh, ll, s, self.p.block_days, rng)
+        elif self.p.mode == "placebo":
+            lc, lo_, lh, ll = _placebo(lc, lo_, lh, ll, rng)
         elif self.p.mode != "replay":
             raise ValueError(f"unknown skeleton mode {self.p.mode}")
         start_ns = int(s.times[0]) - s.step_minutes * NS_MIN
@@ -146,12 +153,30 @@ def _block_bootstrap(lc, lo_, lh, ll, s: RealSeries, block_days: float, rng):
     return c, o, h, lw
 
 
+def _placebo(lc, lo_, lh, ll, rng):
+    """実データの日次リターンの符号だけをでたらめにした骨格(大きさ・ボラの塊・裾の厚さは実データのまま)。
+    足の形(始値の窓、高値・安値の終値からの距離)も実データのものを使う。"""
+    r = np.diff(lc)
+    nr = np.abs(r) * np.where(rng.random(len(r)) < 0.5, -1.0, 1.0)
+    c = np.r_[lc[0], lc[0] + np.cumsum(nr)]
+    o = np.r_[lo_[0], c[:-1] + (lo_[1:] - lc[:-1])]
+    h = np.maximum(c + (lh - lc), np.maximum(o, c))
+    lw = np.minimum(c + (ll - lc), np.minimum(o, c))
+    return c, o, h, lw
+
+
 class AnchorBridge(Component):
     """経路を骨格に合わせる。
 
-    0. (calibrate_vol)合成した経路の「骨格の足 1 本分の変化」の分散が実データと同じになるよう、
-       経路の振れ幅を伸縮する。指標のジャンプなどで足の中が荒れすぎるのを防ぐ
-    1. 骨格の各足の終わりで、終値との差を直線補間して足し込む(ブラウン橋の補正)
+    0. 振れ幅の合わせ方(calibrate_vol)
+       - "local"(既定、v2): 骨格の足ごとに、足の中の実現分散を目標に合わせる(_local_scale)。
+         目標は実データの局所ボラと、その足自身のリターンの混ぜ合わせ(day_weight)
+       - "global"(v1): 経路全体で 1 つの倍率だけ合わせる
+       - "none": 合わせない
+    1. 骨格の各足の終わりで、終値との差を足し込む(ブラウン橋の補正)。
+       clock="variance"(v2)は差を「動いた量」(実現分散の累積)に比例して配る。
+       clock="time"(v1)は時刻に比例して配るため、荒れた時間帯の動きが静かな時間帯に戻され、
+       日中の平均回帰(1 時間足の逆張りが勝つ穴)を作っていた
     2. OHLC があれば、各足の中で max(始値, 終値) より上のはみ出しを高値に、
        min(始値, 終値) より下のはみ出しを安値に、ちょうど届くよう伸縮する
        (はみ出しが無い足は、ランダムな位置に小さな山を作って届かせる)
@@ -163,7 +188,10 @@ class AnchorBridge(Component):
     @dataclass
     class Params:
         fit_high_low: bool = True
-        calibrate_vol: bool = True
+        calibrate_vol: str = "local"     # local | global | none
+        vol_window: int = 21             # local のとき、実データのボラを測る足の本数(前後合わせて)
+        day_weight: float = 0.6          # local のとき、目標の分散に混ぜる「その足自身のリターン²」の重み
+        clock: str = "variance"          # 終値とのずれを配る時計: variance(動いた分に比例、v2)| time(時刻に比例、v1)
 
     def apply(self, ctx: GenContext) -> None:
         a = ctx.meta.get("anchor")
@@ -171,19 +199,76 @@ class AnchorBridge(Component):
             return
         idx, target = a["idx"], a["close"]
         x = ctx.logp
-        if self.p.calibrate_vol and len(idx) > 10:
+        mode = self.p.calibrate_vol
+        if mode is True:                 # v1 の設定ファイル(真偽値)との互換
+            mode = "global"
+        dx = np.diff(x, prepend=x[0])
+        if mode == "local" and len(idx) > 2:
+            dx = dx * _local_scale(dx, idx, target, self.p.vol_window, self.p.day_weight)
+            x = x[0] + np.cumsum(dx)
+        elif mode == "global" and len(idx) > 10:
             vx = np.var(np.diff(x[idx]))
             vt = np.var(np.diff(target))
             if vx > 0:
                 k = float(np.sqrt(vt / vx))
                 x = x[0] + (x - x[0]) * k
+                dx = dx * k
                 ctx.meta["intraday_scale"] = k
+        elif mode not in ("local", "global", "none", False):
+            raise ValueError(f"anchor.calibrate_vol must be local / global / none, got {mode!r}")
         err = target - x[idx]
-        steps = np.arange(ctx.n)
-        x = x + np.interp(steps, idx, err)
+        if self.p.clock == "variance":
+            clock = np.cumsum(dx * dx)       # 実現分散の時計: 動いた分だけ補正を配る
+        elif self.p.clock == "time":
+            clock = np.arange(ctx.n, dtype=float)
+        else:
+            raise ValueError(f"anchor.clock must be variance / time, got {self.p.clock!r}")
+        x = x + np.interp(clock, clock[idx], err)
         if a["has_ohlc"] and self.p.fit_high_low and len(idx) > 1:
             x = _fit_envelope(x, idx, a["high"], a["low"], ctx.rng)
         ctx.logp = x
+
+
+def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: int) -> np.ndarray:
+    """骨格の足ごとの伸縮率。足の中の実現分散を、実データの局所ボラ(前後 window 本の二乗平均)に合わせる。
+
+    足の中の動きの形(時間帯・指標・短期のボラの塊)は残し、日をまたぐボラの大きさは実データに従わせる。
+    """
+    r = np.diff(target)
+    w = max(1, int(window))
+    local = np.sqrt(np.convolve(r * r, np.ones(w) / w, mode="same"))
+    goal = np.r_[local[0], local]                                        # 最初の足は 2 本目の値で代用
+    starts = np.clip(np.r_[0, idx[:-1] + 1], 0, len(dx) - 1)             # 足 k の中身は starts[k]..idx[k]
+    rv = np.add.reduceat(dx * dx, starts)[:len(idx)]
+    f = np.where(rv > 0, goal / np.sqrt(np.maximum(rv, 1e-300)), 1.0)
+    lens = np.diff(np.r_[starts, idx[-1] + 1])
+    scale = np.full(len(dx), f[-1])
+    scale[:idx[-1] + 1] = np.repeat(f, lens)
+    return scale
+
+
+def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: int, day_weight: float) -> np.ndarray:
+    """骨格の足ごとの伸縮率。足の中の実現分散を目標に合わせる。
+
+    目標の分散 = (1 - day_weight) x 局所ボラ² + day_weight x その足のリターン²
+    (局所ボラ = 前後 window 本のリターンの二乗平均)。平均すると局所ボラ² に等しい。
+    day_weight = 0 だと静かに終わった日も足の中が荒れ、終値へ引き戻されて日中の平均回帰が生まれる。
+    1 に寄せすぎると逆に勢いが生まれる。既定の 0.6 は、符号をでたらめにした偽薬(R006)で
+    単純な規則の素の優位性がほぼ 0 になる値(docs/proposals/markets/R005-bridge-artifact.md)。
+    足の中の動きの形(時間帯・指標・短期のボラの塊)は残る。
+    """
+    r = np.diff(target)
+    w = max(1, int(window))
+    local2 = np.convolve(r * r, np.ones(w) / w, mode="same")
+    g = np.sqrt((1 - day_weight) * local2 + day_weight * r * r)
+    goal = np.r_[g[0], g]                                                # 最初の足は 2 本目の値で代用
+    starts = np.clip(np.r_[0, idx[:-1] + 1], 0, len(dx) - 1)             # 足 k の中身は starts[k]..idx[k]
+    rv = np.add.reduceat(dx * dx, starts)[:len(idx)]
+    f = np.where(rv > 0, goal / np.sqrt(np.maximum(rv, 1e-300)), 1.0)
+    lens = np.diff(np.r_[starts, idx[-1] + 1])
+    scale = np.full(len(dx), f[-1])
+    scale[:idx[-1] + 1] = np.repeat(f, lens)
+    return scale
 
 
 def _fit_envelope(x, idx, high, low, rng):
