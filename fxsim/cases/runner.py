@@ -18,10 +18,10 @@ from .model import BehaviorCase, TestCase
 # テストケースの保存の細かさ(長期の 5〜10 年でも DB が膨らみすぎないように)
 CASE_STORAGE = {"candle_timeframe": 240, "equity_detail_timeframe": 1440, "equity_timeframe": 1440,
                 "trades": "detail"}
-# 検証はパターンも帰無も多いので、資産曲線は週次(画面の資産曲線の束に十分)
-# 足は日足(30 年の検証でも DB が膨らまないように)
+# 検証はパターンも帰無も多いので、資産曲線は詳細保存のパターンが週次、それ以外は約 30 日ごと
+# (画面の資産曲線の束に十分)。足は日足(30 年の検証でも DB が膨らまないように)
 VERIFY_STORAGE = {**CASE_STORAGE, "candle_timeframe": 1440, "equity_detail_timeframe": 10080,
-                  "equity_timeframe": 10080, "events": False}
+                  "equity_timeframe": 43200, "events": False}
 
 
 def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:

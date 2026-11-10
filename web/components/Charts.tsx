@@ -34,6 +34,9 @@ export const EVENT_STYLE: Record<string, { color: string; text: string; label: s
   breakout_run: { color: "#2a9d8f", text: "走", label: "抜けて走る" },
   news: { color: "#6b7280", text: "N", label: "指標" },
   weekend_gap: { color: "#6b7280", text: "窓", label: "週明けの窓" },
+  flash_crash: { color: "#d62828", text: "急", label: "フラッシュクラッシュ" },
+  intervention: { color: "#1d4ed8", text: "介", label: "為替介入" },
+  shock: { color: "#7f1d1d", text: "衝", label: "ショック(戻らない急変)" },
 };
 
 export function PriceChart({ candles, trades, events, tf, showTrades, showEvents, onChart, height = 420 }: {

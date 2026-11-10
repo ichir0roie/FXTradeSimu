@@ -33,6 +33,8 @@ class DynamicSpread(Component):
 
     s = base * profile[hour] * (ボラ / ボラの中央値)^elasticity * 対数正規ノイズ
     指標発表の前後と、ストップ狩りの最中はさらに倍率を掛ける。週明けの最初の数十分も広い。
+    薄商いの期間(HolidayLiquidity の thin_mask)は thin_mult 倍、異常な値動きの最中は
+    ExtremeEvents が残す extreme_spread_mult の倍率を掛ける。
     ボラは時間帯の季節性を除いたもの(季節性はプロファイルで扱う)。
     """
 
@@ -53,6 +55,7 @@ class DynamicSpread(Component):
         hunt_mult: float = 2.5
         week_open_mult: float = 5.0
         week_open_min: int = 30
+        thin_mult: float = 2.5
 
     def apply(self, ctx: GenContext) -> None:
         p = self.p
@@ -71,5 +74,11 @@ class DynamicSpread(Component):
         hunt = ctx.meta.get("hunt_mask")
         if hunt is not None:
             mult[hunt] *= p.hunt_mult
+        thin = ctx.meta.get("thin_mask")
+        if thin is not None:
+            mult[thin] *= p.thin_mult
+        extreme = ctx.meta.get("extreme_spread_mult")
+        if extreme is not None:
+            mult *= extreme
         s = np.clip(s * mult, p.min_pips, p.max_pips)
         ctx.spread = s * ctx.base.pip

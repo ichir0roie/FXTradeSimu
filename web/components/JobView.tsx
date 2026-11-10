@@ -3,9 +3,9 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import type { IChartApi } from "lightweight-charts";
-import { date, fmt, hoursLabel, outsideLabel, pct, tfLabel, tone, yen } from "@/lib/format";
+import { date, fmt, hoursLabel, neg, outsideLabel, pct, tfLabel, tone, yen } from "@/lib/format";
 import { useJobStream } from "@/lib/useJobStream";
-import type { JobInfo, JobMetrics, Trade } from "@/lib/types";
+import type { CostBreakdown, JobInfo, JobMetrics, Trade } from "@/lib/types";
 import { EVENT_STYLE } from "./Charts";
 import { Progress, Status } from "./Progress";
 
@@ -149,6 +149,40 @@ function FinalMetrics({ pnl, m }: { pnl: number | null; m: JobMetrics }) {
               <td className="num">{fmt(m.cost_pips_per_year, 0)}</td>
               <td className={`num ${tone(m.swap_total)}`}>{yen(m.swap_total)}</td>
               <td className="l">{Object.entries(m.exit_reasons ?? {}).map(([k, v]) => `${k}:${v}`).join(" ")}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {m.costs && <Costs c={m.costs} m={m} />}
+    </>
+  );
+}
+
+function Costs({ c, m }: { c: CostBreakdown; m: JobMetrics }) {
+  const net = c.gross_pnl - c.total;
+  return (
+    <>
+      <h2>費用の内訳</h2>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>素の損益</th><th>スプレッド</th><th>スリッページ</th><th>手数料</th><th>スワップ</th>
+              <th>費用の合計</th><th>取引の損益</th><th>ロスカット</th><th>拒否された注文</th><th>ゼロカット</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={`num ${tone(c.gross_pnl)}`}>{yen(c.gross_pnl)}</td>
+              <td className={`num ${tone(neg(c.spread))}`}>{yen(neg(c.spread))}</td>
+              <td className={`num ${tone(neg(c.slippage))}`}>{yen(neg(c.slippage))}</td>
+              <td className={`num ${tone(neg(c.commission))}`}>{yen(neg(c.commission))}</td>
+              <td className={`num ${tone(c.swap)}`}>{yen(c.swap)}</td>
+              <td className={`num ${tone(neg(c.total))}`}>{yen(neg(c.total))}</td>
+              <td className={`num ${tone(net)}`}>{yen(net)}</td>
+              <td className="num">{m.losscut ?? 0}</td>
+              <td className="num">{m.rejected ?? 0}</td>
+              <td className="num">{yen(m.zero_cut ?? 0)}</td>
             </tr>
           </tbody>
         </table>

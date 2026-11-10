@@ -53,3 +53,9 @@ export function hoursLabel(s: Pick<Schedule, "hours" | "tz"> | null | undefined)
 export function outsideLabel(outside: string | undefined): string {
   return outside === "close" ? "手仕舞い" : "持ち越し";
 }
+
+/** 費用を損益の向き(マイナス)で見せる。0 を "-0" にしない。 */
+export function neg(x: number | null | undefined): number | null {
+  if (x === null || x === undefined) return null;
+  return x === 0 ? 0 : -x;
+}
