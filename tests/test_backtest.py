@@ -105,7 +105,7 @@ def test_risk_sizing_and_leverage_cap():
 
 
 @pytest.mark.parametrize("name", ["random_entry", "ma_cross", "donchian_breakout", "bollinger_reversion",
-                                  "simple_follower", "buy_and_hold"])
+                                  "simple_follower", "buy_and_hold", "tsmom", "direction_null"])
 def test_builtin_strategies_do_not_look_ahead(name):
     md = MARKETS.create("malicious").generate(days=120, seed=4)
     tf = STRATEGIES.create(name).timeframe

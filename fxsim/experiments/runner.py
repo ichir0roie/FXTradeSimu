@@ -123,7 +123,7 @@ def run_path(db_path: str, task: PathTask, cfg: ExperimentConfig) -> PathResult:
         facts["_checks"] = score["checks"]
         candle_tf = _candle_timeframe(cfg, md)
         writer.record_path(con, task.path_id, md, seed=task.seed, detail=task.detail, candle_tf=candle_tf,
-                           facts=facts, score=score)
+                           facts=facts, score=score, events=cfg.storage.events)
         for job in task.jobs:
             _run_job(con, job, task, md, cfg, candle_tf)
         writer.set_path_status(con, task.path_id, "done")

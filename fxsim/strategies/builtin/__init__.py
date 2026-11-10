@@ -7,4 +7,5 @@ from . import (  # noqa: F401
     ma_cross,
     random_entry,
     simple_follower,
+    tsmom,
 )

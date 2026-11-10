@@ -67,7 +67,7 @@ def pattern_key(md: MarketData, seed: int, candle_tf: int) -> str:
 
 
 def record_path(con: sqlite3.Connection, path_id: int, md: MarketData, *, seed: int, detail: bool, candle_tf: int,
-                facts: dict, score: dict) -> None:
+                facts: dict, score: dict, events: bool = True) -> None:
     """経路の性質を書き、詳細保存なら相場パターンの中身(足・イベント)を 1 度だけ保存する。"""
     key = pattern_key(md, seed, candle_tf)
     with Tx(con):
@@ -82,17 +82,17 @@ def record_path(con: sqlite3.Connection, path_id: int, md: MarketData, *, seed: 
             "INSERT OR REPLACE INTO candles VALUES (?,?,?,?,?,?,?)",
             zip([key] * len(b), (b.t // NS).tolist(), b.open.tolist(), b.high.tolist(), b.low.tolist(),
                 b.close.tolist(), (b.spread_mean / md.pip).tolist(), strict=True))
-        events = []
-        for e in md.events:
+        rows = []
+        for e in md.events if events else []:
             if e["kind"] in SKIP_EVENT_KINDS:
                 continue
             d = {k: v for k, v in e.items() if k not in ("idx", "kind")}
             pips = d.get("pips", d.get("final_pips", d.get("overshoot_pips")))
-            events.append((key, _sec(md.times[e["idx"]]), e["kind"], d.get("direction"), pips, dumps(d)))
-        con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", events)
+            rows.append((key, _sec(md.times[e["idx"]]), e["kind"], d.get("direction"), pips, dumps(d)))
+        con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", rows)
         con.execute("INSERT INTO pattern_data VALUES (?,?,?,?,?,?,?,?,?)",
                     (key, md.model_info["name"], seed, candle_tf, _sec(md.times[0]), _sec(md.times[-1]), len(b),
-                     len(events), now_iso()))
+                     len(rows), now_iso()))
 
 
 def set_path_status(con: sqlite3.Connection, path_id: int, status: str) -> None:

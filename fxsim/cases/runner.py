@@ -19,7 +19,9 @@ from .model import BehaviorCase, TestCase
 CASE_STORAGE = {"candle_timeframe": 240, "equity_detail_timeframe": 1440, "equity_timeframe": 1440,
                 "trades": "detail"}
 # 検証はパターンも帰無も多いので、資産曲線は週次(画面の資産曲線の束に十分)
-VERIFY_STORAGE = {**CASE_STORAGE, "equity_detail_timeframe": 10080, "equity_timeframe": 10080}
+# 足は日足(30 年の検証でも DB が膨らまないように)
+VERIFY_STORAGE = {**CASE_STORAGE, "candle_timeframe": 1440, "equity_detail_timeframe": 10080,
+                  "equity_timeframe": 10080, "events": False}
 
 
 def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
@@ -127,10 +129,14 @@ def run_cases(con: sqlite3.Connection, db_path: str, ids: list[str] | None = Non
 
 
 def verification_case(behavior_id: str, *, years: float = 10.0, seeds: list[int] | None = None,
-                      start: str | None = None, end: str | None = None) -> TestCase:
+                      start: str | None = None, end: str | None = None, block_days: float = 20.0,
+                      dataset: str | None = None) -> TestCase:
     """標準のパターンの組で、動作ケースを検証するテストケースを作る(ID は V-<動作ケース>)。
 
     期間を省くと、同梱の実データの末尾 years 年。合成相場の開始日も同じ日にそろえる。
+    block_days は並べ替え(real_bootstrap)のブロックの長さ。並べ替えはブロックより長い構造を壊すので、
+    戦略が見る期間(移動平均やモメンタムの日数)より長くする。
+    dataset は実データ系のパターンに使う CSV(既定は同梱の USDJPY 日足)。
     """
     from ..data import load_ohlc
     from ..markets.components.real import DEFAULT_DATASET
@@ -138,10 +144,18 @@ def verification_case(behavior_id: str, *, years: float = 10.0, seeds: list[int]
 
     seeds = seeds or list(range(1, 9))
     if start is None or end is None:
-        s = load_ohlc(DEFAULT_DATASET).window(years=years)
+        s = load_ohlc(dataset or DEFAULT_DATASET).window(years=years)
         start = str(np.datetime64(int(s.times[0]), "ns"))[:10]
         end = str(np.datetime64(int(s.times[-1]), "ns"))[:10]
     patterns = [{"market": m, "seeds": seeds[:1] if m == "real" else seeds} for m in STANDARD_PATTERNS]
+    for p in patterns:
+        if p["market"].startswith("real"):
+            src = {"path": dataset} if dataset else {}
+            if p["market"] == "real_bootstrap":
+                src["block_days"] = float(block_days)
+            if src:
+                p["params"] = {"source": src}
     return TestCase(id=f"V-{behavior_id}", behavior=behavior_id, patterns=patterns,
-                    name=f"{behavior_id} の長期検証(標準パターン)", period={"start": start, "end": end},
+                    name=f"{behavior_id} の長期検証(標準パターン、並べ替え {block_days:g} 日ブロック)",
+                    period={"start": start, "end": end},
                     detail_seeds=seeds[:1], verify=True)
