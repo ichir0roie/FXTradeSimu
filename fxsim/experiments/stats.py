@@ -11,6 +11,8 @@ import sqlite3
 
 import numpy as np
 
+from ..storage.queries import job_rows
+
 STAT_METRICS = ("pnl", "net_pips_per_year", "sharpe", "max_dd", "gross_sharpe", "trades_per_year", "win_rate")
 
 
@@ -34,14 +36,6 @@ def summarize(values) -> dict:
     }
 
 
-def job_rows(con: sqlite3.Connection, run_id: int) -> list[dict]:
-    q = """SELECT j.id, p.market_label, p.market, p.seed, j.broker, j.strategy_label, j.status, j.note,
-                  j.pnl, j.net_pips_per_year, j.sharpe, j.max_dd, j.gross_sharpe, j.trades_per_year, j.win_rate,
-                  j.cost_pips_per_year, j.gross_pips_per_year, j.final_equity, j.ruined
-           FROM jobs j JOIN paths p ON p.id = j.path_id WHERE j.run_id = ? ORDER BY p.market_label, p.seed"""
-    return [dict(r) for r in con.execute(q, (run_id,))]
-
-
 def strategy_stats(con: sqlite3.Connection, run_id: int, metrics=STAT_METRICS) -> list[dict]:
     """(ブローカー, 戦略, 市場) ごと + 市場をまとめた "ALL" 行。各指標に summarize を掛ける。"""
     rows = [r for r in job_rows(con, run_id) if r["status"] == "done"]
@@ -50,7 +44,11 @@ def strategy_stats(con: sqlite3.Connection, run_id: int, metrics=STAT_METRICS) -
         groups.setdefault((r["broker"], r["strategy_label"], r["market_label"]), []).append(r)
         groups.setdefault((r["broker"], r["strategy_label"], "ALL"), []).append(r)
     out = []
-    for (broker, strat, market), rs in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] == "ALL", kv[0][2])):
+    def order(kv):   # ブローカー → 戦略 → 市場(ALL は最後)
+        broker, strat, market = kv[0]
+        return broker, strat, market == "ALL", market
+
+    for (broker, strat, market), rs in sorted(groups.items(), key=order):
         item = {"broker": broker, "strategy": strat, "market": market, "n": len(rs),
                 "patterns": [{"market": r["market_label"], "seed": r["seed"], "pnl": r["pnl"],
                               "sharpe": r["sharpe"]} for r in rs]}

@@ -1,0 +1,122 @@
+"""動作ケースとテストケースの型。書式は docs/CASES.md。"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date
+
+from ..backtest.broker import BROKER_PRESETS
+from ..backtest.schedule import TradingSchedule
+from ..markets import MARKETS
+from ..strategies import STRATEGIES
+
+
+def parse_seeds(seeds) -> list[int]:
+    """[1, 2] / "1-10" / 3 のどれでも受ける。"""
+    if isinstance(seeds, str):
+        a, b = seeds.split("-")
+        return list(range(int(a), int(b) + 1))
+    if isinstance(seeds, int):
+        return [seeds]
+    return [int(s) for s in seeds]
+
+
+@dataclass
+class BehaviorCase:
+    """どう取引するか: 手法・判断に使う足・判断の間隔・取引時間・ブローカー・数量。"""
+    id: str
+    strategy: str
+    name: str = ""
+    params: dict = field(default_factory=dict)
+    timeframe: int | None = None
+    schedule: dict = field(default_factory=dict)
+    broker: str | dict = "fair"
+    engine: dict = field(default_factory=dict)
+    path: str = ""
+
+    @property
+    def broker_spec(self) -> dict:
+        b = self.broker if isinstance(self.broker, dict) else {"preset": self.broker}
+        return {"preset": b["preset"], "label": b.get("label", b["preset"]), "overrides": b.get("overrides", {})}
+
+    def strategy_params(self) -> dict:
+        p = dict(self.params)
+        if self.timeframe:
+            p["timeframe"] = int(self.timeframe)
+        return p
+
+    def trading_schedule(self) -> TradingSchedule:
+        return TradingSchedule.from_dict(self.schedule)
+
+    def validate(self) -> None:
+        STRATEGIES.create(self.strategy, self.strategy_params())
+        self.trading_schedule()
+        if self.broker_spec["preset"] not in BROKER_PRESETS:
+            raise ValueError(f"{self.id}: unknown broker preset {self.broker_spec['preset']}")
+
+    def definition(self) -> dict:
+        """記録に残す定義(ハッシュの元)。"""
+        return {"id": self.id, "name": self.name, "strategy": self.strategy, "params": self.params,
+                "timeframe": self.timeframe, "schedule": self.trading_schedule().to_dict(),
+                "broker": self.broker, "engine": self.engine}
+
+
+@dataclass
+class Pattern:
+    """相場パターン: 市場モデル(とパラメータ)とシードの組。"""
+    market: str
+    label: str | None = None
+    params: dict = field(default_factory=dict)
+    seeds: list[int] = field(default_factory=lambda: [1])
+
+    @classmethod
+    def parse(cls, x: dict) -> Pattern:
+        return cls(x["market"], x.get("label"), x.get("params") or {}, parse_seeds(x.get("seeds", [1])))
+
+    @property
+    def display_label(self) -> str:
+        return self.label or self.market
+
+
+@dataclass
+class TestCase:
+    """ある動作ケースを、どの相場パターンで、どれだけの期間試すか。"""
+    __test__ = False   # pytest に集めさせない
+
+    id: str
+    behavior: str
+    patterns: list[Pattern]
+    name: str = ""
+    period: dict = field(default_factory=lambda: {"years": 3})
+    detail_seeds: list[int] | None = None
+    workers: int = 0
+    path: str = ""
+
+    def __post_init__(self):
+        self.patterns = [p if isinstance(p, Pattern) else Pattern.parse(p) for p in self.patterns]
+
+    def validate(self, behaviors: dict[str, BehaviorCase]) -> None:
+        if self.behavior not in behaviors:
+            raise ValueError(f"{self.id}: unknown behavior {self.behavior}")
+        for p in self.patterns:
+            MARKETS.get(p.market)
+        labels = [p.display_label for p in self.patterns]
+        if len(labels) != len(set(labels)):
+            raise ValueError(f"{self.id}: pattern labels must be unique (set label): {labels}")
+        if "years" not in self.period and not ("start" in self.period and "end" in self.period):
+            raise ValueError(f"{self.id}: period needs years or start/end")
+
+    def years(self) -> float:
+        if "years" in self.period:
+            return float(self.period["years"])
+        a = date.fromisoformat(str(self.period["start"]))
+        b = date.fromisoformat(str(self.period["end"]))
+        return (b - a).days / 365.25
+
+    def period_label(self) -> str:
+        if "years" in self.period:
+            return f"{self.period['years']} 年"
+        return f"{self.period['start']}〜{self.period['end']}"
+
+    def definition(self) -> dict:
+        return {"id": self.id, "name": self.name, "behavior": self.behavior, "period": self.period,
+                "patterns": [p.__dict__ for p in self.patterns], "detail_seeds": self.detail_seeds}

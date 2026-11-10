@@ -18,7 +18,9 @@ def check_lookahead(make_strategy, bars: Bars, cut_points=(0.3, 0.6), seed: int 
         a = [d for d in full.decisions if d[0] < k - 1]
         b = [d for d in part.decisions if d[0] < k - 1]
         if a != b:
-            first = next((x for x, y in zip(a, b) if x != y), None) or (a[len(b):len(b) + 1] or b[len(a):len(a) + 1])
+            # 最初に食い違った判断。片方が短いだけなら、長い方の次の判断
+            first = next((x for x, y in zip(a, b, strict=False) if x != y), None)
+            first = first or (a[len(b):len(b) + 1] or b[len(a):len(a) + 1])
             problems.append(f"cut={k}: decisions differ (first mismatch near {first})")
     return problems
 

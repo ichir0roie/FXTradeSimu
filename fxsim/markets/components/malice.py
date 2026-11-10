@@ -10,7 +10,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..base import Component, GenContext, Stage, apply_block_increments, block_view
+from ..base import Component, GenContext, Stage
+from ..blocks import apply_block_increments, block_view, rolling_prev_max, rolling_prev_min
 
 
 class CrowdSqueeze(Component):
@@ -113,8 +114,8 @@ class StopHunt(Component):
         starts, ends, hi, lo, close = block_view(ctx, bs)
         nb = len(close)
         lb = max(1, int(p.swing_hours * 60 / p.block_minutes))
-        swing_hi = _rolling_prev(hi, lb, np.max)
-        swing_lo = _rolling_prev(lo, lb, np.min)
+        swing_hi = rolling_prev_max(hi, lb)
+        swing_lo = rolling_prev_min(lo, lb)
         price = np.exp(close)
         step = p.round_pips * ctx.base.pip
         round_up = np.ceil(price / step) * step
@@ -152,7 +153,7 @@ class StopHunt(Component):
             else:
                 final = amp + ctx.pips_to_log(rng.uniform(*p.cascade_pips))  # 突き抜けた方向へ
             L = min(ctx.n - s0, rise + int(decay * 5))
-            if L <= rise:
+            if rise >= L:
                 continue
             k = np.empty(L)
             k[:rise] = amp * np.sqrt(np.arange(1, rise + 1) / rise)
@@ -264,13 +265,3 @@ class FalseBreakout(Component):
         # pending[b] はブロック b の中で効かせる(apply_block_increments は d[k] をブロック k+1 に置く)
         apply_block_increments(ctx, pending[1:nb + 1], bs)
 
-
-def _rolling_prev(x: np.ndarray, window: int, fn) -> np.ndarray:
-    """x[b-window:b] に fn を掛けた値(自分自身を含まない)。先頭は x[0]。"""
-    import pandas as pd
-
-    s = pd.Series(x)
-    r = s.rolling(window, min_periods=1).max() if fn is np.max else s.rolling(window, min_periods=1).min()
-    out = r.shift(1).to_numpy().copy()
-    out[0] = x[0]
-    return out

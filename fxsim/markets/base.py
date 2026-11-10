@@ -96,6 +96,7 @@ class Component:
 
     key: ClassVar[str] = "component"
     stage: ClassVar[Stage] = Stage.FINAL
+    deterministic: ClassVar[bool] = False   # SOURCE 部品で True なら、シードで結果が変わらない(実データの再生)
 
     @dataclass
     class Params:
@@ -108,16 +109,14 @@ class Component:
         raise NotImplementedError
 
     # SOURCE 段の部品だけが実装する: 時刻列と(必要なら書き換えた)基本パラメータを返す
-    def prepare_times(self, base: "BaseParams", years: float | None, days: float | None,
-                      rng: np.random.Generator) -> tuple[np.ndarray, "BaseParams"]:  # pragma: no cover
+    def prepare_times(self, base: BaseParams, years: float | None, days: float | None,
+                      rng: np.random.Generator) -> tuple[np.ndarray, BaseParams]:  # pragma: no cover
         raise NotImplementedError
-
-    deterministic: ClassVar[bool] = False   # True ならシードで結果が変わらない(実データの再生)
 
     def params_dict(self) -> dict:
         return asdict(self.p) if is_dataclass(self.p) else {}
 
-    def with_overrides(self, overrides: dict) -> "Component":
+    def with_overrides(self, overrides: dict) -> Component:
         names = {f.name for f in fields(self.p)}
         unknown = set(overrides) - names
         if unknown:
@@ -139,7 +138,7 @@ class MarketModel:
         self.description = description
 
     # ---- 構成 -------------------------------------------------------------
-    def with_params(self, params: dict | None) -> "MarketModel":
+    def with_params(self, params: dict | None) -> MarketModel:
         """{"base": {...}, "<部品key>": {...} | None | False} で上書きした複製を返す。
 
         None / False / {"enabled": False} はその部品を外す(アブレーション)。
@@ -233,27 +232,3 @@ def _build_path(ctx: GenContext) -> None:
         ctx.shocks = ctx.rng.standard_normal(ctx.n)
     r = ctx.drift + ctx.vol * ctx.shocks + ctx.jumps
     ctx.logp = np.log(ctx.base.p0) + np.cumsum(r)
-
-
-# ---- 部品が使う共通処理 ----------------------------------------------------
-
-def block_view(ctx: GenContext, block: int):
-    """経路を block ステップごとに区切った (終値 idx, 高値, 安値, 終値) を返す。"""
-    n = ctx.n
-    starts = np.arange(0, n, block)
-    ends = np.minimum(starts + block, n) - 1
-    lp = ctx.logp
-    return starts, ends, np.maximum.reduceat(lp, starts), np.minimum.reduceat(lp, starts), lp[ends]
-
-
-def apply_block_increments(ctx: GenContext, d: np.ndarray, block: int) -> None:
-    """ブロック b で決めた log 変化 d[b] を、次のブロックの中で直線的に足し込む(持続的なずれ)。"""
-    n = ctx.n
-    starts = np.arange(0, n, block)
-    nxt = starts[1:]                    # d[b] はブロック b+1 に効く
-    if len(nxt) == 0:
-        return
-    lens = np.minimum(nxt + block, n) - nxt
-    inc = np.zeros(n)
-    inc[nxt[0]:] = np.repeat(d[:len(nxt)] / lens, lens)
-    ctx.logp = ctx.logp + np.cumsum(inc)

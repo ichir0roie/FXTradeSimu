@@ -58,7 +58,7 @@ def test_generation_is_deterministic_and_sane(name):
 
 
 def test_real_replay_is_deterministic_and_matches_data():
-    from fxsim.markets.real import load_ohlc
+    from fxsim.data import load_ohlc
 
     m = MARKETS.create("real")
     assert m.deterministic
@@ -71,7 +71,7 @@ def test_real_replay_is_deterministic_and_matches_data():
 def test_real_bridge_passes_through_real_closes():
     m = MARKETS.create("real_bridge")
     md = m.generate(years=0.5, seed=3)
-    from fxsim.markets.real import load_ohlc
+    from fxsim.data import load_ohlc
 
     s = load_ohlc("data/real/usdjpy_d1_fred.csv").window(years=0.5)
     idx = np.searchsorted(md.times, s.times) - 1

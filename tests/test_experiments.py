@@ -1,8 +1,8 @@
 import sqlite3
 
 from fxsim.experiments import ExperimentConfig, run_experiment
-from fxsim.experiments.report import run_report
 from fxsim.experiments.stats import strategy_stats, summarize
+from fxsim.reports import run_report
 
 
 def test_summarize():

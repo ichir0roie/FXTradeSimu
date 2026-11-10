@@ -11,8 +11,8 @@
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
 
 import numpy as np
 
@@ -76,7 +76,7 @@ class _Order:
 class StrategyContext:
     """戦略から見えるもの。注文は次の足の始値で約定する。"""
 
-    def __init__(self, engine: "Backtester"):
+    def __init__(self, engine: Backtester):
         self._e = engine
 
     # ---- 参照 ----
@@ -296,7 +296,7 @@ class Backtester:
             self.equity = self.balance
 
     # ---- 実行 ----
-    def run(self, progress: ProgressFn | None = None, every: int = 500) -> "Backtester":
+    def run(self, progress: ProgressFn | None = None, every: int = 500) -> Backtester:
         n = len(self.bars)
         self.strategy.prepare(self.bars, self.strategy_rng)
         ctx = StrategyContext(self)

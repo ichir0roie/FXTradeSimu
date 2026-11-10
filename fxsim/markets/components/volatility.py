@@ -56,7 +56,7 @@ class StochasticVolatility(Component):
     def apply(self, ctx: GenContext) -> None:
         x = np.zeros(ctx.n)
         var = 0.0
-        for hl_min, sd in zip(self.p.halflives_min, self.p.stds):
+        for hl_min, sd in zip(self.p.halflives_min, self.p.stds, strict=True):
             hl = max(hl_min / ctx.base.step_minutes, 1.0)
             a = 0.5 ** (1.0 / hl)
             e = ctx.rng.standard_normal(ctx.n) * sd * np.sqrt(1 - a * a)
