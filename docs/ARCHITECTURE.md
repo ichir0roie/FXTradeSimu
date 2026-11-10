@@ -125,6 +125,9 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 - 同じモデル・パラメータ・シード・期間の相場パターンは、中身(ローソク足・イベント)を `data_key` で 1 つだけ持ち、
   実験をまたいで共有する(`pattern_data`)
 - WAL モード。Python が書いている間も画面は読み取り専用で読める。実験の終わりに WAL を本体へ書き戻す
+- 統合 DB はコミットしない。実験が終わったら 1 実行 = 1 ファイルの結果パック(`data/results/<run_key>.sqlite`)と
+  相場パターン(`data/patterns/<data_key>.sqlite`)に書き出し、そちらをコミットする(`fxsim/storage/packs.py`)。
+  統合 DB は `fxsim db build` でパックから作り、番号は取り込むときに振り直す。全環境で一意なのは `runs.run_key`
 
 ## 画面(web/)
 

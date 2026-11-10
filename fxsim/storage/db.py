@@ -30,10 +30,21 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return con
 
 
-def init_db(path: str | Path | None = None) -> sqlite3.Connection:
-    """接続してスキーマを作る(既にあれば何もしない。ビューは作り直す)。"""
+def init_db(path: str | Path | None = None, sync: bool = True) -> sqlite3.Connection:
+    """接続してスキーマを作る(既にあれば何もしない。ビューは作り直す)。
+
+    既定の DB(統合 DB)なら、まだ取り込んでいない結果パックを取り込む(storage/packs.py)。
+    """
+    from . import packs
+
     con = connect(path)
     con.executescript(SCHEMA)
+    if "run_key" not in {r[1] for r in con.execute("PRAGMA table_info(runs)")}:   # パック導入前の DB
+        con.execute("ALTER TABLE runs ADD COLUMN run_key TEXT")
+    packs.ensure_run_keys(con)
+    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_runs_key ON runs(run_key)")
+    if sync and packs.is_default_db(path):
+        packs.sync_packs(con)
     return con
 
 

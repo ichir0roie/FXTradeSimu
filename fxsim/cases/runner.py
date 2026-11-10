@@ -11,6 +11,7 @@ from ..experiments.runner import git_sha, run_experiment
 from ..experiments.stats import strategy_stats
 from ..markets import MARKETS
 from ..storage import Tx, queries, writer
+from ..storage.packs import auto_export
 from ..verification import NULL_LABEL, compute_verdict
 from .loader import load_cases
 from .model import BehaviorCase, TestCase
@@ -119,6 +120,7 @@ def run_cases(con: sqlite3.Connection, db_path: str, ids: list[str] | None = Non
         summary = summarize_run(con, run_id, verify_label=b.id if t.verify else None)
         writer.finish_case_run(con, case_run_id, run_id=run_id, status=queries.run_status(con, run_id),
                                summary=summary)
+        auto_export(con, db_path, run_id, log=log)
         p = (summary["all"] or {}).get("pnl") or {}
         if p.get("n"):
             log(f"{tid}: run #{run_id} 損益 平均 {p['mean']:,.0f} / 中央 {p['median']:,.0f} / 合計 {p['total']:,.0f}"

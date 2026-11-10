@@ -2,7 +2,7 @@
 
 このリポジトリは「悪意ある為替相場」を合成し、FX 戦略を長期間シミュレーションする場所。
 Claude の役目は、市場モデルと戦略の **案を複数出し → 実装し → 同じ物差しで評価し → 記録し → 次の案へ** を回すこと。
-Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.sqlite` に入れてコミットする。
+Claude 上ではシミュレーションだけを行い、結果は 1 実行 = 1 ファイルの結果パック(`data/results/`)に入れてコミットする。
 画面(`web/`、Next.js)は利用者のローカル専用。
 
 ## 置き場所
@@ -15,7 +15,8 @@ Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.
 | 実データ | `data/real/`(README に出典とライセンス) |
 | 実験の設定 | `configs/*.yaml` |
 | 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
-| 実験の結果(全部) | `data/fxsim.sqlite`(runs / paths / jobs / equity / trades / candles / market_events) |
+| 実験の結果(コミットする) | 結果パック `data/results/<run_key>.sqlite`(1 実行 = 1 ファイル)と相場パターン `data/patterns/<data_key>.sqlite`(`data/results/README.md`) |
+| 実験の結果(コミットしない) | 統合 DB `data/fxsim.sqlite`。パックから `python -m fxsim db build` で作る。既定の DB を開くコマンドは新しいパックを自動で取り込む |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
 | 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
 | これまでの評価の整理 | 投資の知見 `docs/INSIGHTS.md`、開発項目 `docs/ROADMAP.md`、戦略の候補 `docs/CANDIDATES.md` |
@@ -37,9 +38,10 @@ ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦�
      賭け方(マーチンゲールなど)は `fxsim/strategies/staking.py` を使う
 4. **検査する**: `python -m pytest -q` と `python -m fxsim check-lookahead`
 5. **評価する**(下の「物差し」)。結果は自動で SQLite に入る
-6. **記録する**: 提案書に run 番号・主要な数字(表を `python -m fxsim report <run>` から貼る)・判定・次の一手
-7. **コミット**: コードと `data/fxsim.sqlite` と提案書を一緒に。コミット前に DB の WAL は自動で書き戻される
-   (`*.sqlite-wal` / `-shm` はコミットしない)
+6. **記録する**: 提案書に run_key・主要な数字(表を `python -m fxsim report <run_key>` から貼る)・判定・次の一手。
+   統合 DB の番号(run #N)は環境と取り込みの順で変わるので、提案書には run_key を書く
+7. **コミット**: コードと結果パック(`data/results/`、`data/patterns/`)と提案書を一緒に。既定の DB への実験は
+   終わったら自動でパックに書き出される(demo は除く)。統合 DB(`data/fxsim.sqlite`)と `*.sqlite-wal` / `-shm` はコミットしない
 
 ## 物差し(同じ条件で比べること)
 
@@ -115,12 +117,15 @@ python -m fxsim list                                   # 市場モデル・戦�
 python -m fxsim run configs/quick.yaml                 # 動作確認(数十秒)
 python -m fxsim report [RUN_ID] --patterns             # 結果を Markdown で
 python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うためのゆっくりしたシミュレーション
+python -m fxsim db build                               # 結果パックから統合 DB を作る(--fresh で作り直し)
+python -m fxsim db list                                # 結果パックの一覧と大きさ
 sqlite3 data/fxsim.sqlite "SELECT * FROM v_strategy_summary WHERE run_id = 1"
-python -m fxsim compact 1 2 --detail-equity-minutes 43200     # DB が大きくなったら資産曲線を間引く(成績は変わらない)
+python -m fxsim compact <run_key> --detail-equity-minutes 43200   # 資産曲線を間引く(成績は変わらない。パックも書き直す)
 ```
 
 ## 画面(利用者のローカル)
 ```bash
+python -m fxsim db build              # 先に統合 DB を作る(clone 直後・pull の後)
 cd web && npm install && npm run dev   # http://localhost:3000(FXSIM_DB で DB を差し替え)
 npm run screenshot                     # 別の端末で。docs/screenshots/ に保存
 ```

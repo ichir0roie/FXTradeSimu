@@ -26,10 +26,14 @@ def _sec(t_ns) -> int:
 
 def create_run(con: sqlite3.Connection, *, name: str, kind: str, proposal: str | None, git_sha: str | None,
                years: float, seeds: list[int], config: dict, notes: str) -> int:
+    from .packs import make_run_key
+
+    created = now_iso()
     return con.execute(
-        "INSERT INTO runs(name, kind, proposal, status, created_at, git_sha, years, seeds_json, config_json, notes)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (name, kind, proposal, "running", now_iso(), git_sha, years, dumps(seeds), dumps(config), notes)).lastrowid
+        "INSERT INTO runs(name, kind, proposal, status, created_at, git_sha, years, seeds_json, config_json, notes,"
+        " run_key) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (name, kind, proposal, "running", created, git_sha, years, dumps(seeds), dumps(config), notes,
+         make_run_key(proposal, kind, created))).lastrowid
 
 
 def add_path(con: sqlite3.Connection, run_id: int, *, market: str, label: str, info: dict, seed: int,

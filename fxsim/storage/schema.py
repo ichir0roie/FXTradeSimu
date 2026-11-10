@@ -1,7 +1,7 @@
 """SQLite のスキーマ。シミュレーション中も逐次書き込み、Web UI(web/)がそれを読む。
 
 構造:
-    runs           実験 1 回(設定・git の版・状態)
+    runs           実験 1 回(設定・git の版・状態)。run_key が全環境で一意なキー(storage/packs.py)
     paths          生成した市場の経路 1 本(市場の案 x シード)。統計的性質(facts)と現実らしさの点数
     pattern_data   相場パターンの中身の目録。同じモデル・パラメータ・シード・期間なら実験をまたいで 1 つだけ持つ
     candles        相場パターンのローソク足(詳細保存するシードだけ。data_key で引く)
@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS runs (
     seeds_json TEXT,
     config_json TEXT,
     notes TEXT,
-    elapsed_sec REAL
+    elapsed_sec REAL,
+    run_key TEXT                      -- 全環境で一意なキー(結果パックのファイル名)。番号は環境ごとに変わる
 );
 CREATE TABLE IF NOT EXISTS paths (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

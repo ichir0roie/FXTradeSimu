@@ -6,13 +6,16 @@
     ablate MODEL                 部品を 1 つずつ外して、どの悪意が効いているか見る
     eval-strategy NAME           戦略を「実データ + ランダム相場の複数パターン」で評価
     demo                         画面(web/)で追うための、ゆっくり進むシミュレーション
-    report [RUN_ID]              実験結果を Markdown で表示(省略で最新)
+    report [RUN_ID|RUN_KEY]      実験結果を Markdown で表示(省略で最新)
     leaderboard                  全実験の横断ランキング
     check-lookahead [NAME...]    戦略が未来を見ていないか検査
     cases list                   動作ケース・テストケースと最新の結果
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
     verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
+    db build [--fresh]           結果パック(data/results, data/patterns)から統合 DB(data/fxsim.sqlite)を作る
+    db export RUN... | --all     実行を結果パックに書き出す(既定の DB への実験は終わったら自動で書き出す)
+    db list                      結果パックの一覧
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
 """
@@ -27,7 +30,7 @@ import yaml
 from . import catalog  # noqa: F401
 from .backtest import BROKER_PRESETS
 from .markets import MARKETS
-from .paths import DEFAULT_DB
+from .paths import DEFAULT_DB, PATTERNS_DIR, RESULTS_DIR
 from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
@@ -55,16 +58,26 @@ def _json(s: str | None) -> dict:
 def _run_and_report(cfg_dict: dict, args) -> int:
     from .experiments import ExperimentConfig, run_experiment
     from .reports import run_report
+    from .storage.packs import auto_export
 
     run_id = run_experiment(ExperimentConfig.from_dict(cfg_dict), args.db)
+    con = connect(args.db)
+    auto_export(con, args.db, run_id)
     print()
-    print(run_report(connect(args.db), run_id, patterns=getattr(args, "patterns", False)))
+    print(run_report(con, run_id, patterns=getattr(args, "patterns", False)))
     return run_id
+
+
+# コマンドから組み立てる実験(eval-market / ablate / eval-strategy)の保存。目的は性質と成績の統計なので粗くする
+# (既定のままだと 1 時間足の資産曲線と取引の明細で、10 年 x 8 の eval-market 1 本が 70MB を超えた)
+CLI_STORAGE = {"candle_timeframe": 1440, "equity_detail_timeframe": 1440, "equity_timeframe": 10080,
+               "trades": "none", "events": False}
 
 
 def _experiment_base(args, name: str, kind: str) -> dict:
     return {"name": args.name or name, "kind": kind, "proposal": args.proposal, "years": args.years,
-            "seeds": args.seeds, "workers": args.workers, "brokers": [b for b in args.brokers.split(",") if b]}
+            "seeds": args.seeds, "workers": args.workers, "brokers": [b for b in args.brokers.split(",") if b],
+            "storage": dict(CLI_STORAGE)}
 
 
 # ---- コマンド -----------------------------------------------------------------
@@ -129,15 +142,16 @@ def cmd_demo(args) -> None:
 
 def cmd_report(args) -> None:
     from .reports import run_report
+    from .storage.packs import resolve_run
 
-    con = connect(args.db)
-    print(run_report(con, args.run_id or queries.latest_run_id(con), patterns=args.patterns))
+    con = init_db(args.db)
+    print(run_report(con, resolve_run(con, args.run_id) or queries.latest_run_id(con), patterns=args.patterns))
 
 
 def cmd_leaderboard(args) -> None:
     from .reports import leaderboard
 
-    print(leaderboard(connect(args.db), args.kind, args.limit))
+    print(leaderboard(init_db(args.db), args.kind, args.limit))
 
 
 def cmd_check_lookahead(args) -> None:
@@ -201,6 +215,34 @@ def cmd_verify(args) -> None:
             print(format_verdict(summary["verdict"]))
 
 
+def cmd_db(args) -> None:
+    """統合 DB と結果パック。build: パックから統合 DB を作る / export: 実行をパックに書き出す / list: パックの一覧。"""
+    import os
+
+    from .storage import packs
+
+    if args.action == "build":
+        if args.fresh:
+            for suffix in ("", "-wal", "-shm"):
+                p = str(args.db) + suffix
+                if os.path.exists(p):
+                    os.remove(p)
+        con = init_db(args.db, sync=False)
+        new = packs.sync_packs(con, args.results, args.patterns, log=print)
+        print(f"{args.db}: {len(new)} runs imported ({len(packs.list_packs(args.results))} packs)")
+    elif args.action == "export":
+        con = init_db(args.db, sync=False)
+        if args.all:
+            ids = [r[0] for r in con.execute("SELECT id FROM runs WHERE kind != 'demo' AND status != 'running'")]
+        else:
+            ids = [packs.resolve_run(con, r) for r in args.runs]
+        for run_id in ids:
+            print(f"run #{run_id} -> {packs.export_run(con, run_id, args.results, args.patterns)}")
+    else:
+        for created, key, p in packs.list_packs(args.results):
+            print(f"{created}  {key}  {p.stat().st_size / 1e6:6.1f} MB")
+
+
 def cmd_init_db(args) -> None:
     init_db(args.db).close()
     print(f"initialized {args.db}")
@@ -210,13 +252,20 @@ def cmd_compact(args) -> None:
     import os
 
     from .storage import writer
+    from .storage.packs import is_default_db, resolve_run
 
-    con = connect(args.db)
+    con = init_db(args.db)
     before = os.path.getsize(args.db)
-    for run_id in args.run_ids:
+    run_ids = [resolve_run(con, r) for r in args.run_ids]
+    for run_id in run_ids:
         n = writer.compact_equity(con, run_id, args.equity_minutes, args.detail_equity_minutes)
         print(f"run #{run_id}: removed {n} equity points")
     vacuum(con)
+    if is_default_db(args.db):                       # 結果パックも書き直す(コミットするのはパック)
+        from .storage.packs import export_run
+
+        for run_id in run_ids:
+            print(f"run #{run_id} -> {export_run(con, run_id).name}")
     con.close()
     print(f"{args.db}: {before / 1e6:.1f} MB -> {os.path.getsize(args.db) / 1e6:.1f} MB")
 
@@ -287,7 +336,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--name")
 
     p = add("report", cmd_report)
-    p.add_argument("run_id", type=int, nargs="?")
+    p.add_argument("run_id", nargs="?", help="番号か run_key(前方一致も可)")
     _db(p)
     p.add_argument("--patterns", action="store_true")
 
@@ -320,11 +369,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--patterns", action="store_true")
     _db(p)
 
+    p = add("db", cmd_db, help="統合 DB と結果パック(build / export / list)")
+    p.add_argument("action", choices=["build", "export", "list"])
+    p.add_argument("runs", nargs="*", help="export する実行(番号か run_key)")
+    p.add_argument("--all", action="store_true", help="export: demo 以外の全実行")
+    p.add_argument("--fresh", action="store_true", help="build: 統合 DB を消してから作る")
+    p.add_argument("--results", default=str(RESULTS_DIR))
+    p.add_argument("--patterns", default=str(PATTERNS_DIR))
+    _db(p)
+
     p = add("init-db", cmd_init_db)
     _db(p)
 
     p = add("compact", cmd_compact)
-    p.add_argument("run_ids", nargs="+", type=int)
+    p.add_argument("run_ids", nargs="+", help="番号か run_key")
     p.add_argument("--equity-minutes", type=int, default=129600, help="詳細保存でないジョブの資産曲線の間隔(分)")
     p.add_argument("--detail-equity-minutes", type=int, default=None,
                    help="詳細保存のジョブの資産曲線の間隔(分。省略で間引かない)")

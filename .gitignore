@@ -2,10 +2,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 desktop.ini
-# SQLite の一時ファイル(本体 data/fxsim.sqlite はコミットする)
+# 統合 DB はコミットしない(結果パック data/results/*.sqlite と data/patterns/*.sqlite から `python -m fxsim db build` で作る)
+data/fxsim.sqlite
+# SQLite の一時ファイル
 *.sqlite-wal
 *.sqlite-shm
 *.sqlite-journal
+*.sqlite.tmp
 # web
 web/node_modules/
 web/.next/
