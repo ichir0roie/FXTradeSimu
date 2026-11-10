@@ -71,6 +71,22 @@ AnchorBridge v2〜v3 は、足の中の実現分散を「(1 − 0.6) x 局所ボ
 - real_bridge_malicious はストップ狩りの部品が日中の戻りを作る(RSI +406)。M004 の判定どおりストレス試験としてだけ使う。
   直すなら M006 の StopHunt の調査と一緒に(`docs/ROADMAP.md`)
 
+## 結果(10 年 x 8 パターン、fair、素のシャープ。括弧はパターン単位の損益の t)
+run: real_bridge `R008-20261110T070718-0887aa`、偽薬 `R008-20261110T070820-fad215`
+
+| 戦略 | real_bridge v4 | 偽薬 v4 |
+|---|---|---|
+| bollinger_reversion | −0.18 (−5.0) | −0.18 (−3.5) |
+| rsi_reversion | −0.11 (−4.2) | −0.21 (−7.3) |
+| ma_cross | −0.08 (−2.8) | −0.01 (−1.7) |
+| donchian_breakout | +0.09 (−0.1) | +0.19 (0.4) |
+| simple_follower | −0.02 (−1.9) | +0.10 (−0.7) |
+| scalping | +0.27 | +0.13 |
+| random_entry | −0.25 (−3.3) | +0.03 (−5.3) |
+
+- 素のシャープの絶対値の最大は real_bridge 0.27、偽薬 0.21(目安 < 0.3)。現実らしさはどちらも 100、分散比 M5→H1 は 0.995 / 0.996
+- 損益の t が負なのは費用の分(fair でもスプレッドを払う)
+
 ## 判定
 採用(real_* v4)。v3 は `{"anchor": {"calibrate_vol": "local", "clock": "variance"}}` で再現できる
 (ただし同じ版で NewsShocks の並べ替えも直したので、v3 の値動きそのものは再現しない。E007)。

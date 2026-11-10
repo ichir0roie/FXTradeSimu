@@ -65,3 +65,11 @@ python -m fxsim report <run>
 - RSI・ストキャスの逆張り(実データ系)と scalping(malicious)の勝ちは市場モデルの穴(R008 / M006 で直す)
 
 詳しくは `docs/proposals/experiments/E006-common-methods.md`。
+
+## 結果(E008、市場 v4・エンジンの修正後)
+- RSI・ストキャスの逆張りと parabolic_sar の勝ちは消えた(R008・M006 と損切りの約定の修正)。malicious ブローカーで総合がプラスなのは
+  buy_and_hold・carry_trade・carry_trend の 3 本だけ(E006 と同じ)
+- 賭け方は fair でも 91〜100% のパターンが破綻(E007 の破綻の列)
+- carry_trend・parabolic_sar の 30 年の検証は E009(どちらも不合格。carry_trend は方向でたらめ版より上だけ合格)
+
+詳しくは `docs/proposals/experiments/E008-common-methods-v4.md`、候補の一覧は `docs/CANDIDATES.md`。

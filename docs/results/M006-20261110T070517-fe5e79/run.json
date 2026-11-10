@@ -1,0 +1,188 @@
+{
+ "run_key": "M006-20261110T070517-fe5e79",
+ "name": "eval-market malicious",
+ "kind": "eval_market",
+ "proposal": "M006",
+ "status": "done",
+ "created_at": "2026-11-10T07:05:17Z",
+ "finished_at": "2026-11-10T07:06:16Z",
+ "git_sha": "e45a147",
+ "years": 10.0,
+ "notes": "",
+ "elapsed_sec": 59.21744441986084,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "config": {
+  "name": "eval-market malicious",
+  "markets": [
+   {
+    "model": "random_walk",
+    "label": "random_walk",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "malicious",
+    "label": "malicious",
+    "params": {},
+    "seeds": null
+   }
+  ],
+  "strategies": [
+   {
+    "name": "random_entry",
+    "label": "random_entry",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "ma_cross",
+    "label": "ma_cross",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "donchian_breakout",
+    "label": "donchian_breakout",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "bollinger_reversion",
+    "label": "bollinger_reversion",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "simple_follower",
+    "label": "simple_follower",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "rsi_reversion",
+    "label": "rsi_reversion",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "scalping",
+    "label": "scalping",
+    "params": {},
+    "schedule": {}
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "fair",
+    "label": "fair",
+    "overrides": {}
+   },
+   {
+    "preset": "malicious",
+    "label": "malicious",
+    "overrides": {}
+   }
+  ],
+  "years": 10.0,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "detail_seeds": [
+   1
+  ],
+  "workers": 12,
+  "kind": "eval_market",
+  "proposal": "M006",
+  "notes": "",
+  "engine": {
+   "initial_balance": 1000000.0,
+   "sizing": "fixed",
+   "units": 10000.0,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0,
+   "ruin_frac": 0.1,
+   "stop_at_ruin": false
+  },
+  "storage": {
+   "candle_timeframe": 1440,
+   "trades": "none",
+   "equity_timeframe": 10080,
+   "equity_detail_timeframe": 1440,
+   "events": false
+  },
+  "live": {
+   "flush_every": 500,
+   "delay_ms": 0.0
+  },
+  "brokers_resolved": {
+   "fair": {
+    "name": "fair",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "malicious": {
+    "name": "malicious",
+    "slippage_pips": 0.2,
+    "adverse_only": true,
+    "slippage_spread_k": 0.5,
+    "stop_slippage_mult": 2.5,
+    "positive_slippage": false,
+    "hunt_prob": 0.35,
+    "hunt_pips": 3.0,
+    "spread_markup_pips": 0.3,
+    "spread_floor_pips": 0.5,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.01,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.3,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   }
+  }
+ },
+ "case_runs": []
+}

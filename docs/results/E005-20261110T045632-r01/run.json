@@ -1,0 +1,274 @@
+{
+ "run_key": "E005-20261110T045632-r01",
+ "name": "long_run_v3",
+ "kind": "experiment",
+ "proposal": "E005",
+ "status": "done",
+ "created_at": "2026-11-10T04:56:32Z",
+ "finished_at": "2026-11-10T04:59:38Z",
+ "git_sha": "6fe9bcd",
+ "years": 10.0,
+ "notes": "基本戦略 x 市場 7 種 x ブローカー 3 種。実データ(日足)では日足の戦略だけが回る。",
+ "elapsed_sec": 185.97339177131653,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "config": {
+  "name": "long_run_v3",
+  "markets": [
+   {
+    "model": "real",
+    "label": "real",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "real_bridge",
+    "label": "real_bridge",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "real_bootstrap",
+    "label": "real_bootstrap",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "real_bridge_malicious",
+    "label": "real_bridge_malicious",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "random_walk",
+    "label": "random_walk",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "stylized",
+    "label": "stylized",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "malicious",
+    "label": "malicious",
+    "params": {},
+    "seeds": null
+   }
+  ],
+  "strategies": [
+   {
+    "name": "random_entry",
+    "label": "random_entry",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "ma_cross",
+    "label": "ma_cross",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "donchian_breakout",
+    "label": "donchian_breakout",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "bollinger_reversion",
+    "label": "bollinger_reversion",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "simple_follower",
+    "label": "simple_follower",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "buy_and_hold",
+    "label": "buy_and_hold",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "ma_cross",
+    "label": "ma_cross_d1",
+    "params": {
+     "timeframe": 1440,
+     "fast": 10,
+     "slow": 50,
+     "atr_n": 20,
+     "sl_atr": 3.0
+    },
+    "schedule": {}
+   },
+   {
+    "name": "donchian_breakout",
+    "label": "donchian_d1",
+    "params": {
+     "timeframe": 1440,
+     "entry_n": 20,
+     "exit_n": 10,
+     "atr_n": 20,
+     "sl_atr": 2.0
+    },
+    "schedule": {}
+   },
+   {
+    "name": "bollinger_reversion",
+    "label": "bollinger_d1",
+    "params": {
+     "timeframe": 1440,
+     "n": 20,
+     "k": 2.0,
+     "atr_n": 20,
+     "sl_atr": 2.5,
+     "max_hold": 20
+    },
+    "schedule": {}
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "fair",
+    "label": "fair",
+    "overrides": {}
+   },
+   {
+    "preset": "ecn",
+    "label": "ecn",
+    "overrides": {}
+   },
+   {
+    "preset": "malicious",
+    "label": "malicious",
+    "overrides": {}
+   }
+  ],
+  "years": 10,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "detail_seeds": [
+   1
+  ],
+  "workers": 4,
+  "kind": "experiment",
+  "proposal": "E005",
+  "notes": "基本戦略 x 市場 7 種 x ブローカー 3 種。実データ(日足)では日足の戦略だけが回る。",
+  "engine": {
+   "initial_balance": 1000000,
+   "sizing": "fixed",
+   "units": 10000,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0
+  },
+  "storage": {
+   "candle_timeframe": 1440,
+   "trades": "none",
+   "equity_timeframe": 43200,
+   "equity_detail_timeframe": 10080,
+   "events": false
+  },
+  "live": {
+   "flush_every": 1000,
+   "delay_ms": 0
+  },
+  "brokers_resolved": {
+   "fair": {
+    "name": "fair",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "ecn": {
+    "name": "ecn",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.2,
+    "stop_slippage_mult": 1.5,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": -0.2,
+    "spread_floor_pips": 0.05,
+    "commission_per_10k": 50.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "malicious": {
+    "name": "malicious",
+    "slippage_pips": 0.2,
+    "adverse_only": true,
+    "slippage_spread_k": 0.5,
+    "stop_slippage_mult": 2.5,
+    "positive_slippage": false,
+    "hunt_prob": 0.35,
+    "hunt_pips": 3.0,
+    "spread_markup_pips": 0.3,
+    "spread_floor_pips": 0.5,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.01,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.3,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   }
+  }
+ },
+ "case_runs": []
+}

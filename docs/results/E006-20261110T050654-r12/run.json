@@ -1,0 +1,348 @@
+{
+ "run_key": "E006-20261110T050654-r12",
+ "name": "methods",
+ "kind": "experiment",
+ "proposal": "E006",
+ "status": "done",
+ "created_at": "2026-11-10T05:06:54Z",
+ "finished_at": "2026-11-10T05:11:22Z",
+ "git_sha": "21cb54f",
+ "years": 10.0,
+ "notes": "S007〜S031 の手法と random_entry(帰無仮説)、buy_and_hold(基準)",
+ "elapsed_sec": 267.97691893577576,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "config": {
+  "name": "methods",
+  "markets": [
+   {
+    "model": "real",
+    "label": "real",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "real_bridge",
+    "label": "real_bridge",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "real_bootstrap",
+    "label": "real_bootstrap",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "random_walk",
+    "label": "random_walk",
+    "params": {},
+    "seeds": null
+   },
+   {
+    "model": "malicious",
+    "label": "malicious",
+    "params": {},
+    "seeds": null
+   }
+  ],
+  "strategies": [
+   {
+    "name": "random_entry",
+    "label": "random_entry",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "buy_and_hold",
+    "label": "buy_and_hold",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "london_breakout",
+    "label": "london_breakout",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "gotobi",
+    "label": "gotobi",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "pivot_reversal",
+    "label": "pivot_reversal",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "scalping",
+    "label": "scalping",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "rsi_reversion",
+    "label": "rsi_reversion",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "stochastic_reversion",
+    "label": "stochastic_reversion",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "macd_cross",
+    "label": "macd_cross",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "ichimoku",
+    "label": "ichimoku",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "parabolic_sar",
+    "label": "parabolic_sar",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "adx_trend",
+    "label": "adx_trend",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "perfect_order",
+    "label": "perfect_order",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "heikin_ashi",
+    "label": "heikin_ashi",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "turtle",
+    "label": "turtle",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "carry_trade",
+    "label": "carry_trade",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "carry_trade",
+    "label": "carry_trend",
+    "params": {
+     "trend_n": 200
+    },
+    "schedule": {}
+   },
+   {
+    "name": "long_term_value",
+    "label": "long_term_value",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "vol_target_trend",
+    "label": "vol_target_trend",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "regime_adaptive",
+    "label": "regime_adaptive",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "online_logit",
+    "label": "online_logit",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "kalman_trend",
+    "label": "kalman_trend",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "bet",
+    "label": "bet",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "martingale",
+    "label": "martingale",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "paroli",
+    "label": "paroli",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "dalembert",
+    "label": "dalembert",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "fibonacci",
+    "label": "fibonacci",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "labouchere",
+    "label": "labouchere",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "oscars_grind",
+    "label": "oscars_grind",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "kelly",
+    "label": "kelly",
+    "params": {},
+    "schedule": {}
+   },
+   {
+    "name": "nanpin_martingale",
+    "label": "nanpin_martingale",
+    "params": {},
+    "schedule": {}
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "fair",
+    "label": "fair",
+    "overrides": {}
+   },
+   {
+    "preset": "malicious",
+    "label": "malicious",
+    "overrides": {}
+   }
+  ],
+  "years": 10,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "detail_seeds": [
+   1
+  ],
+  "workers": 4,
+  "kind": "experiment",
+  "proposal": "E006",
+  "notes": "S007〜S031 の手法と random_entry(帰無仮説)、buy_and_hold(基準)",
+  "engine": {
+   "initial_balance": 1000000,
+   "sizing": "fixed",
+   "units": 10000,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0
+  },
+  "storage": {
+   "candle_timeframe": 1440,
+   "trades": "none",
+   "equity_timeframe": 129600,
+   "equity_detail_timeframe": 10080,
+   "events": false
+  },
+  "live": {
+   "flush_every": 2000,
+   "delay_ms": 0
+  },
+  "brokers_resolved": {
+   "fair": {
+    "name": "fair",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   },
+   "malicious": {
+    "name": "malicious",
+    "slippage_pips": 0.2,
+    "adverse_only": true,
+    "slippage_spread_k": 0.5,
+    "stop_slippage_mult": 2.5,
+    "positive_slippage": false,
+    "hunt_prob": 0.35,
+    "hunt_pips": 3.0,
+    "spread_markup_pips": 0.3,
+    "spread_floor_pips": 0.5,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.01,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.3,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "leverage": 25.0,
+    "losscut_level": 0.5
+   }
+  }
+ },
+ "case_runs": []
+}
