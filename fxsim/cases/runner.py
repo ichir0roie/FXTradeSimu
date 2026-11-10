@@ -46,8 +46,8 @@ def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
         null_params = {"inner": b.strategy, "inner_params": dict(b.params)}
         if tf:
             null_params["timeframe"] = int(tf)
-        strategies.append({"name": "basket_direction_null" if b.is_multi() else "direction_null", "label": NULL_LABEL,
-                           "params": null_params, "schedule": b.schedule})
+        strategies.append({"name": b.null_strategy(), "label": NULL_LABEL, "params": null_params,
+                           "schedule": b.schedule})
     return ExperimentConfig.from_dict({
         "name": f"{t.id} {t.name}".strip(),
         "kind": "test_case",

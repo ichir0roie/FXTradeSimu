@@ -11,6 +11,8 @@
     3. 新規: 建玉が無く target ≠ 0 なら、取引時間・ロールオーバーの前後・ドローダウンの止め・回転の上限・
        費用の門を通ったときだけ、
        guards.size_lots の量で成行。close_stop なら非常用の逆指値(損切りの幅 x emergency_stop_mult)だけをサーバーに置く
+方向でたらめ版(検証の帰無、main_direction_null): null_u を渡すと、新規の向きだけを乱数で決め、
+手仕舞いの時期は元の向きの信号で決める(売買の時期・量・損切りの幅・費用の門は同じ)。
 数量・価格・注文は MT5 の決まり(ロット、ポイント、stops_level)で出す。
 magic は戦略の名前から決まる(同じ口座のほかの EA と分ける)。
 """
@@ -45,8 +47,9 @@ class MainStrategy(Strategy):
 
     def __init__(self, **params):
         super().__init__(**params)
-        self.g = GuardConfig.from_dict(self.p.guard)
+        self.g = GuardConfig.from_dict(getattr(self.p, "guard", {}))
         self.magic = zlib.crc32(self.name.encode()) % 1_000_000_000
+        self.null_u: np.ndarray | None = None       # 方向でたらめ版のときの乱数(main_direction_null が入れる)
 
     # ---- サブクラスが書く ----
     def signals(self, bars, rng) -> tuple[np.ndarray, np.ndarray, np.ndarray]:  # pragma: no cover - interface
@@ -65,6 +68,8 @@ class MainStrategy(Strategy):
         self.breaker = DrawdownBreaker(self.g)
         self.budget = TurnoverBudget(self.g, self.magic)
         self.stops: dict[int, float] = {}          # チケット -> 終値で判定する損切りの水準
+        # チケット -> 建てたときの信号の向き(方向でたらめ版では実際の向きと違う)
+        self.signal_side: dict[int, int] = {}
         self.blocked: dict[str, int] = {"session": 0, "drawdown": 0, "turnover": 0, "cost": 0, "size": 0}
 
     def on_bar(self, i, ctx):
@@ -84,14 +89,18 @@ class MainStrategy(Strategy):
         positions = ctx.positions(self.magic)
         want = int(self.target[i])
         weekend = g.flat_before_weekend and last_decision_of_week(b.t, i)
-        # 2. 手仕舞い
+        # 2. 手仕舞い(信号の向きで判定する)
         for p in positions:
-            if (p.side != want and p.bars_held >= g.min_hold_bars) or weekend:
+            sig = self.signal_side.get(p.ticket, p.side)
+            if (sig != want and p.bars_held >= g.min_hold_bars) or weekend:
                 ctx.position_close(p.ticket, reason="weekend" if weekend else "signal")
                 self.stops.pop(p.ticket, None)
         if ctx.positions(self.magic) or want == 0 or weekend or not ctx.can_enter:
             return
         # 3. 新規
+        signal = want
+        if self.null_u is not None:
+            want = signal if self.null_u[i] < 0.5 else -signal
         if near_rollover(ctx.time, g.avoid_rollover_hours) and b.timeframe < 1440:
             self.blocked["session"] += 1
             return
@@ -117,9 +126,11 @@ class MainStrategy(Strategy):
         elif g.emergency_stop_mult > 0:
             sl = entry - want * dist * g.emergency_stop_mult
         r = ctx.buy(lots, sl=sl) if want > 0 else ctx.sell(lots, sl=sl)
-        if r.ok and g.close_stop:
+        if r.ok:
             for p in ctx.positions(self.magic):
-                self.stops.setdefault(p.ticket, level)
+                self.signal_side.setdefault(p.ticket, signal)
+                if g.close_stop:
+                    self.stops.setdefault(p.ticket, level)
 
 
 __all__ = ["MainStrategy"]

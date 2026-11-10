@@ -56,6 +56,13 @@ class BehaviorCase:
         """複数ペアの戦略か(相場は basket_*、帰無は basket_direction_null)。"""
         return STRATEGIES.create(self.strategy, self.strategy_params()).multi
 
+    def null_strategy(self) -> str:
+        """検証の帰無(方向でたらめ版)の戦略の名前。複数ペアは basket_、本命(MT5 のテスター)は main_ の版。"""
+        s = STRATEGIES.create(self.strategy, self.strategy_params())
+        if getattr(s, "engine", "classic") == "mt5":
+            return "main_direction_null"
+        return "basket_direction_null" if s.multi else "direction_null"
+
     def verify_settings(self, **given) -> dict:
         """検証の設定。コマンドで指定した値(None 以外)> 動作ケースの verify > 既定。"""
         out = {**VERIFY_DEFAULTS, **self.verify}

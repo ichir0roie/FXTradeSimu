@@ -242,3 +242,20 @@ def test_near_rollover():
     hour = 3_600_000_000_000
     assert near_rollover(day + 22 * hour, 1.0) and near_rollover(day + 21 * hour + hour // 2, 1.0)
     assert not near_rollover(day + 12 * hour, 1.0)
+
+
+def test_main_direction_null_keeps_timing_and_randomizes_sides():
+    md = MARKETS.create("malicious").generate(years=6, seed=4)
+    bars = md.bars(1440)
+    guard = {"max_drawdown": 0.0, "max_trades_per_year": 0, "cost_multiple": 0.0}
+    br = BrokerConfig.preset("fair")
+
+    def entries(name, params):
+        bt = Mt5Tester(bars, STRATEGIES.create(name, params), br, EngineConfig(), pip=md.pip, seed=2).run()
+        return [(d.time, d.type) for d in bt.deals if d.entry == DEAL_ENTRY_IN]
+
+    a = entries("main_trend_d1", {"guard": guard})
+    b = entries("main_direction_null", {"inner": "main_trend_d1", "inner_params": {"guard": guard}})
+    assert len(a) > 5 and a[0][0] == b[0][0]                 # 最初の新規は同じ時刻
+    flipped = np.mean([x[1] != y[1] for x, y in zip(a, b, strict=False)])
+    assert 0.15 < flipped < 0.85

@@ -1,0 +1,7 @@
+id: B045
+name: 本命 1 本目 main_trend_d1(日足のトレンド + 共通の対策、MT5 のテスター、国内の MT5 口座のひな形、malicious の費用)
+strategy: main_trend_d1
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: malicious, overrides: {mt5: {preset: jp_domestic}}}
+verify: {block_days: 500}
