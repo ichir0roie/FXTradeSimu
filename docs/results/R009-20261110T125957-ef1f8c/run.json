@@ -1,0 +1,224 @@
+{
+ "run_key": "R009-20261110T125957-ef1f8c",
+ "name": "R009 anchor prior sweep",
+ "kind": "experiment",
+ "proposal": "R009",
+ "status": "done",
+ "created_at": "2026-11-10T12:59:57Z",
+ "finished_at": "2026-11-10T13:02:29Z",
+ "git_sha": "61e18dc+dirty",
+ "years": 30.0,
+ "notes": "",
+ "elapsed_sec": 152.22608947753906,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6
+ ],
+ "config": {
+  "name": "R009 anchor prior sweep",
+  "markets": [
+   {
+    "model": "real_bootstrap",
+    "label": "bootstrap_w25",
+    "params": {
+     "source": {
+      "block_days": 250
+     },
+     "anchor": {
+      "prior_long_weight": 0.25
+     }
+    },
+    "seeds": null
+   },
+   {
+    "model": "real_bootstrap",
+    "label": "bootstrap_w75",
+    "params": {
+     "source": {
+      "block_days": 250
+     },
+     "anchor": {
+      "prior_long_weight": 0.75
+     }
+    },
+    "seeds": null
+   },
+   {
+    "model": "real_bridge_placebo",
+    "label": "placebo_w25",
+    "params": {
+     "anchor": {
+      "prior_long_weight": 0.25
+     }
+    },
+    "seeds": null
+   },
+   {
+    "model": "real_bridge_placebo",
+    "label": "placebo_w75",
+    "params": {
+     "anchor": {
+      "prior_long_weight": 0.75
+     }
+    },
+    "seeds": null
+   }
+  ],
+  "strategies": [
+   {
+    "name": "donchian_breakout",
+    "label": "B002_donchian_h1",
+    "params": {
+     "timeframe": 60,
+     "entry_n": 48,
+     "exit_n": 24,
+     "atr_n": 24,
+     "sl_atr": 2.0
+    },
+    "schedule": {}
+   },
+   {
+    "name": "heikin_ashi",
+    "label": "B020_heikin_h4",
+    "params": {
+     "timeframe": 240
+    },
+    "schedule": {}
+   },
+   {
+    "name": "london_breakout",
+    "label": "B029_london_m15",
+    "params": {
+     "timeframe": 15
+    },
+    "schedule": {}
+   },
+   {
+    "name": "macd_cross",
+    "label": "B023_macd_h4",
+    "params": {
+     "timeframe": 240
+    },
+    "schedule": {}
+   },
+   {
+    "name": "rsi_reversion",
+    "label": "B025_rsi_h1",
+    "params": {
+     "timeframe": 60
+    },
+    "schedule": {}
+   },
+   {
+    "name": "stochastic_reversion",
+    "label": "B026_stoch_h1",
+    "params": {
+     "timeframe": 60
+    },
+    "schedule": {}
+   },
+   {
+    "name": "bollinger_reversion",
+    "label": "B003_bollinger_h1",
+    "params": {
+     "timeframe": 60,
+     "n": 24,
+     "k": 2.0,
+     "atr_n": 24,
+     "sl_atr": 2.5,
+     "max_hold": 48
+    },
+    "schedule": {}
+   },
+   {
+    "name": "random_entry",
+    "label": "B006_random_h1",
+    "params": {
+     "timeframe": 60,
+     "entry_prob": 0.05,
+     "atr_n": 24,
+     "sl_atr": 2.0,
+     "tp_atr": 2.0
+    },
+    "schedule": {}
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "fair",
+    "label": "fair",
+    "overrides": {}
+   }
+  ],
+  "years": 30,
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "detail_seeds": [
+   1
+  ],
+  "workers": 6,
+  "kind": "experiment",
+  "proposal": "R009",
+  "notes": "",
+  "engine": {
+   "initial_balance": 1000000.0,
+   "sizing": "fixed",
+   "units": 10000.0,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0,
+   "ruin_frac": 0.1,
+   "stop_at_ruin": false
+  },
+  "storage": {
+   "candle_timeframe": 1440,
+   "trades": "none",
+   "equity_timeframe": 43200,
+   "equity_detail_timeframe": 10080,
+   "events": false
+  },
+  "live": {
+   "flush_every": 500,
+   "delay_ms": 0.0
+  },
+  "brokers_resolved": {
+   "fair": {
+    "name": "fair",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0025,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": true,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 0.5,
+    "mt5": {}
+   }
+  }
+ },
+ "case_runs": []
+}

@@ -225,7 +225,7 @@ class AnchorBridge(Component):
         # 大きく動き、終値への補正が一方向のドリフトになって日中にトレンドが出る。荒れた時期の後は戻る)。
         # 偽薬でも 1 時間足のブレイクアウトが素で +1.2 pip / 取引(t 6)勝っていた(R009)。0 なら v4 と同じ
         prior_long_window: int = 250
-        prior_long_weight: float = 0.5
+        prior_long_weight: float = 0.25             # 0 / 0.25 / 0.5 / 0.75 を比べて決めた(R009)
         # 終値とのずれを配る時計: expected(事前の分散 vol² に比例、v4)| variance(動いた分 dx² に比例、v2〜v3)
         # | time(時刻に比例、v1)
         clock: str = "expected"
