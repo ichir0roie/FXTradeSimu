@@ -75,3 +75,10 @@ def dumps(obj) -> str:
 def checkpoint(con: sqlite3.Connection) -> None:
     """WAL をメインのファイルへ書き戻す(コミット前に呼ぶ)。"""
     con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+
+def vacuum(con: sqlite3.Connection) -> None:
+    """WAL を書き戻してから、消した行の空きを詰めてファイルを小さくする。"""
+    checkpoint(con)
+    con.execute("VACUUM")
+    checkpoint(con)

@@ -68,3 +68,38 @@ def test_config_parses_short_forms_and_rejects_unknown_keys():
         ExperimentConfig.from_dict({"name": "x", "markets": [], "strategies": [], "storage": {"candle_tf": 60}})
     with pytest.raises(ValueError):
         ExperimentConfig.from_dict({"name": "x", "markets": ["random_walk", "random_walk"], "strategies": []})
+
+
+def test_compact_equity_keeps_the_last_point_of_each_bucket(tmp_path):
+    from fxsim.storage import connect, writer
+
+    db = tmp_path / "c.sqlite"
+    cfg = ExperimentConfig.from_dict({"name": "c", "years": 0.5, "seeds": [1], "workers": 1, "detail_seeds": [],
+                                      "markets": ["random_walk"], "brokers": ["fair"], "strategies": ["random_entry"],
+                                      "storage": {"equity_timeframe": 1440}})
+    run_id = run_experiment(cfg, db, log=lambda *a: None)
+    con = connect(db)
+    before = con.execute("SELECT t, equity FROM equity ORDER BY t").fetchall()
+    removed = writer.compact_equity(con, run_id, 10080)
+    after = con.execute("SELECT t, equity FROM equity ORDER BY t").fetchall()
+    assert removed == len(before) - len(after) and 20 <= len(after) < len(before) / 4
+    assert after[-1][1] == before[-1][1]                         # 最後の資産はそのまま
+    assert {e for _, e in after} <= {e for _, e in before}       # 値は元の点のどれか(作らない)
+    final = con.execute("SELECT pnl FROM jobs").fetchone()[0]
+    assert writer.compact_equity(con, run_id, 10080) == 0        # 2 回目は何もしない
+    assert con.execute("SELECT pnl FROM jobs").fetchone()[0] == final
+
+
+def test_events_are_added_when_a_later_run_wants_them(tmp_path):
+    db = tmp_path / "e.sqlite"
+    base = {"years": 0.25, "seeds": [1], "workers": 1, "detail_seeds": [1], "markets": ["malicious"],
+            "brokers": ["fair"], "strategies": ["random_entry"]}
+    run_experiment(ExperimentConfig.from_dict({**base, "name": "a", "storage": {"events": False}}), db,
+                   log=lambda *a: None)
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM market_events").fetchone()[0] == 0
+    run_experiment(ExperimentConfig.from_dict({**base, "name": "b"}), db, log=lambda *a: None)
+    n = con.execute("SELECT COUNT(*) FROM market_events").fetchone()[0]
+    assert n > 0
+    assert con.execute("SELECT n_events FROM pattern_data").fetchone()[0] == n
+    assert con.execute("SELECT COUNT(*) FROM pattern_data").fetchone()[0] == 1      # 足は 1 度だけ

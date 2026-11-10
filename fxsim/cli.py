@@ -14,6 +14,7 @@
     cases show ID                テストケースの最新結果
     verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
     init-db                      空の DB を作る
+    compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ from . import catalog  # noqa: F401
 from .backtest import BROKER_PRESETS
 from .markets import MARKETS
 from .paths import DEFAULT_DB
-from .storage import connect, init_db, queries
+from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
 PANEL = ["random_entry", "ma_cross", "donchian_breakout", "bollinger_reversion", "simple_follower"]
@@ -202,6 +203,21 @@ def cmd_init_db(args) -> None:
     print(f"initialized {args.db}")
 
 
+def cmd_compact(args) -> None:
+    import os
+
+    from .storage import writer
+
+    con = connect(args.db)
+    before = os.path.getsize(args.db)
+    for run_id in args.run_ids:
+        n = writer.compact_equity(con, run_id, args.equity_minutes, args.detail_equity_minutes)
+        print(f"run #{run_id}: removed {n} equity points")
+    vacuum(con)
+    con.close()
+    print(f"{args.db}: {before / 1e6:.1f} MB -> {os.path.getsize(args.db) / 1e6:.1f} MB")
+
+
 # ---- 引数 -------------------------------------------------------------------
 
 def _db(p: argparse.ArgumentParser) -> None:
@@ -302,6 +318,13 @@ def build_parser() -> argparse.ArgumentParser:
     _db(p)
 
     p = add("init-db", cmd_init_db)
+    _db(p)
+
+    p = add("compact", cmd_compact)
+    p.add_argument("run_ids", nargs="+", type=int)
+    p.add_argument("--equity-minutes", type=int, default=129600, help="詳細保存でないジョブの資産曲線の間隔(分)")
+    p.add_argument("--detail-equity-minutes", type=int, default=None,
+                   help="詳細保存のジョブの資産曲線の間隔(分。省略で間引かない)")
     _db(p)
     return ap
 

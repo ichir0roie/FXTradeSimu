@@ -63,9 +63,13 @@ python -m fxsim demo --years 0.5 --delay-ms 200
 
 ## 画面
 
-| モデルの長期検証(判定・資産曲線の束・年ごと) | 実験の結果(パターンごとの統計) |
+| モデルの長期検証(判定・資産曲線の束・年ごと) | 実験の結果(パターンごとの統計・費用の内訳) |
 |---|---|
-| ![](docs/screenshots/05-verify-light.png) | ![](docs/screenshots/02-run-1-light.png) |
+| ![](docs/screenshots/05-verify-light.png) | ![](docs/screenshots/02-run-2-light.png) |
+
+| 1 本のバックテスト(価格・資産曲線・最終成績・費用の内訳) | よくある手法の比較(E006) |
+|---|---|
+| ![](docs/screenshots/03-job-1345-light.png) | ![](docs/screenshots/02-run-12-light.png) |
 
 ## 履歴
 
