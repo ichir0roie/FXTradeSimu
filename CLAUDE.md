@@ -1,0 +1,104 @@
+# CLAUDE.md — FXTradeSimu で案を出し、評価し、磨き続けるための手順
+
+このリポジトリは「悪意ある為替相場」を合成し、FX 戦略を長期間シミュレーションする場所。
+Claude の役目は、市場モデルと戦略の **案を複数出し → 実装し → 同じ物差しで評価し → 記録し → 次の案へ** を回すこと。
+Claude 上ではシミュレーションだけを行い、結果は `data/fxsim.sqlite` に入れてコミットする。
+画面(`web/`、Next.js)は利用者のローカル専用。
+
+## 置き場所
+
+| 何を | どこに |
+|---|---|
+| 市場モデルの部品(悪意の種類) | `fxsim/markets/components/*.py`(1 クラス = 1 つの仕組み) |
+| 市場モデルの案 | `fxsim/markets/models/<案>.py`(1 ファイル = 1 案、`@MARKETS.register`) |
+| 戦略の案 | `fxsim/strategies/builtin/<案>.py`(1 ファイル = 1 案、`@STRATEGIES.register`) |
+| 実データ | `data/real/`(README に出典とライセンス) |
+| 実験の設定 | `configs/*.yaml` |
+| 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
+| 実験の結果(全部) | `data/fxsim.sqlite`(runs / paths / jobs / equity / trades / candles / market_events) |
+| 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
+| 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
+
+ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`、動作ケース `B###`、テストケース `T###`。
+既存の最大番号 + 1 を使う(`ls docs/proposals/*/`)。
+
+## 1 周の回し方
+
+1. **現状を読む**
+   - `python -m fxsim leaderboard` と `python -m fxsim leaderboard --kind markets`
+   - 直近の提案書の「次の一手」(`docs/proposals/`)
+2. **案を複数出す**(1 回に 2〜4 案)。それぞれ「何を、なぜ、どう測れば当否が分かるか」を提案書に先に書く
+3. **実装する**
+   - 市場の悪意を増やす → 部品クラスを書き、既存モデルを複製した新しいモデル(新 ID・version)に組み込む。
+     既存モデルの既定値を書き換えるときは version を上げ、提案書に旧値を残す
+   - 戦略 → `Strategy` を継承。`prepare` は因果的な numpy 計算だけ、`on_bar(i)` は足 i の終値までを見る
+4. **検査する**: `python -m pytest -q` と `python -m fxsim check-lookahead`
+5. **評価する**(下の「物差し」)。結果は自動で SQLite に入る
+6. **記録する**: 提案書に run 番号・主要な数字(表を `python -m fxsim report <run>` から貼る)・判定・次の一手
+7. **コミット**: コードと `data/fxsim.sqlite` と提案書を一緒に。コミット前に DB の WAL は自動で書き戻される
+   (`*.sqlite-wal` / `-shm` はコミットしない)
+
+## 物差し(同じ条件で比べること)
+
+### 市場モデルの案
+```bash
+python -m fxsim eval-market <model> --years 3 --seeds 1-6 --proposal M00X
+python -m fxsim ablate <model> --years 3 --seeds 1-4 --proposal M00X    # どの部品が効いているか
+```
+- **現実らしさ**(`realism_score`、0–100): `fxsim/markets/evaluation.py` の TARGETS の範囲に入るか。80 未満なら原因を直す
+- **悪用されにくさ**: パネル戦略(random_entry 以外)の **素のシャープ(gross_sharpe、コスト抜き)の絶対値の最大**。
+  悪意ある市場の目標は「どの単純な規則にも安定した素の優位性が無い」= 0 に近いほど良い(目安 < 0.3)。
+  正にも負にも大きいなら、その規則(または逆張り)で稼げる穴がある
+- **コストと悪意の重さ**: random_entry の net と、fair / malicious ブローカーの差
+- **判定はパターン単位の t 値**(report / 画面の `t値` 列。平均 ÷ (標準偏差 / √パターン数))。|t| ≥ 2 で有意とみなす。
+  取引単位の素のシャープは、同じ経路の中の取引が独立でないので有意さを大きく見せる(E001 の注意を参照)
+- 穴は短い期間では見えないことがある(M003 は 3 年 × 6 では素のシャープ 0.63、10 年 × 8 ではブレイクアウトが 8 本中 7 本プラス)。
+  採用の前に 10 年 × 8 パターン以上で確かめる
+
+### 戦略の案
+```bash
+python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --null --patterns --proposal S00X
+```
+- 実データ(`real`、日足のみなので日足の戦略だけ)と、ランダム相場の複数パターン(`real_bridge` / `real_bootstrap` /
+  `real_bridge_malicious`)で回る。パターンごとの損益と、平均・中央値・合計(総合)・標準偏差・最小/最大・プラスの割合が出る
+- 判定は **パターン単位の t 値・中央値・プラスの割合**、次に **malicious ブローカーでの平均**。実データ 1 本だけ良い戦略は過剰適合を疑う
+- 市場側の穴(M003 の順張り、R002/R004/M002 の逆張り)に乗っただけの勝ちを、戦略の力と取り違えない。
+  穴の一覧は各提案書の「次の一手」
+- random_entry(`--null`)より悪いなら、その戦略はコスト以下の情報しか持っていない
+
+### 動作ケースとテストケース(機械的な評価)
+「どう取引するか」を `cases/behaviors/B###-*.yaml`、「どの相場パターンで、どれだけの期間試すか」を
+`cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
+いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
+
+### 長期の基準実験
+`configs/long_run_baseline.yaml`(E001)。大きな変更の後は回し直し、提案書 E001 の表と比べる。
+
+## コードの約束
+
+- 乱数は必ず市場の部品なら `ctx.rng`、戦略なら `prepare(bars, rng)` の rng から。グローバル乱数を使わない(再現性)
+- 1 つの部品は `GenContext` の配列を読み書きするだけ。部品どうしの受け渡しは `ctx.meta`(例: `crowd_mix`, `regime`)
+- 価格を持続的にずらす悪意は `apply_block_increments`、一時的なヒゲは `ctx.logp` に直接足す
+- 新しい部品は `ctx.event(idx, kind, ...)` でイベントを残す(画面のマーカーと集計に出る)。
+  画面に色を付けるなら `web/components/Charts.tsx` の `EVENT_STYLE` にも足す
+- pandas 3 は配列を読み取り専用で返すことがある。書き換える配列は `to_numpy(copy=True)`
+- SQL は `fxsim/storage/`(writer.py / queries.py)と `web/lib/queries/` にだけ書く。場所(パス)は `fxsim/paths.py` から取る
+- コミット前に `ruff check fxsim tests` と `python -m pytest -q`。画面を触ったら `cd web && npx next build`
+- 結果に影響しないはずの整理をしたら、同じ設定を回して成績が 1 円も変わらないことを確かめる(結果は乱数のシードで決まる)
+- 指標・コミット・PR の本文は普通の文体で書く
+
+## よく使うコマンド
+
+```bash
+python -m fxsim list                                   # 市場モデル・戦略・ブローカー
+python -m fxsim run configs/quick.yaml                 # 動作確認(数十秒)
+python -m fxsim report [RUN_ID] --patterns             # 結果を Markdown で
+python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うためのゆっくりしたシミュレーション
+sqlite3 data/fxsim.sqlite "SELECT * FROM v_strategy_summary WHERE run_id = 1"
+```
+
+## 画面(利用者のローカル)
+```bash
+cd web && npm install && npm run dev   # http://localhost:3000(FXSIM_DB で DB を差し替え)
+npm run screenshot                     # 別の端末で。docs/screenshots/ に保存
+```

@@ -1,0 +1,8 @@
+id: B006
+name: ランダムエントリー(H1・帰無仮説)
+strategy: random_entry
+params: {entry_prob: 0.05, atr_n: 24, sl_atr: 2.0, tp_atr: 2.0}
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}
