@@ -7,7 +7,8 @@
     detail_seeds: [1]         # ローソク足・取引・細かい資産曲線まで保存するシード
     workers: 4
     engine: {initial_balance: 1000000, units: 10000}
-    storage: {candle_timeframe: 60, trades: detail}     # trades: detail | all | none
+    storage: {candle_timeframe: 60, trades: detail, equity_timeframe: 1440, equity_detail_timeframe: 60}
+                              # trades: detail | all | none。資産曲線は詳細保存のパターンとそれ以外で間隔を分けられる
     live: {flush_every: 500, delay_ms: 0}               # delay_ms > 0 で画面で追える速さに落とす
     brokers: [fair, {preset: malicious, overrides: {hunt_prob: 0.5}, label: evil}]
     markets: [random_walk, {model: malicious, label: mal_strong, params: {stop_hunt: {prob: 0.12}}}]
@@ -83,7 +84,9 @@ class ExperimentConfig:
             self.detail_seeds = self.seeds[:1]
         if not self.workers:
             self.workers = max(1, min(os.cpu_count() or 1, 8))
+        # equity_timeframe: 詳細保存しないパターンの資産曲線の間隔(分)。detail は詳細保存のパターン用(既定は足と同じ)
         self.storage = {"candle_timeframe": 60, "trades": "detail", "equity_timeframe": 1440, **self.storage}
+        self.storage.setdefault("equity_detail_timeframe", self.storage["candle_timeframe"])
         self.live = {"flush_every": 500, "delay_ms": 0, **self.live}
         labels = [m.label for m in self.markets]
         if len(labels) != len(set(labels)):

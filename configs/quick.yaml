@@ -1,0 +1,8 @@
+# 動作確認用(1 年 x 2 パターン、数十秒)
+name: quick
+years: 1
+seeds: [1, 2]
+workers: 4
+brokers: [fair, malicious]
+markets: [random_walk, malicious, real_bridge]
+strategies: [random_entry, ma_cross, donchian_breakout, bollinger_reversion]
