@@ -24,6 +24,11 @@ class Strategy:
     name: ClassVar[str] = "strategy"
     version: ClassVar[str] = "1"
     multi: ClassVar[bool] = False       # True なら複数ペアの戦略(strategies/basket.py、相場は basket_*)
+    # 戦略の区分: basic(基本検証。strategies/builtin/ の手法の一覧。E011 で全部不合格)/
+    # main(本命。strategies/main/。MT5 に移す前提で、共通の対策(strategies/guards.py)を入れて作る)
+    tier: ClassVar[str] = "basic"
+    # 回すエンジン: classic(backtest/engine.py、複数ペアは portfolio.py)/ mt5(backtest/mt5 の Mt5Tester)
+    engine: ClassVar[str] = "classic"
 
     @dataclass
     class Params:

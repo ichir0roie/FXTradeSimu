@@ -12,9 +12,14 @@ from .portfolio import PortfolioBacktester
 
 
 def _run(make_strategy, bars: Bars | dict[str, Bars], seed: int):
+    s = make_strategy()
     if isinstance(bars, dict):
-        return PortfolioBacktester(bars, make_strategy(), seed=seed).run()
-    return Backtester(bars, make_strategy(), seed=seed).run()
+        return PortfolioBacktester(bars, s, seed=seed).run()
+    if getattr(s, "engine", "classic") == "mt5":
+        from .mt5 import Mt5Tester
+
+        return Mt5Tester(bars, s, seed=seed).run()
+    return Backtester(bars, s, seed=seed).run()
 
 
 def _head(bars: Bars | dict[str, Bars], k: int):

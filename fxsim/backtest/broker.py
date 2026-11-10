@@ -24,7 +24,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 BROKER_PRESETS: dict[str, dict] = {
     # 良心的な国内の店頭口座: 市場のスプレッドだけ、手数料なし、スワップの上乗せは小さい
@@ -75,6 +75,9 @@ class BrokerConfig:
     touch: str = "bridge"             # bridge | points
     leverage: float = 25.0
     losscut_level: float = 0.5        # 有効証拠金 / 必要証拠金
+    # MT5 のテスター(backtest/mt5)にしか無い項目の上書き(口座の型・ロットの刻み・stops_level など)。
+    # 1 ペアのエンジンと複数ペアのエンジンは使わない。項目は backtest/mt5/spec.py の Mt5Options
+    mt5: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.swap_mode not in ("fixed", "rates"):

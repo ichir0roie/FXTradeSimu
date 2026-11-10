@@ -315,8 +315,15 @@ class PortfolioBacktester:
 
 def build_backtester(md: MarketData, strategy, broker: BrokerConfig, config: EngineConfig, *, seed: int,
                      schedule: TradingSchedule | None = None) -> Backtester | PortfolioBacktester:
-    """相場と戦略から、バックテストを組み立てる。複数ペアの戦略は相場の legs(basket_*)の全ペアで回す。"""
+    """相場と戦略から、バックテストを組み立てる。複数ペアの戦略は相場の legs(basket_*)の全ペアで回す。
+    MT5 前提の戦略(engine = "mt5"、strategies/main/)は MT5 のテスター(backtest/mt5)で回す。"""
     tf = strategy.timeframe
+    if getattr(strategy, "engine", "classic") == "mt5":
+        from .mt5 import Mt5Tester
+
+        if strategy.multi:
+            raise ValueError("multi-pair MT5 strategies are not supported yet")
+        return Mt5Tester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule)
     if strategy.multi:
         legs = md.meta.get("legs")
         if not legs:

@@ -86,10 +86,12 @@ def cmd_list(args) -> None:
     for e in MARKETS.entries():
         m = MARKETS.create(e.name)
         print(f"- {e.name} v{e.version} [{', '.join(e.tags)}]: {e.description}")
-        print(f"    部品: {' -> '.join(c.key for c in m.components)}")
-    print("\n## 戦略")
-    for e in STRATEGIES.entries():
-        print(f"- {e.name} v{e.version}: {e.description}")
+        print(f"    部品: {' -> '.join(c.key for c in getattr(m, 'components', []))}")
+    for tier, title in (("main", "本命の戦略(MT5 のテスターで回す)"), ("basic", "基本検証の戦略")):
+        print(f"\n## {title}")
+        for e in STRATEGIES.entries():
+            if getattr(e.factory, "tier", "basic") == tier:
+                print(f"- {e.name} v{e.version}: {e.description}")
     print("\n## ブローカー")
     for k, v in BROKER_PRESETS.items():
         print(f"- {k}: {v}")

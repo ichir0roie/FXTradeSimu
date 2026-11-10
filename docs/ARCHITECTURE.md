@@ -33,10 +33,16 @@ fxsim/
     broker.py            ブローカー(スプレッドの上乗せ、手数料、スワップ、スリッページ、約定の仕方、悪意)
     schedule.py          判断の間隔・取引時間
     engine.py            1 ポジションのバックテスト
-    portfolio.py         複数ペアを 1 つの口座で回すバックテスト(ペアごとに engine の Leg、残高・証拠金は共有)
+    portfolio.py         複数ペアを 1 つの口座で回すバックテスト(ペアごとに engine の Leg、残高・証拠金は共有)。
+                         build_backtester が戦略に合うエンジンを選ぶ
+    mt5/                 MT5 のテスターを真似たバックテスト(本命の戦略用。docs/MT5.md)。spec(銘柄・口座・定数・業者のひな形)/
+                         orders / tester(Mt5Tester)/ context(EA の窓口 Mt5Context)/ report(MT5 のレポートの指標)
     metrics.py           成績
     lookahead.py         先読み検査
-  strategies/          戦略(base.py / basket.py(複数ペア)/ indicators.py / staking.py(賭け方)/ builtin/ に 1 ファイル 1 戦略)
+  strategies/          戦略(base.py / basket.py(複数ペア)/ indicators.py / staking.py(賭け方))
+    builtin/             基本検証の戦略(tier = basic、1 ファイル 1 戦略)
+    main/                本命の戦略(tier = main、engine = mt5。base.MainStrategy を継承)
+    guards.py            本命の戦略に共通の対策(量・費用の門・回転の上限・終値の損切り・ドローダウンの止め)
   catalog.py           組み込みの案をすべて登録する
   storage/             SQLite
     schema.py            テーブルとビュー

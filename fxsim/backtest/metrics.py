@@ -102,7 +102,17 @@ def compute_metrics(bt: Backtester) -> dict:
         "costs": cost_breakdown(bt),
         "rejected": int(bt.stats.get("rejected", 0)),
         "zero_cut": float(bt.stats.get("zero_cut", 0.0)),
+        **_mt5_part(bt),
     }
+
+
+def _mt5_part(bt) -> dict:
+    """MT5 のテスター(backtest/mt5)で回したときだけ、MT5 のレポートと同じ定義の指標を足す。"""
+    if not hasattr(bt, "deals"):
+        return {}
+    from .mt5.report import mt5_report
+
+    return {"mt5": mt5_report(bt)}
 
 
 def cost_breakdown(bt: Backtester) -> dict:
