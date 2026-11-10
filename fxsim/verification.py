@@ -12,14 +12,18 @@
     C2 帰無より上  並べ替えのパターンどうしで、差(モデル − 方向でたらめ版)の t ≥ 2
     C3 偽薬より上  並べ替えの損益が、偽薬(符号でたらめの骨格)の損益より大きい(ウェルチの t ≥ 2)
     C4 時間の安定性 並べ替えのパターンで、年ごとの損益の中央値がプラスの年が 60% 以上、前半・後半の平均がどちらもプラス
+    C5 値動きの優位性 ドリフト(期間の上げ下げ)を抜いた並べ替えで、スワップを除いた損益(素の損益 − 売買の費用)の
+                   中央値 > 0、プラスの割合 ≥ 60%、t ≥ 2(E011。円安とスワップだけで勝つ買いに偏った戦略を落とす)
     参考           実データ + 日中ランダム(real_bridge)、完全ランダム(stylized / malicious)、
                    ストレス(real_bridge_malicious)
 
-注意: 並べ替えは標本の平均ドリフト(この期間の上げ下げ)を引き継ぐ。買い寄り・売り寄りの戦略はその分有利になる。
-偽薬(C3)はドリフトを持たないので、ドリフトだけで勝つ戦略は C3 を通るが C1 の実データでも勝つ。判定の表の
-「方向でたらめ版の平均」と合わせて読む。
+注意: 並べ替えは標本の平均ドリフト(この期間の上げ下げ)を引き継ぐ。買い寄り・売り寄りの戦略はその分有利になり、
+方向でたらめ版(C2)は半分が逆を向くので、偏った戦略は C2 も通ってしまう(B016 の誤判定、E011)。
+スワップは合成の相場でも実際の金利表を時刻どおりに当てるので、値動きと金利の関係(高金利通貨の値下がり)が切れ、
+金利の高い通貨を持つだけで勝てる。C5 はこの 2 つ(ドリフトとスワップ)を抜いても勝つかを見る。
+キャリー(金利差の受け取り)そのものを狙う戦略は C5 を通らない。その評価は金利と値動きがつながった実データで別に行う。
 
-判定: C1〜C4 すべて → 合格 / C1 と C2 → 条件付き / それ以外 → 不合格
+判定: C1〜C5 すべて → 合格 / C1・C2・C5 → 条件付き / それ以外 → 不合格
 """
 from __future__ import annotations
 
@@ -100,6 +104,7 @@ def _rows(con: sqlite3.Connection, run_id: int) -> list[dict]:
         d["yearly"] = m.get("yearly_pnl", {})
         d["group"] = GROUPS.get(d["market_label"]) or GROUPS.get(d["market"], "synthetic")
         d["metrics"] = {k: m[k] for k in ("sharpe", "n_days", "daily_skew", "daily_kurt") if k in m}
+        d["swap"] = float((m.get("costs") or {}).get("swap", m.get("swap_total", 0.0)) or 0.0)
         out.append(d)
     return out
 
@@ -180,13 +185,22 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     check("C4", "時間の安定性", pos_years >= c.min_positive_years and first > 0 and second > 0,
           f"中央値がプラスの年 {pos_years:.0%}({len(full_years)} 年中)/ 前半 {first:,.0f} 円 / 後半 {second:,.0f} 円")
 
+    ex = summarize([r["pnl"] - r["swap"] for r in model if r["group"] == "demeaned"])
+    if ex:
+        check("C5", "値動きの優位性(ドリフトとスワップを除く)",
+              ex["median"] > 0 and ex["positive_ratio"] >= c.min_positive_ratio and ex["t"] >= c.min_t,
+              f"ドリフトを抜いた並べ替えの、スワップを除いた損益: 中央値 {ex['median']:,.0f} 円 / "
+              f"プラス {ex['positive_ratio']:.0%} / t {ex['t']:.2f}(n={ex['n']})")
+    else:
+        check("C5", "値動きの優位性(ドリフトとスワップを除く)", False, "ドリフトを抜いた並べ替えのパターンがありません")
+
     overfit = _deflated(model, n_trials)
     drift_free = _drift_free(model, null)
 
     ok = {ch["key"]: ch["ok"] for ch in checks}
     if all(ok.values()):
         verdict = "合格"
-    elif ok["C1"] and ok["C2"]:
+    elif ok["C1"] and ok["C2"] and ok["C5"]:
         verdict = "条件付き"
     else:
         verdict = "不合格"
@@ -231,13 +245,14 @@ def _real_too_coarse(con: sqlite3.Connection, run_id: int, model_label: str) -> 
 
 
 def _drift_free(model: list[dict], null: dict) -> dict | None:
-    """参考: ドリフトを抜いた並べ替えの損益と、方向でたらめ版との差(判定には使わない)。"""
+    """ドリフトを抜いた並べ替えの損益・スワップを除いた損益・方向でたらめ版との差(C5 の材料と参考)。"""
     rows = [r for r in model if r["group"] == "demeaned"]
     if not rows:
         return None
     s = summarize([r["pnl"] for r in rows])
     diff = summarize([r["pnl"] - null[r["path_id"]]["pnl"] for r in rows if r["path_id"] in null])
-    return {"pnl": s, "paired": diff}
+    return {"pnl": s, "paired": diff, "ex_swap": summarize([r["pnl"] - r["swap"] for r in rows]),
+            "swap_mean": float(np.mean([r["swap"] for r in rows]))}
 
 
 def default_trials() -> int:
@@ -276,11 +291,12 @@ def format_verdict(v: dict) -> str:
     d = v.get("drift_free")
     if d and d.get("pnl"):
         p, q = d["pnl"], d.get("paired") or {}
-        lines += ["", "参考(判定には使わない): ドリフト(期間の上げ下げ)を抜いた並べ替えで "
+        lines += ["", "ドリフト(期間の上げ下げ)を抜いた並べ替え: 損益の "
                       f"中央値 {p['median']:,.0f} 円 / "
                       f"プラス {p['positive_ratio']:.0%} / t {p['t']:.2f}"
                       + (f"、方向でたらめ版との差の t {q['t']:.2f}" if q else "")
-                      + "。買いに偏った戦略が円安とスワップだけで勝っていないかを見る"]
+                      + (f"。うちスワップ 平均 {d['swap_mean']:,.0f} 円(C5 はこれを除いて見る)"
+                         if "swap_mean" in d else "")]
     o = v.get("overfit")
     if o:
         lines += ["", f"参考(判定には使わない): 実データの年率シャープ {o['sharpe_annual']:.2f}、"

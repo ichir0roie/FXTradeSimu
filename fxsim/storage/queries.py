@@ -90,6 +90,12 @@ def find_case_run(con: sqlite3.Connection, test_id: str, test_hash: str, behavio
     return row[0] if row else None
 
 
+def latest_case_run_row(con: sqlite3.Connection, test_id: str) -> sqlite3.Row | None:
+    """テストケースの最新の完了した実行の行(id・run_id・summary_json)。"""
+    return con.execute("SELECT id, run_id, summary_json FROM case_runs WHERE test_id=? AND status='done'"
+                       " ORDER BY id DESC LIMIT 1", (test_id,)).fetchone()
+
+
 def latest_case_run(con: sqlite3.Connection, test_id: str) -> tuple[int, dict] | None:
     """テストケースの最新の完了した実行(run 番号, 要約)。"""
     row = con.execute("SELECT run_id, summary_json FROM case_runs WHERE test_id=? AND status='done'"

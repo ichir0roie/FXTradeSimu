@@ -215,6 +215,11 @@ def cmd_verify(args) -> None:
     for bid in ids:
         if bid not in book.behaviors:
             sys.exit(f"unknown behavior {bid}. known: {sorted(book.behaviors)}")
+        if args.rejudge:
+            v = _rejudge(con, args.db, bid)
+            if v:
+                verdicts.append((bid, book.behaviors[bid].strategy, v))
+            continue
         v = book.behaviors[bid].verify_settings(years=args.years, seeds=args.seeds, block_days=args.block_days)
         t = verification_case(bid, years=v["years"], seeds=v["seeds"], start=args.start, end=args.end,
                               block_days=v["block_days"], dataset=args.dataset)
@@ -234,10 +239,31 @@ def cmd_verify(args) -> None:
             print(format_verdict(verdict))
             verdicts.append((bid, book.behaviors[bid].strategy, verdict))
     if len(verdicts) > 1:
-        print("\n## まとめ\n\n| 動作ケース | 戦略 | 判定 | C1 | C2 | C3 | C4 |\n|---|---|---|---|---|---|---|")
+        keys = [c["key"] for c in verdicts[0][2]["checks"]]
+        print("\n## まとめ\n\n| 動作ケース | 戦略 | 判定 | " + " | ".join(keys) + " |\n|---|---|---|"
+              + "---|" * len(keys))
         for bid, strat, v in verdicts:
             ok = {c["key"]: "✓" if c["ok"] else "✗" for c in v["checks"]}
-            print(f"| {bid} | {strat} | {v['verdict']} | {ok['C1']} | {ok['C2']} | {ok['C3']} | {ok['C4']} |")
+            print(f"| {bid} | {strat} | {v['verdict']} | " + " | ".join(ok.get(k, "-") for k in keys) + " |")
+
+
+def _rejudge(con, db, bid: str) -> dict | None:
+    """記録済みの最新の検証の判定を、今の基準で付け直す(売買は回し直さない)。概要(docs/results)も書き直す。"""
+    from .cases.runner import summarize_run
+    from .reports.summary import auto_summary
+    from .storage import writer
+    from .verification import format_verdict
+
+    row = queries.latest_case_run_row(con, f"V-{bid}")
+    if row is None:
+        print(f"V-{bid}: まだ検証していません")
+        return None
+    summary = summarize_run(con, row["run_id"], verify_label=bid)
+    writer.update_case_summary(con, row["id"], summary)
+    auto_summary(con, db, row["run_id"], log=lambda *a: None)
+    print()
+    print(format_verdict(summary["verdict"]))
+    return summary["verdict"]
 
 
 def cmd_fetch_fred(args) -> None:
@@ -386,6 +412,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--force", action="store_true")
     p.add_argument("--patterns", action="store_true")
+    p.add_argument("--rejudge", action="store_true",
+                   help="回し直さず、記録済みの最新の結果に今の判定の基準を当て直す(概要も書き直す)")
     _db(p)
 
     p = add("summary", cmd_summary, help="実験の概要を docs/results/<run_key>/ に書き出す")

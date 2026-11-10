@@ -249,6 +249,12 @@ def start_case_run(con: sqlite3.Connection, *, test_id: str, behavior_id: str, t
             (test_id, behavior_id, test_hash, behavior_hash, code_sha, "running", now_iso())).lastrowid
 
 
+def update_case_summary(con: sqlite3.Connection, case_run_id: int, summary: dict) -> None:
+    """記録済みの実行の要約だけを書き直す(判定の基準を変えたとき。相場と売買は回し直さない)。"""
+    with Tx(con):
+        con.execute("UPDATE case_runs SET summary_json=? WHERE id=?", (dumps(summary), case_run_id))
+
+
 def finish_case_run(con: sqlite3.Connection, case_run_id: int, *, run_id: int, status: str, summary: dict) -> None:
     with Tx(con):
         con.execute("UPDATE case_runs SET run_id=?, status=?, finished_at=?, summary_json=? WHERE id=?",
