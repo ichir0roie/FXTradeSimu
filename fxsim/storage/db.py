@@ -3,8 +3,9 @@
 構造:
     runs           実験 1 回(設定・git の版・状態)
     paths          生成した市場の経路 1 本(市場の案 x シード)。統計的性質(facts)と現実らしさの点数
-    candles        経路のローソク足(詳細保存するシードだけ)
-    market_events  経路に入れた悪意のイベント(ストップ狩り・ダマシ・指標など。詳細保存のみ)
+    pattern_data   相場パターンの中身の目録。同じモデル・パラメータ・シード・期間なら実験をまたいで 1 つだけ持つ
+    candles        相場パターンのローソク足(詳細保存するシードだけ。data_key で引く)
+    market_events  相場パターンに入れた悪意のイベント(ストップ狩り・ダマシ・指標など。詳細保存のみ)
     jobs           経路 x ブローカー x 戦略 のバックテスト 1 本。進捗と最終指標
     equity         ジョブの資産曲線(詳細保存はローソク足と同じ間隔、ほかは日次)
     trades         ジョブの取引(既定では詳細保存のみ)
@@ -58,25 +59,34 @@ CREATE TABLE IF NOT EXISTS paths (
     t_end INTEGER,
     facts_json TEXT,
     realism_score REAL,
-    n_fail INTEGER
+    n_fail INTEGER,
+    data_key TEXT                     -- 相場パターンの中身のキー(同じ中身なら実験をまたいで共有)
 );
 CREATE INDEX IF NOT EXISTS ix_paths_run ON paths(run_id);
+-- 相場パターンの中身(ローソク足・イベント)。同じモデル・パラメータ・シード・期間なら 1 つだけ持つ
+CREATE TABLE IF NOT EXISTS pattern_data (
+    data_key TEXT PRIMARY KEY,
+    market TEXT, seed INTEGER, candle_tf INTEGER,
+    t_start INTEGER, t_end INTEGER,
+    n_candles INTEGER, n_events INTEGER,
+    created_at TEXT
+);
 CREATE TABLE IF NOT EXISTS candles (
-    path_id INTEGER NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+    data_key TEXT NOT NULL,
     t INTEGER NOT NULL,
     o REAL, h REAL, l REAL, c REAL,
     spread REAL,
-    PRIMARY KEY (path_id, t)
+    PRIMARY KEY (data_key, t)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS market_events (
-    path_id INTEGER NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+    data_key TEXT NOT NULL,
     t INTEGER NOT NULL,
     kind TEXT NOT NULL,
     direction INTEGER,
     pips REAL,
     detail_json TEXT
 );
-CREATE INDEX IF NOT EXISTS ix_events_path_t ON market_events(path_id, t);
+CREATE INDEX IF NOT EXISTS ix_events_key_t ON market_events(data_key, t);
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,

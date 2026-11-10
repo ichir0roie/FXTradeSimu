@@ -160,17 +160,23 @@ def _write_path(con, task: dict, md, cfg: dict) -> int:
     candle_tf = max(int(cfg["storage"]["candle_timeframe"]), md.step_minutes)
     if md.step_minutes > 1 and candle_tf % md.step_minutes:
         candle_tf = md.step_minutes
+    from ..registry import params_hash
+
+    key = params_hash({"model": md.model_info["params_hash"], "name": md.model_info["name"],
+                       "version": md.model_info["version"], "seed": task["seed"], "n": len(md),
+                       "t0": int(md.times[0]), "t1": int(md.times[-1]), "candle_tf": candle_tf})
     with Tx(con):
         con.execute("UPDATE paths SET status='running', candle_tf=?, t_start=?, t_end=?, facts_json=?,"
-                    " realism_score=?, n_fail=? WHERE id=?",
+                    " realism_score=?, n_fail=?, data_key=? WHERE id=?",
                     (candle_tf, int(md.times[0] // NS), int(md.times[-1] // NS), dumps(facts),
-                     sc["realism_score"], sc["n_fail"], task["path_id"]))
-        if task["detail"]:
+                     sc["realism_score"], sc["n_fail"], key if task["detail"] else None, task["path_id"]))
+        exists = con.execute("SELECT 1 FROM pattern_data WHERE data_key=?", (key,)).fetchone()
+        if task["detail"] and not exists:
             b = md.bars(candle_tf)
             pip = md.pip
             con.executemany(
                 "INSERT OR REPLACE INTO candles VALUES (?,?,?,?,?,?,?)",
-                zip([task["path_id"]] * len(b), (b.t // NS).tolist(), b.open.tolist(), b.high.tolist(),
+                zip([key] * len(b), (b.t // NS).tolist(), b.open.tolist(), b.high.tolist(),
                     b.low.tolist(), b.close.tolist(), (b.spread_mean / pip).tolist()))
             ev = []
             for e in md.events:
@@ -178,9 +184,11 @@ def _write_path(con, task: dict, md, cfg: dict) -> int:
                     continue
                 d = {k: v for k, v in e.items() if k not in ("idx", "kind")}
                 pips = d.get("pips", d.get("final_pips", d.get("overshoot_pips")))
-                ev.append((task["path_id"], int(md.times[e["idx"]] // NS), e["kind"], d.get("direction"),
-                           pips, dumps(d)))
+                ev.append((key, int(md.times[e["idx"]] // NS), e["kind"], d.get("direction"), pips, dumps(d)))
             con.executemany("INSERT INTO market_events VALUES (?,?,?,?,?,?)", ev)
+            con.execute("INSERT INTO pattern_data VALUES (?,?,?,?,?,?,?,?,?)",
+                        (key, md.model_info["name"], task["seed"], candle_tf, int(md.times[0] // NS),
+                         int(md.times[-1] // NS), len(b), len(ev), now_iso()))
     return candle_tf
 
 
