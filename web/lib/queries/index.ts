@@ -2,3 +2,4 @@
 export { casesOverview } from "./cases";
 export { jobDetail, type JobCursor } from "./jobs";
 export { listRuns, runDetail, strategyRanking } from "./runs";
+export { caseDetail } from "./verify";

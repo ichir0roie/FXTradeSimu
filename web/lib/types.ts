@@ -204,9 +204,46 @@ export type CaseRun = {
   summary: {
     all: Record<string, Summary> | null;
     by_market: Record<string, Record<string, Summary>>;
+    verdict?: { verdict: string };
   } | null;
 };
 export type CasesResponse = {
   behaviors: CaseDef[];
   tests: (CaseDef & { runs: CaseRun[]; current: boolean })[];
+};
+
+// ---- 検証(fxsim/verification.py の出力) ----
+export type VerdictLabel = "合格" | "条件付き" | "不合格";
+export type VerdictCheck = { key: string; label: string; ok: boolean; detail: string };
+export type VerdictGroup = Summary & { label: string; null_mean?: number };
+export type Verdict = {
+  verdict: VerdictLabel;
+  checks: VerdictCheck[];
+  groups: Record<string, VerdictGroup>;
+  paired: Summary | null;
+  yearly: (Summary & { year: string; coverage: number })[];
+  model: string;
+};
+
+export type FanLine = { jobId: number; market: string; seed: number; real: boolean; points: { t: number; v: number }[] };
+export type FanPoint = { t: number; median: number; p10: number; p90: number };
+export type FanGroup = {
+  key: string;
+  label: string;
+  lines: FanLine[];
+  band: FanPoint[];
+  nullMedian: { t: number; v: number }[];
+};
+export type YearRow = { label: string; market: string; seed: number; real: boolean; values: Record<string, number> };
+
+export type CaseDetail = {
+  test: CaseDef;
+  behavior: CaseDef | null;
+  runId: number | null;
+  runStatus: Status | null;
+  progress: { finished: number; total: number };
+  verdict: Verdict | null;
+  fan: FanGroup[];
+  years: string[];
+  yearRows: YearRow[];
 };
