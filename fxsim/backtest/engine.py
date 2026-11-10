@@ -146,6 +146,15 @@ class StrategyContext:
 ProgressFn = Callable[["Backtester", int], None]
 
 
+def _swap_days(t: np.ndarray) -> list[int]:
+    """足 i の直前(足 i-1 との間)に付くスワップの日数。取引日の切り替わりごとに rollover_weight を足す。"""
+    day = trading_day(t).astype(np.int64)
+    out = [0] * len(t)
+    for i in np.flatnonzero(np.diff(day) > 0) + 1:
+        out[i] = sum(rollover_weight(d) for d in range(int(day[i - 1]), int(day[i])))
+    return out
+
+
 class Backtester:
     def __init__(self, bars: Bars, strategy, broker: BrokerConfig | None = None,
                  config: EngineConfig | None = None, pip: float = 0.01, seed: int = 0,
@@ -153,6 +162,8 @@ class Backtester:
         self.bars = bars
         self.schedule = schedule or TradingSchedule()
         self.decide, self.can_enter, self.force_close = self.schedule.masks(bars.t, bars.timeframe)
+        # 足ごとの「直前の足からのロールオーバーで付くスワップの日数」(水曜は 3 日分、週末は 0)
+        self.swap_days = _swap_days(bars.t)
         self.strategy = strategy
         self.broker = broker or BrokerConfig()
         self.cfg = config or EngineConfig()
@@ -269,13 +280,11 @@ class Backtester:
             self._close(i, tp * p.side, (tp + half) * p.side, "tp")
 
     def _swap(self, i: int) -> None:
-        if i == 0 or self.pos is None:
+        if self.pos is None:
             return
-        d0 = int(trading_day(self.bars.t[i - 1]))
-        d1 = int(trading_day(self.bars.t[i]))
-        if d1 <= d0:
+        days = self.swap_days[i]
+        if not days:
             return
-        days = sum(rollover_weight(d) for d in range(d0, d1))
         rate = self.broker.swap_long_per_10k if self.pos.side > 0 else self.broker.swap_short_per_10k
         amt = rate * days * self.pos.units / 10_000
         self.pos.swap += amt
