@@ -28,10 +28,12 @@ def cases_overview(con: sqlite3.Connection, root: Path | str | None = None) -> s
         p = ((latest[1].get("all") or {}).get("pnl") or {}) if latest else {}
         if latest and p.get("n"):
             cells = [f"#{latest[0]}", f"{p['mean']:,.0f}", f"{p['median']:,.0f}", f"{p['total']:,.0f}",
-                     f"{p['positive_ratio'] * 100:.0f}%", f"{p.get('t', 0):.2f}"]
+                     f"{p['positive_ratio'] * 100:.0f}%", f"{p.get('t', 0):.2f}",
+                     (latest[1].get("verdict") or {}).get("verdict", "-")]
         else:
-            cells = ["未実行", "-", "-", "-", "-", "-"]
+            cells = ["未実行", "-", "-", "-", "-", "-", "-"]
         rows.append([t.id, t.name, t.behavior, t.period_label(), pats, *cells])
-    headers = ["ID", "名前", "動作", "期間", "パターン", "最新 run", "損益 平均", "中央", "合計", "プラス", "t値"]
+    headers = ["ID", "名前", "動作", "期間", "パターン", "最新 run", "損益 平均", "中央", "合計", "プラス", "t値",
+               "判定"]
     lines += ["## テストケース", table(headers, rows)]
     return "\n".join(lines)

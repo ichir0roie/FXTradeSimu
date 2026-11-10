@@ -8,7 +8,7 @@
 """
 from .loader import CaseBook, load_cases
 from .model import BehaviorCase, Pattern, TestCase
-from .runner import run_cases, summarize_run, to_experiment
+from .runner import run_cases, summarize_run, to_experiment, verification_case
 
 __all__ = ["BehaviorCase", "CaseBook", "Pattern", "TestCase", "load_cases", "run_cases", "summarize_run",
-           "to_experiment"]
+           "to_experiment", "verification_case"]
