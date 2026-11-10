@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import re
+import secrets
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -30,22 +32,36 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return con
 
 
-def init_db(path: str | Path | None = None, sync: bool = True) -> sqlite3.Connection:
-    """接続してスキーマを作る(既にあれば何もしない。ビューは作り直す)。
-
-    既定の DB(統合 DB)なら、まだ取り込んでいない結果パックを取り込む(storage/packs.py)。
-    """
-    from . import packs
-
+def init_db(path: str | Path | None = None) -> sqlite3.Connection:
+    """接続してスキーマを作る(既にあれば何もしない。ビューは作り直す)。"""
     con = connect(path)
     con.executescript(SCHEMA)
-    if "run_key" not in {r[1] for r in con.execute("PRAGMA table_info(runs)")}:   # パック導入前の DB
+    if "run_key" not in {r[1] for r in con.execute("PRAGMA table_info(runs)")}:   # run_key を入れる前の DB
         con.execute("ALTER TABLE runs ADD COLUMN run_key TEXT")
-    packs.ensure_run_keys(con)
+    _ensure_run_keys(con)
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_runs_key ON runs(run_key)")
-    if sync and packs.is_default_db(path):
-        packs.sync_packs(con)
     return con
+
+
+def make_run_key(proposal: str | None, kind: str, created_at: str, suffix: str | None = None) -> str:
+    """<提案 ID か種類>-<作成時刻 YYYYmmddTHHMMSS>-<6 桁>。suffix を省くと乱数(環境をまたいでぶつからない)。
+
+    実験を指す全環境で一意なキー。DB の番号は手元の DB ごとに違うので、提案書と概要(docs/results)はこれで指す。
+    """
+    label = re.sub(r"[^A-Za-z0-9_-]+", "_", proposal or kind or "run").strip("_") or "run"
+    stamp = re.sub(r"[^0-9T]", "", created_at or "")[:15]
+    return f"{label}-{stamp}-{suffix or secrets.token_hex(3)}"
+
+
+def _ensure_run_keys(con: sqlite3.Connection) -> None:
+    """run_key の無い実行(古い DB)に、作成時刻と番号から決まるキーを付ける。"""
+    rows = con.execute("SELECT id, proposal, kind, created_at FROM runs WHERE run_key IS NULL").fetchall()
+    if not rows:
+        return
+    with Tx(con):
+        for r in rows:
+            con.execute("UPDATE runs SET run_key=? WHERE id=?",
+                        (make_run_key(r["proposal"], r["kind"], r["created_at"], f"r{r['id']:02d}"), r["id"]))
 
 
 class Tx:

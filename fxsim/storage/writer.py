@@ -12,7 +12,7 @@ import numpy as np
 from ..calendar import NS_MIN
 from ..data import BAR_OFFSET_MINUTES, MarketData
 from ..registry import params_hash
-from .db import Tx, dumps, now_iso
+from .db import Tx, dumps, make_run_key, now_iso
 
 NS = 1_000_000_000
 SKIP_EVENT_KINDS = {"regime"}   # 数が多く画面でも使わないので保存しない(facts の events_per_day には入る)
@@ -26,8 +26,6 @@ def _sec(t_ns) -> int:
 
 def create_run(con: sqlite3.Connection, *, name: str, kind: str, proposal: str | None, git_sha: str | None,
                years: float, seeds: list[int], config: dict, notes: str) -> int:
-    from .packs import make_run_key
-
     created = now_iso()
     return con.execute(
         "INSERT INTO runs(name, kind, proposal, status, created_at, git_sha, years, seeds_json, config_json, notes,"

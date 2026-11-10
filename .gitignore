@@ -2,8 +2,12 @@ __pycache__/
 *.pyc
 .pytest_cache/
 desktop.ini
-# 統合 DB はコミットしない(結果パック data/results/*.sqlite と data/patterns/*.sqlite から `python -m fxsim db build` で作る)
-data/fxsim.sqlite
+# DB はコミットしない(手元だけ)。コミットするのは概要 docs/results/<run_key>/ だけ
+*.sqlite
+# 以前の結果パック(コミットしていた頃の置き場)
+data/results/
+data/patterns/
+fxsim.egg-info/
 # SQLite の一時ファイル
 *.sqlite-wal
 *.sqlite-shm

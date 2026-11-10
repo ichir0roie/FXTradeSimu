@@ -13,9 +13,7 @@
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
     verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
-    db build [--fresh]           結果パック(data/results, data/patterns)から統合 DB(data/fxsim.sqlite)を作る
-    db export RUN... | --all     実行を結果パックに書き出す(既定の DB への実験は終わったら自動で書き出す)
-    db list                      結果パックの一覧
+    summary [RUN...] [--all]     実験の概要を docs/results/<run_key>/ に書き出す(既定の DB への実験は終わったら自動)
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
 """
@@ -30,7 +28,7 @@ import yaml
 from . import catalog  # noqa: F401
 from .backtest import BROKER_PRESETS
 from .markets import MARKETS
-from .paths import DEFAULT_DB, PATTERNS_DIR, RESULTS_DIR
+from .paths import DEFAULT_DB, SUMMARIES_DIR
 from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
@@ -57,12 +55,11 @@ def _json(s: str | None) -> dict:
 
 def _run_and_report(cfg_dict: dict, args) -> int:
     from .experiments import ExperimentConfig, run_experiment
-    from .reports import run_report
-    from .storage.packs import auto_export
+    from .reports import auto_summary, run_report
 
     run_id = run_experiment(ExperimentConfig.from_dict(cfg_dict), args.db)
     con = connect(args.db)
-    auto_export(con, args.db, run_id)
+    auto_summary(con, args.db, run_id)
     print()
     print(run_report(con, run_id, patterns=getattr(args, "patterns", False)))
     return run_id
@@ -142,10 +139,10 @@ def cmd_demo(args) -> None:
 
 def cmd_report(args) -> None:
     from .reports import run_report
-    from .storage.packs import resolve_run
 
     con = init_db(args.db)
-    print(run_report(con, resolve_run(con, args.run_id) or queries.latest_run_id(con), patterns=args.patterns))
+    print(run_report(con, queries.resolve_run(con, args.run_id) or queries.latest_run_id(con),
+                     patterns=args.patterns))
 
 
 def cmd_leaderboard(args) -> None:
@@ -215,32 +212,17 @@ def cmd_verify(args) -> None:
             print(format_verdict(summary["verdict"]))
 
 
-def cmd_db(args) -> None:
-    """統合 DB と結果パック。build: パックから統合 DB を作る / export: 実行をパックに書き出す / list: パックの一覧。"""
-    import os
+def cmd_summary(args) -> None:
+    """実験の概要(docs/results/<run_key>/)を書き出す。既定の DB への実験は終わったら自動で書き出される。"""
+    from .reports import export_summary
 
-    from .storage import packs
-
-    if args.action == "build":
-        if args.fresh:
-            for suffix in ("", "-wal", "-shm"):
-                p = str(args.db) + suffix
-                if os.path.exists(p):
-                    os.remove(p)
-        con = init_db(args.db, sync=False)
-        new = packs.sync_packs(con, args.results, args.patterns, log=print)
-        print(f"{args.db}: {len(new)} runs imported ({len(packs.list_packs(args.results))} packs)")
-    elif args.action == "export":
-        con = init_db(args.db, sync=False)
-        if args.all:
-            ids = [r[0] for r in con.execute("SELECT id FROM runs WHERE kind != 'demo' AND status != 'running'")]
-        else:
-            ids = [packs.resolve_run(con, r) for r in args.runs]
-        for run_id in ids:
-            print(f"run #{run_id} -> {packs.export_run(con, run_id, args.results, args.patterns)}")
+    con = init_db(args.db)
+    if args.all:
+        ids = [r[0] for r in con.execute("SELECT id FROM runs WHERE kind != 'demo' AND status != 'running'")]
     else:
-        for created, key, p in packs.list_packs(args.results):
-            print(f"{created}  {key}  {p.stat().st_size / 1e6:6.1f} MB")
+        ids = [queries.resolve_run(con, r) for r in args.runs] or [queries.latest_run_id(con)]
+    for run_id in ids:
+        print(f"run #{run_id} -> {export_summary(con, run_id, args.out)}")
 
 
 def cmd_init_db(args) -> None:
@@ -252,20 +234,14 @@ def cmd_compact(args) -> None:
     import os
 
     from .storage import writer
-    from .storage.packs import is_default_db, resolve_run
 
     con = init_db(args.db)
     before = os.path.getsize(args.db)
-    run_ids = [resolve_run(con, r) for r in args.run_ids]
+    run_ids = [queries.resolve_run(con, r) for r in args.run_ids]
     for run_id in run_ids:
         n = writer.compact_equity(con, run_id, args.equity_minutes, args.detail_equity_minutes)
         print(f"run #{run_id}: removed {n} equity points")
     vacuum(con)
-    if is_default_db(args.db):                       # 結果パックも書き直す(コミットするのはパック)
-        from .storage.packs import export_run
-
-        for run_id in run_ids:
-            print(f"run #{run_id} -> {export_run(con, run_id).name}")
     con.close()
     print(f"{args.db}: {before / 1e6:.1f} MB -> {os.path.getsize(args.db) / 1e6:.1f} MB")
 
@@ -369,13 +345,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--patterns", action="store_true")
     _db(p)
 
-    p = add("db", cmd_db, help="統合 DB と結果パック(build / export / list)")
-    p.add_argument("action", choices=["build", "export", "list"])
-    p.add_argument("runs", nargs="*", help="export する実行(番号か run_key)")
-    p.add_argument("--all", action="store_true", help="export: demo 以外の全実行")
-    p.add_argument("--fresh", action="store_true", help="build: 統合 DB を消してから作る")
-    p.add_argument("--results", default=str(RESULTS_DIR))
-    p.add_argument("--patterns", default=str(PATTERNS_DIR))
+    p = add("summary", cmd_summary, help="実験の概要を docs/results/<run_key>/ に書き出す")
+    p.add_argument("runs", nargs="*", help="番号か run_key(省略で最新)")
+    p.add_argument("--all", action="store_true", help="demo 以外の全実行")
+    p.add_argument("--out", default=str(SUMMARIES_DIR))
     _db(p)
 
     p = add("init-db", cmd_init_db)
