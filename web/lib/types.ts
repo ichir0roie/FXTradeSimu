@@ -94,7 +94,25 @@ export type RunDetail = {
   paths: PathRow[];
   jobs: JobRow[];
   groups: JobGroup[];
+  costs: CostRow[];
   progress: { finished: number; total: number };
+};
+
+/** ブローカー x 戦略ごとの費用の内訳(円、パターン平均)。回数の列も平均。 */
+export type CostRow = {
+  broker: string;
+  strategy_label: string;
+  n: number;
+  gross_pnl: number;
+  spread: number;
+  slippage: number;
+  commission: number;
+  swap: number;
+  pnl: number | null;
+  hunted: number | null;
+  losscut: number | null;
+  rejected: number | null;
+  zero_cut: number | null;
 };
 
 export type Candle = { time: number; open: number; high: number; low: number; close: number };
@@ -126,7 +144,21 @@ export type JobMetrics = {
   cost_pips_per_year: number;
   swap_total: number;
   hunted: number;
+  losscut?: number;
   exit_reasons: Record<string, number>;
+  costs?: CostBreakdown;   // 古い run には無い
+  rejected?: number;       // ラストルックで拒否された新規注文の数
+  zero_cut?: number;       // ゼロカットで切り捨てたマイナス残高(円)
+};
+
+/** 費用の内訳(円)。gross_pnl − spread − slippage − commission + swap = 実際の損益。 */
+export type CostBreakdown = {
+  gross_pnl: number;
+  spread: number;
+  slippage: number;
+  commission: number;
+  swap: number;
+  total: number;
 };
 
 export type JobInfo = {

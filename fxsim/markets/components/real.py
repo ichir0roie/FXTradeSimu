@@ -244,24 +244,6 @@ class AnchorBridge(Component):
         ctx.logp = x
 
 
-def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: int) -> np.ndarray:
-    """骨格の足ごとの伸縮率。足の中の実現分散を、実データの局所ボラ(前後 window 本の二乗平均)に合わせる。
-
-    足の中の動きの形(時間帯・指標・短期のボラの塊)は残し、日をまたぐボラの大きさは実データに従わせる。
-    """
-    r = np.diff(target)
-    w = max(1, int(window))
-    local = np.sqrt(np.convolve(r * r, np.ones(w) / w, mode="same"))
-    goal = np.r_[local[0], local]                                        # 最初の足は 2 本目の値で代用
-    starts = np.clip(np.r_[0, idx[:-1] + 1], 0, len(dx) - 1)             # 足 k の中身は starts[k]..idx[k]
-    rv = np.add.reduceat(dx * dx, starts)[:len(idx)]
-    f = np.where(rv > 0, goal / np.sqrt(np.maximum(rv, 1e-300)), 1.0)
-    lens = np.diff(np.r_[starts, idx[-1] + 1])
-    scale = np.full(len(dx), f[-1])
-    scale[:idx[-1] + 1] = np.repeat(f, lens)
-    return scale
-
-
 def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: int, day_weight: float) -> np.ndarray:
     """骨格の足ごとの伸縮率。足の中の実現分散を目標に合わせる。
 

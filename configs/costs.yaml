@@ -1,0 +1,35 @@
+# E004: 取引の費用と異常な値動きが、損益のどこを削るか。
+# ブローカー 4 種(fair / fair を足の高安だけで約定 / ecn / malicious)x 市場 3 種
+# (malicious v3、異常な値動きと薄商いを外した malicious、real_bridge v3)x 戦略 6 本、10 年 x 8 パターン。
+# 実行: python -m fxsim run configs/costs.yaml   (4 コアで 3 分前後)
+name: costs
+proposal: E004
+notes: 費用の内訳(スプレッド・スリッページ・手数料・スワップ)と、異常な値動き・約定の仕方の影響
+years: 10
+seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+detail_seeds: [1]
+workers: 4
+engine: {initial_balance: 1000000, sizing: fixed, units: 10000}
+storage:
+  candle_timeframe: 240          # 詳細保存のローソク足は 4 時間足(急変のヒゲが見える程度)
+  equity_detail_timeframe: 1440
+  equity_timeframe: 43200
+  trades: none
+  events: true                   # 詳細保存のパターンの急変・介入のマーカー
+live: {flush_every: 1000, delay_ms: 0}
+brokers:
+  - fair
+  - {preset: fair, label: fair_bar, overrides: {intrabar: pessimistic}}   # 経路を見ずに足の高安だけで約定
+  - ecn
+  - malicious
+markets:
+  - malicious
+  - {model: malicious, label: malicious_calm, params: {holidays: null, extreme: null}}   # 異常な値動きと薄商いなし
+  - real_bridge
+strategies:
+  - random_entry
+  - ma_cross
+  - donchian_breakout
+  - bollinger_reversion
+  - buy_and_hold
+  - {name: ma_cross, label: ma_cross_d1, params: {timeframe: 1440, fast: 10, slow: 50, atr_n: 20, sl_atr: 3.0}}

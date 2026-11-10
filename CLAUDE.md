@@ -49,7 +49,8 @@ python -m fxsim ablate <model> --years 3 --seeds 1-4 --proposal M00X    # どの
 - **悪用されにくさ**: パネル戦略(random_entry 以外)の **素のシャープ(gross_sharpe、コスト抜き)の絶対値の最大**。
   悪意ある市場の目標は「どの単純な規則にも安定した素の優位性が無い」= 0 に近いほど良い(目安 < 0.3)。
   正にも負にも大きいなら、その規則(または逆張り)で稼げる穴がある
-- **コストと悪意の重さ**: random_entry の net と、fair / malicious ブローカーの差
+- **コストと悪意の重さ**: random_entry の net と、fair / ecn / malicious ブローカーの差。
+  どの費用が効いたかは report の「費用の内訳」(スプレッド・スリッページ・手数料・スワップ、狩り・拒否の回数)
 - **判定はパターン単位の t 値**(report / 画面の `t値` 列。平均 ÷ (標準偏差 / √パターン数))。|t| ≥ 2 で有意とみなす。
   取引単位の素のシャープは、同じ経路の中の取引が独立でないので有意さを大きく見せる(E001 の注意を参照)
 - 穴は短い期間では見えないことがある(M003 は 3 年 × 6 では素のシャープ 0.63、10 年 × 8 ではブレイクアウトが 8 本中 7 本プラス)。
@@ -89,6 +90,9 @@ python -m fxsim verify <動作ケース> --years 30 --seeds 1-10 --block-days <�
 - 乱数は必ず市場の部品なら `ctx.rng`、戦略なら `prepare(bars, rng)` の rng から。グローバル乱数を使わない(再現性)
 - 1 つの部品は `GenContext` の配列を読み書きするだけ。部品どうしの受け渡しは `ctx.meta`(例: `crowd_mix`, `regime`)
 - 価格を持続的にずらす悪意は `apply_block_increments`、一時的なヒゲは `ctx.logp` に直接足す
+- 実データの骨格に合わせた後(ANCHOR 段)に値動きを足す部品は、骨格の終値(`ctx.meta["anchor"]["idx"]`)を
+  動かさないこと(`FlashCrashOverlay._limits` を参照)
+- 尖度は数本の急変で大きく動くので、現実らしさの採点は切り詰めた尖度(`kurt_h1_trim`)で行う
 - 新しい部品は `ctx.event(idx, kind, ...)` でイベントを残す(画面のマーカーと集計に出る)。
   画面に色を付けるなら `web/components/Charts.tsx` の `EVENT_STYLE` にも足す
 - pandas 3 は配列を読み取り専用で返すことがある。書き換える配列は `to_numpy(copy=True)`

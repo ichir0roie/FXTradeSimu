@@ -21,14 +21,15 @@ fxsim/
     market.py            MarketData(基準解像度の mid とスプレッド、時間足のキャッシュ)
     bars.py              Bars(任意の時間足、bid/ask の OHLC)と make_bars
     real.py              実データの読み込み(汎用 CSV / HistData)
+    rates.py             政策金利の表(スワップの計算に使う)
   markets/             市場モデル
     base.py              Stage / Component / GenContext / MarketModel
     blocks.py            経路をブロック単位で扱う補助(POST_PATH の部品が使う)
-    components/          部品(volatility, regime, shocks, malice, real, spread)
+    components/          部品(volatility, regime, shocks, malice, extreme, real, spread)
     models/              案(random_walk, stylized, malicious, real_based)
     evaluation.py        現実らしさ(stylized facts)と悪意の指標
   backtest/            バックテスト
-    broker.py            ブローカー(スリッページ、スワップ、ロスカット、ストップ狩り)
+    broker.py            ブローカー(スプレッドの上乗せ、手数料、スワップ、スリッページ、約定の仕方、悪意)
     schedule.py          判断の間隔・取引時間
     engine.py            1 ポジションのバックテスト
     metrics.py           成績
@@ -95,11 +96,14 @@ web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-char
 ## バックテスト
 
 - 足 i の終値で判断し、注文は足 i+1 の始値で約定(買いは ask、売りは bid)。先読みは構造上起きない
-- 損切り・利確は足の bid/ask の高値・安値で判定。両方届く足は損切りが先(悲観的)。窓は始値で約定
-- スプレッドが広がると bid の安値が下がるので、mid が届いていなくても損切りが刺さる(ロールオーバー・指標)
-- 素の損益(gross)= mid どうしの pip。コスト = gross − 実際の pip(平均スプレッド + スリッページ)
+- 損切り・利確・ロスカットは、足の中の基準解像度の経路(bid/ask)で最初に越えた点の価格で約定する(`intrabar="path"`)。
+  窓・フラッシュクラッシュでは損切り価格より大きく不利になる。損切りと利確が同じ足に入ったら、実際に先に届いた方。
+  経路を持たない足(日足の再生など)は足の高安で判定し、両方届く足は損切りが先(悲観的)
+- スプレッドが広がると bid の安値が下がるので、mid が届いていなくても損切りが刺さる(ロールオーバー・指標・薄商い)
+- 素の損益(gross)= mid どうしの pip。費用の内訳(`metrics["costs"]`)= スプレッド + スリッページ + 手数料 − スワップ
+- スワップは政策金利の差から毎日(`fxsim/data/rates.py`)。ロスカットは証拠金維持率を割った点の価格で
 - ブローカーの悪意(`malicious` プリセット): 不利な方向だけのスリッページ、利確の有利な窓を渡さない、
-  逆指値の近くまで来たら確率で刺す、スワップの上乗せ
+  逆指値の近くまで来たら確率で刺す、スワップとスプレッドの上乗せ、ラストルック、ゼロカットなし(docs/MARKET_MALICE.md)
 
 ## 保存(SQLite)
 
