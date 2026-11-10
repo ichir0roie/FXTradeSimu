@@ -19,6 +19,9 @@ v4(R008 / E007): 足の中の振れ幅を「直前の局所ボラを中心にし
 日足のリターンの大きさが漏れ、1 時間足の RSI・ストキャスの逆張りが素で年 +800 pip 勝っていた。
 あわせて NewsShocks の並べ替えを安定ソートに直した(同じシードでも CPU によって相場が変わっていた)。
 v3 の合わせ方は {"anchor": {"calibrate_vol": "local", "clock": "variance"}}(値動きそのものは再現しない)。
+v5(R009): 足の中の振れ幅の事前分布の中心を、直前 21 本と 250 本の r² の平均の半々にした(prior_long_weight 0.5)。
+直前 21 本だけでは静かな時期の後に振れ幅が小さすぎ、終値への補正が日中のトレンドになっていた
+(偽薬で 1 時間足のブレイクアウトが素で +1.2 pip / 取引、t 6)。v4 は {"anchor": {"prior_long_weight": 0}}。
 データの差し替えは params の source(例: {"source": {"path": "data/real/xxx.csv"}})。
 """
 from .. import MARKETS
@@ -53,28 +56,28 @@ def build_real(params: dict) -> MarketModel:
     return MarketModel("real", "2", [RealReplay(), ConstantSpread()]).with_params(params)
 
 
-@MARKETS.register("real_bridge", version="4",
+@MARKETS.register("real_bridge", version="5",
                   description="実データの足を骨格に、足の中の動きをシードごとにランダム合成", tags=("real", "random"))
 def build_bridge(params: dict) -> MarketModel:
-    return MarketModel("real_bridge", "4", _bridge(RealSkeleton(mode="replay"))).with_params(params)
+    return MarketModel("real_bridge", "5", _bridge(RealSkeleton(mode="replay"))).with_params(params)
 
 
-@MARKETS.register("real_bridge_malicious", version="4",
+@MARKETS.register("real_bridge_malicious", version="5",
                   description="real_bridge + 適応するストップ狩り(ストレス試験)", tags=("real", "random", "malice"))
 def build_bridge_malicious(params: dict) -> MarketModel:
     comps = _bridge(RealSkeleton(mode="replay"), StopHunt(adapt_gain=1.0))
-    return MarketModel("real_bridge_malicious", "4", comps).with_params(params)
+    return MarketModel("real_bridge_malicious", "5", comps).with_params(params)
 
 
-@MARKETS.register("real_bootstrap", version="4",
+@MARKETS.register("real_bootstrap", version="5",
                   description="実データのリターンをブロック単位で並べ替えた骨格 + 足の中の合成",
                   tags=("real", "random"))
 def build_bootstrap(params: dict) -> MarketModel:
-    return MarketModel("real_bootstrap", "4", _bridge(RealSkeleton(mode="bootstrap"))).with_params(params)
+    return MarketModel("real_bootstrap", "5", _bridge(RealSkeleton(mode="bootstrap"))).with_params(params)
 
 
-@MARKETS.register("real_bridge_placebo", version="4",
+@MARKETS.register("real_bridge_placebo", version="5",
                   description="実データのリターンの符号だけでたらめにした骨格 + 同じ合成(作り方の癖を測る偽薬)",
                   tags=("real", "random", "placebo"))
 def build_placebo(params: dict) -> MarketModel:
-    return MarketModel("real_bridge_placebo", "4", _bridge(RealSkeleton(mode="placebo"))).with_params(params)
+    return MarketModel("real_bridge_placebo", "5", _bridge(RealSkeleton(mode="placebo"))).with_params(params)

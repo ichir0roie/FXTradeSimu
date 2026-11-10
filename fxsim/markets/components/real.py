@@ -219,6 +219,13 @@ class AnchorBridge(Component):
         day_weight: float = 0.6          # local のとき、目標の分散に混ぜる「その足自身のリターン²」の重み
         # posterior のとき、事前分布 ln g² の分散(偽薬で単純な規則の素の優位性が 0 に近くなる値、R008)
         vol_spread: float = 0.7
+        # posterior のとき、事前分布の中心 = (1 − w) x 直前 vol_window 本の r² の平均
+        #                                   + w x 直前 prior_long_window 本の平均。
+        # 直前 21 本だけだと、ボラの平均回帰と 21 本の推定のぶれで中心が偏る(静かな時期の後の足は実データの方が
+        # 大きく動き、終値への補正が一方向のドリフトになって日中にトレンドが出る。荒れた時期の後は戻る)。
+        # 偽薬でも 1 時間足のブレイクアウトが素で +1.2 pip / 取引(t 6)勝っていた(R009)。0 なら v4 と同じ
+        prior_long_window: int = 250
+        prior_long_weight: float = 0.5
         # 終値とのずれを配る時計: expected(事前の分散 vol² に比例、v4)| variance(動いた分 dx² に比例、v2〜v3)
         # | time(時刻に比例、v1)
         clock: str = "expected"
@@ -235,7 +242,8 @@ class AnchorBridge(Component):
         dx = np.diff(x, prepend=x[0])
         ev = ctx.vol * ctx.vol                     # 1 歩の事前の分散(季節性・確率ボラ・指標の後の跳ね上がり込み)
         if mode == "posterior" and len(idx) > 2:
-            goal = _posterior_goal(target, self.p.vol_window, self.p.vol_spread, ctx.rng)
+            goal = _posterior_goal(target, self.p.vol_window, self.p.vol_spread, ctx.rng,
+                                   self.p.prior_long_window, self.p.prior_long_weight)
             # 足ごとの分散の見込み(事前の分散 + その足のジャンプ²)を g² に合わせる。実現した dx² で合わせると、
             # 足の中の大きな 1 歩の後が静かになる(未来の大きさを見た伸縮)ので使わない
             sc = _scale_to_goal(ev + ctx.jumps * ctx.jumps, idx, goal, squared=True)
@@ -292,10 +300,12 @@ def _local_scale(dx: np.ndarray, idx: np.ndarray, target: np.ndarray, window: in
 _Z_GRID = np.linspace(-4.0, 4.0, 81)
 
 
-def _posterior_goal(target: np.ndarray, window: int, spread: float, rng) -> np.ndarray:
+def _posterior_goal(target: np.ndarray, window: int, spread: float, rng, long_window: int = 250,
+                    long_weight: float = 0.0) -> np.ndarray:
     """骨格の足ごとの、足の中の振れ幅 g(_scale_to_goal の目標)。
 
-    L² = 直前 window 本のリターン² の平均(その足と、それより後は使わない)。事前分布 ln g² ~ N(ln L² − s²/2, s²)
+    L² = 直前 window 本のリターン² の平均(その足と、それより後は使わない)。long_weight > 0 なら、直前 long_window 本の
+    平均と (1 − w) : w で混ぜる(R009。直前 21 本だけの見込みは偏る)。事前分布 ln g² ~ N(ln L² − s²/2, s²)
     (s² = spread、E[g²] = L²)と r ~ N(0, g²) から、その足のリターン r を見た事後分布で g² を引く(z の格子 ±4、81 点)。
     L を前後の窓で測ると、荒れる時期の直前の足で g だけが先回りして大きくなり、日中の戻りを作っていた(R008)。
     """
@@ -312,6 +322,13 @@ def _posterior_goal(target: np.ndarray, window: int, spread: float, rng) -> np.n
     L2[early] = np.mean(r2[:min(w, len(r))])
     pos = L2[L2 > 0]
     L2 = np.where(L2 > 0, L2, np.median(pos) if len(pos) else 1e-12)
+    if long_weight > 0:
+        wl = max(w, int(long_window))
+        lo_l = np.maximum(k - wl, 0)
+        LL = np.where(k > 0, (csum[k] - csum[lo_l]) / np.maximum(k - lo_l, 1), np.nan)
+        LL[early] = L2[early]
+        LL = np.where(LL > 0, LL, L2)
+        L2 = (1 - long_weight) * L2 + long_weight * LL
     s2 = max(float(spread), 1e-9)
     v = L2[:, None] * np.exp(np.sqrt(s2) * _Z_GRID[None, :] - s2 / 2)  # 候補の g²(足 x 格子)
     logw = -0.5 * _Z_GRID[None, :] ** 2 - 0.5 * np.log(v) - r2[:, None] / (2 * v)
