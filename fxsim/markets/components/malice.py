@@ -131,6 +131,7 @@ class StopHunt(Component):
         last = -10 ** 9
         mix = ctx.meta.get("crowd_mix")
         add = np.zeros(ctx.n)
+        persist = np.zeros(ctx.n + 1)   # 持続するずれは差分で積み、最後に 1 回だけ累積する
         mask = np.zeros(ctx.n, dtype=bool)
         sm = ctx.base.step_minutes
         for b in cand.tolist():
@@ -163,10 +164,10 @@ class StopHunt(Component):
             add[s0:s0 + L] += direction * k
             mask[s0:s0 + rise + int(decay)] = True
             if s0 + L < ctx.n:
-                add[s0 + L:] += direction * final   # ずれは持続する
+                persist[s0 + L] += direction * final   # ずれは持続する
             ctx.event(s0, "stop_hunt" if revert else "stop_cascade", direction=int(direction), level=float(level),
                       overshoot_pips=float(over), final_pips=float(ctx.log_to_pips(final)))
-        ctx.logp = ctx.logp + add
+        ctx.logp = ctx.logp + add + np.cumsum(persist[:ctx.n])
         ctx.meta["hunt_mask"] = mask
 
 
