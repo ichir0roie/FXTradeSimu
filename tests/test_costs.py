@@ -64,6 +64,18 @@ def test_stop_fills_at_the_stop_when_the_price_moves_continuously():
     t = bt.trades[0]
     assert t.reason == "sl"
     assert t.exit_price == pytest.approx(t.entry_price - 0.20)
+    assert t.cost_pips == pytest.approx(0.2)          # 費用は建てたときと決済したときのスプレッドの半分ずつだけ
+
+
+def test_take_profit_on_a_continuous_rise_costs_only_the_spread():
+    rng = np.random.default_rng(1)
+    prices = flat_then(list(100.0 + np.cumsum(np.abs(rng.uniform(0.5, 1.0, 120)) * PIP)), n_before=60)
+    bt = Backtester(bars_from_minutes(prices), Script({0: [("buy", {"tp": 0.20})]}), BrokerConfig(slippage_pips=0),
+                    pip=PIP).run()
+    t = bt.trades[0]
+    assert t.reason == "tp"
+    assert t.exit_price == pytest.approx(t.entry_price + 0.20)
+    assert t.cost_pips == pytest.approx(0.2)
 
 
 def test_first_touch_wins_when_stop_and_target_are_in_the_same_bar():
