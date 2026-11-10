@@ -7,6 +7,6 @@
 """
 from ..paths import DEFAULT_DB
 from . import queries, writer
-from .db import Tx, checkpoint, connect, dumps, init_db, now_iso
+from .db import Tx, checkpoint, connect, dumps, init_db, now_iso, vacuum
 
-__all__ = ["DEFAULT_DB", "Tx", "checkpoint", "connect", "dumps", "init_db", "now_iso", "queries", "writer"]
+__all__ = ["DEFAULT_DB", "Tx", "checkpoint", "connect", "dumps", "init_db", "now_iso", "queries", "vacuum", "writer"]

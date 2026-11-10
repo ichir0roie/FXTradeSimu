@@ -111,6 +111,7 @@ python -m fxsim run configs/quick.yaml                 # 動作確認(数十秒)
 python -m fxsim report [RUN_ID] --patterns             # 結果を Markdown で
 python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うためのゆっくりしたシミュレーション
 sqlite3 data/fxsim.sqlite "SELECT * FROM v_strategy_summary WHERE run_id = 1"
+python -m fxsim compact 1 2 --detail-equity-minutes 43200     # DB が大きくなったら資産曲線を間引く(成績は変わらない)
 ```
 
 ## 画面(利用者のローカル)

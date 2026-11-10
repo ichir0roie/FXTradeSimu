@@ -45,7 +45,7 @@ export default function JobView({ id }: { id: number }) {
         <Tile k="残高(円)" v={fmt(j.balance, 0)} />
         <Tile k="有効証拠金(円)" v={fmt(j.equity, 0)} />
         <Tile k="損益(円)" v={yen(j.pnl_live)} cls={tone(j.pnl_live)} />
-        <Tile k="勝率" v={pct(tradeStats.winRate)} />
+        <Tile k="勝率" v={pct(tradeStats.winRate ?? j.metrics?.win_rate)} />
         <Tile k="ブローカーに狩られた" v={String(j.metrics?.hunted ?? tradeStats.hunted)} />
       </div>
 

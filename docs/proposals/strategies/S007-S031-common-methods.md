@@ -58,5 +58,10 @@ python -m fxsim report <run>
 - 判定は CLAUDE.md の戦略の物差し(パターン単位の t・中央値・プラスの割合、malicious ブローカーの平均)
 - ギャンブルの賭け方は、損益の平均より **分布の形**(プラスの割合と最小値、最大 DD)を見る
 
-## 結果
-E006(`docs/proposals/experiments/E006-common-methods.md`)。
+## 結果(E006、run #12)
+- malicious ブローカーで総合がプラスなのは buy_and_hold・carry_trade・carry_trend だけ(円安と金利差に乗ったもの)
+- 回転の速い手法(scalping・london_breakout・pivot_reversal など)は費用で大きく負ける
+- ギャンブルの賭け方は全部破綻(fair でも 32 パターン中プラスは nanpin_martingale の 3 本だけ)。仮説 2 のとおり期待値は変わらず、分布の形だけが変わる
+- RSI・ストキャスの逆張り(実データ系)と scalping(malicious)の勝ちは市場モデルの穴(R008 / M006 で直す)
+
+詳しくは `docs/proposals/experiments/E006-common-methods.md`。
