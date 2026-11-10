@@ -72,11 +72,12 @@ class Trade:
 
 @dataclass
 class _Order:
-    kind: str                # enter | close
+    kind: str                # enter | close | add
     side: int = 0
     sl_dist: float | None = None
     tp_dist: float | None = None
     units: float | None = None
+    sl_from_average: bool = False   # add: 損切りの距離を、足した後の平均取得単価から測るか(既定は足した価格から)
 
 
 class StrategyContext:
@@ -114,6 +115,16 @@ class StrategyContext:
     def rng(self) -> np.random.Generator:
         return self._e.strategy_rng
 
+    @property
+    def trades(self) -> list[Trade]:
+        """決済が済んだ取引(足 i までに閉じたもの)。賭け方を変える戦略が前回の結果を見るのに使う。"""
+        return self._e.trades
+
+    @property
+    def base_units(self) -> float:
+        """設定の 1 単位の数量(EngineConfig.units)。"""
+        return float(self._e.cfg.units)
+
     # ---- 注文 ----
     @property
     def can_enter(self) -> bool:
@@ -138,6 +149,17 @@ class StrategyContext:
     def close(self) -> None:
         if self._e.pos is not None:
             self._e._submit(_Order("close"))
+
+    def add(self, units: float, sl: float | None = None, tp: float | None = None,
+            sl_from_average: bool = False) -> None:
+        """今の建玉と同じ向きに units を足す(ナンピン・積み増し)。次の足の始値で約定し、取得単価は平均になる。
+
+        tp は足した後の平均取得単価からの距離。sl は足した価格からの距離(sl_from_average なら平均から)。
+        None なら今の損切り・利確のまま。建玉が無いか取引時間外なら何もしない。
+        """
+        e = self._e
+        if e.pos is not None and e.can_enter[e.i]:
+            e._submit(_Order("add", e.pos.side, sl, tp, units, sl_from_average))
 
     def set_sl(self, price: float | None) -> None:
         """損切り価格(絶対値)を変える。次の足から有効。"""
@@ -228,7 +250,8 @@ class Backtester:
 
     # ---- 注文の受付 ----
     def _submit(self, order: _Order) -> None:
-        self.decisions.append((self.i, order.kind, order.side))
+        units = None if order.units is None else round(float(order.units), 2)
+        self.decisions.append((self.i, order.kind, order.side, units))
         if order.kind == "enter":
             self.pending = [o for o in self.pending if o.kind != "enter"]
         self.pending.append(order)
@@ -285,6 +308,29 @@ class Backtester:
         fee = self._commission(units)
         self.stats["slippage_total"] += slip * units
         self.pos = Position(o.side, units, price, self.o[i], i, sl, tp, commission=fee, slippage=slip * units)
+
+    def _add(self, i: int, o: _Order) -> None:
+        """同じ向きに足す。取得単価・mid・手数料・滑りは数量で加重して 1 つの建玉にまとめる。"""
+        p = self.pos
+        slip = self._slip(i)
+        price = self.ao[i] + slip if p.side > 0 else self.bo[i] - slip
+        cap = max(0.0, self.equity) * self.broker.leverage / price - p.units      # 証拠金の残り
+        units = float(np.floor(min(o.units or 0.0, cap, self.cfg.max_units - p.units) / 1000.0) * 1000.0)
+        if units < self.cfg.min_units:
+            return
+        total = p.units + units
+        p.entry_price = (p.entry_price * p.units + price * units) / total
+        p.entry_mid = (p.entry_mid * p.units + self.o[i] * units) / total
+        p.units = total
+        p.commission += self._commission(units)
+        p.slippage += slip * units
+        self.stats["slippage_total"] += slip * units
+        self.stats["adds"] = self.stats.get("adds", 0) + 1
+        if o.tp_dist is not None:
+            p.tp = p.entry_price + p.side * o.tp_dist
+        if o.sl_dist is not None:
+            base = p.entry_price if o.sl_from_average else price
+            p.sl = base - p.side * o.sl_dist
 
     def _close(self, i: int, price: float, mid: float, reason: str, slip: float = 0.0) -> None:
         p = self.pos
@@ -454,6 +500,9 @@ class Backtester:
                     if o.kind == "close":
                         if self.pos is not None:
                             self._close_at_open(i, "signal")
+                    elif o.kind == "add":
+                        if self.pos is not None and self.pos.side == o.side:
+                            self._add(i, o)
                     else:
                         if self.pos is not None:
                             if self.pos.side == o.side:

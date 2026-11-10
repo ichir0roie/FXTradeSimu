@@ -11,8 +11,8 @@ detail_seeds: [1]
 workers: 4
 engine: {initial_balance: 1000000, sizing: fixed, units: 10000}
 storage:
-  candle_timeframe: 240          # 詳細保存のローソク足は 4 時間足(急変のヒゲが見える程度)
-  equity_detail_timeframe: 1440
+  candle_timeframe: 1440         # 詳細保存のローソク足は日足(急変は日足のヒゲに出る)
+  equity_detail_timeframe: 10080
   equity_timeframe: 43200
   trades: none
   events: true                   # 詳細保存のパターンの急変・介入のマーカー
