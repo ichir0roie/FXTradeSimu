@@ -12,6 +12,7 @@
     cases list                   動作ケース・テストケースと最新の結果
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
+    verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
     init-db                      空の DB を作る
 """
 from __future__ import annotations
@@ -168,6 +169,31 @@ def cmd_cases(args) -> None:
         if not latest:
             sys.exit(f"{args.ids[0]} はまだ実行されていません")
         print(run_report(con, latest[0], patterns=True))
+        if latest[1].get("verdict"):
+            from .verification import format_verdict
+
+            print()
+            print(format_verdict(latest[1]["verdict"]))
+
+
+def cmd_verify(args) -> None:
+    from .cases import run_cases, verification_case
+    from .reports import run_report
+    from .verification import format_verdict
+
+    con = init_db(args.db)
+    t = verification_case(args.behavior, years=args.years, seeds=args.seeds, start=args.start, end=args.end)
+    if args.workers:
+        t.workers = args.workers
+    run_cases(con, args.db, [t.id], force=args.force, extra=[t])
+    latest = queries.latest_case_run(con, t.id)
+    if latest:
+        run_id, summary = latest
+        print()
+        print(run_report(con, run_id, patterns=args.patterns))
+        if summary.get("verdict"):
+            print()
+            print(format_verdict(summary["verdict"]))
 
 
 def cmd_init_db(args) -> None:
@@ -258,6 +284,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("ids", nargs="*")
     p.add_argument("--all", action="store_true")
     p.add_argument("--force", action="store_true")
+    _db(p)
+
+    p = add("verify", cmd_verify)
+    p.add_argument("behavior", help="動作ケースの ID(cases/behaviors)")
+    p.add_argument("--years", type=float, default=10.0)
+    p.add_argument("--seeds", type=parse_seeds, default=parse_seeds("1-8"))
+    p.add_argument("--start")
+    p.add_argument("--end")
+    p.add_argument("--workers", type=int, default=0)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--patterns", action="store_true")
     _db(p)
 
     p = add("init-db", cmd_init_db)

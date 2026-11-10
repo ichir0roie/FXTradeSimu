@@ -2,6 +2,7 @@
 from . import (  # noqa: F401
     bollinger_reversion,
     buy_and_hold,
+    direction_null,
     donchian_breakout,
     ma_cross,
     random_entry,

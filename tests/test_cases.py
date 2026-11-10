@@ -85,3 +85,41 @@ def test_run_cases_records_and_skips_unchanged(tmp_path):
     assert run_cases(con, str(db), ["T9"], root=root, log=log.append) == []   # 変わっていないので飛ばす
     assert any("飛ばします" in m for m in log)
     assert isinstance(con, sqlite3.Connection)
+
+
+def test_verification_runs_paired_null_and_records_verdict(tmp_path):
+    from fxsim.cases import run_cases, verification_case
+    from fxsim.storage import queries
+
+    db = tmp_path / "v.sqlite"
+    con = init_db(db)
+    t = verification_case("B004", years=1.0, seeds=[1, 2])
+    t.workers = 1
+    assert t.verify and {p.market for p in t.patterns} >= {"real", "real_bridge", "real_bridge_placebo"}
+    run_cases(con, str(db), [t.id], extra=[t], log=lambda *a: None)
+    run_id, summary = queries.latest_case_run(con, t.id)
+    v = summary["verdict"]
+    assert v["verdict"] in ("合格", "条件付き", "不合格")
+    assert [c["key"] for c in v["checks"]] == ["C1", "C2", "C3", "C4"]
+    assert {"real", "placebo"} <= set(v["groups"])
+    # 帰無(NULL)は対になる同じパターンで回っている
+    rows = con.execute("SELECT strategy_label, COUNT(*) FROM jobs WHERE run_id=? GROUP BY 1", (run_id,)).fetchall()
+    counts = dict(rows)
+    assert counts["NULL"] == counts["B004"]
+    # 要約の統計は帰無を含まない
+    not_done = con.execute("SELECT COUNT(*) FROM jobs WHERE run_id=? AND strategy_label='B004' AND status!='done'",
+                           (run_id,)).fetchone()[0]
+    assert summary["all"]["pnl"]["n"] == counts["B004"] - not_done
+
+
+def test_direction_null_keeps_timing_and_randomizes_side():
+    from fxsim.backtest.lookahead import check_lookahead
+    from fxsim.strategies import STRATEGIES
+
+    md = MARKETS.create("random_walk").generate(days=200, seed=3)
+    bars = md.bars(60)
+    bt = Backtester(bars, STRATEGIES.create("direction_null", {"inner": "donchian_breakout"}),
+                    BrokerConfig(slippage_pips=0), pip=md.pip, seed=1).run()
+    sides = [t.side for t in bt.trades]
+    assert len(sides) > 20 and 0.2 < sides.count(1) / len(sides) < 0.8
+    assert check_lookahead(lambda: STRATEGIES.create("direction_null", {"inner": "ma_cross"}), bars) == []
