@@ -36,3 +36,15 @@ def test_end_to_end_writes_sqlite(tmp_path):
     stats = strategy_stats(con, run_id)
     assert any(s["market"] == "ALL" for s in stats)
     assert "戦略の損益" in run_report(con, run_id)
+
+
+def test_identical_patterns_share_stored_data(tmp_path):
+    db = tmp_path / "s.sqlite"
+    d = {"name": "a", "years": 0.1, "seeds": [1], "workers": 1, "markets": ["malicious"],
+         "strategies": ["random_entry"]}
+    run_experiment(ExperimentConfig.from_dict(d), db, log=lambda *a: None)
+    run_experiment(ExperimentConfig.from_dict({**d, "name": "b", "strategies": ["ma_cross"]}), db, log=lambda *a: None)
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM paths").fetchone()[0] == 2
+    assert con.execute("SELECT COUNT(DISTINCT data_key) FROM paths").fetchone()[0] == 1
+    assert con.execute("SELECT COUNT(*) FROM pattern_data").fetchone()[0] == 1

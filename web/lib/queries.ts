@@ -125,7 +125,7 @@ function aggregate(rows: Row[], tfMin: number): Candle[] {
 
 export function jobDetail(id: number, q: { candleFrom: number; eqFrom: number; tradeFrom: number; tf: number | null }) {
   const job = one(
-    `SELECT j.*, p.market_label, p.market, p.seed, p.detail, p.candle_tf, p.t_start, p.t_end, p.realism_score,
+    `SELECT j.*, p.market_label, p.market, p.seed, p.detail, p.candle_tf, p.t_start, p.t_end, p.realism_score, p.data_key,
             r.name AS run_name, r.config_json
      FROM jobs j JOIN paths p ON p.id = j.path_id JOIN runs r ON r.id = j.run_id WHERE j.id = ?`,
     id,
@@ -133,14 +133,15 @@ export function jobDetail(id: number, q: { candleFrom: number; eqFrom: number; t
   if (!job) return null;
   const init = initialBalance(job);
   const candleTf = Number(job.candle_tf ?? 60);
-  const nCandles = one(`SELECT COUNT(*) AS n FROM candles WHERE path_id = ?`, job.path_id)?.n ?? 0;
+  const key = job.data_key ?? "";
+  const nCandles = one(`SELECT COUNT(*) AS n FROM candles WHERE data_key = ?`, key)?.n ?? 0;
   // 足が多いときは既定で粗くする(画面が重くならないように)
   const autoTf = nCandles > 40000 ? 1440 : nCandles > 12000 ? 240 : candleTf;
   const tf = Math.max(candleTf, q.tf ?? autoTf);
   const until = job.status === "done" ? Number.MAX_SAFE_INTEGER : Number(job.sim_t ?? 0);
   const raw = all(
-    `SELECT t, o, h, l, c FROM candles WHERE path_id = ? AND t >= ? AND t <= ? ORDER BY t`,
-    job.path_id,
+    `SELECT t, o, h, l, c FROM candles WHERE data_key = ? AND t >= ? AND t <= ? ORDER BY t`,
+    key,
     q.candleFrom,
     until,
   );
@@ -152,8 +153,8 @@ export function jobDetail(id: number, q: { candleFrom: number; eqFrom: number; t
   const trades = all(`SELECT * FROM trades WHERE job_id = ? AND seq >= ? ORDER BY seq`, id, q.tradeFrom);
   const events = all(
     `SELECT t, kind, direction, pips FROM market_events
-     WHERE path_id = ? AND t >= ? AND t <= ? AND kind != 'regime' ORDER BY t`,
-    job.path_id,
+     WHERE data_key = ? AND t >= ? AND t <= ? AND kind != 'regime' ORDER BY t`,
+    key,
     q.candleFrom,
     until,
   );
