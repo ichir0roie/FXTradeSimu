@@ -23,6 +23,7 @@ from ..strategies import STRATEGIES
 from .config import ExperimentConfig
 
 NS = 1_000_000_000
+SKIP_EVENT_KINDS = {"regime"}   # 数が多く画面でも使わないので保存しない(facts の events_per_day には入る)
 
 
 def git_sha() -> str | None:
@@ -173,6 +174,8 @@ def _write_path(con, task: dict, md, cfg: dict) -> int:
                     b.low.tolist(), b.close.tolist(), (b.spread_mean / pip).tolist()))
             ev = []
             for e in md.events:
+                if e["kind"] in SKIP_EVENT_KINDS:
+                    continue
                 d = {k: v for k, v in e.items() if k not in ("idx", "kind")}
                 pips = d.get("pips", d.get("final_pips", d.get("overshoot_pips")))
                 ev.append((task["path_id"], int(md.times[e["idx"]] // NS), e["kind"], d.get("direction"),
