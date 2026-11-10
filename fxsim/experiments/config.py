@@ -5,7 +5,7 @@
     years: 10
     seeds: [1, 2, 3, 4, 5]    # ランダム相場のパターン。実データの再生(real)は 1 本だけ回す
     detail_seeds: [1]         # ローソク足・取引・細かい資産曲線まで保存するシード
-    workers: 4
+    workers: 4               # 省略で default_workers()(環境変数 FXSIM_WORKERS か、論理 CPU の半分 − 2)
     engine: {initial_balance: 1000000, units: 10000}
     storage: {candle_timeframe: 60, trades: detail, equity_timeframe: 1440, equity_detail_timeframe: 60}
     live: {flush_every: 500, delay_ms: 0}               # delay_ms > 0 で画面で追える速さに落とす
@@ -23,6 +23,19 @@ import yaml
 
 from ..backtest.engine import EngineConfig
 from ..backtest.schedule import TradingSchedule
+
+
+def default_workers() -> int:
+    """ワーカー数の既定。手元の画面が固まらないよう、CPU を使い切らない。
+
+    環境変数 FXSIM_WORKERS があればそれ。無ければ論理 CPU の半分(ハイパースレッドなら物理コア数)から
+    2 を引いた数(1〜8)。
+    ワーカーは優先度も下げる(experiments.runner)。ワーカー数は結果に影響しない。
+    """
+    env = os.environ.get("FXSIM_WORKERS", "").strip()
+    if env:
+        return max(1, int(env))
+    return max(1, min((os.cpu_count() or 2) // 2 - 2, 8))
 
 
 @dataclass
@@ -132,7 +145,7 @@ class ExperimentConfig:
         if self.detail_seeds is None:
             self.detail_seeds = self.seeds[:1]
         if not self.workers:
-            self.workers = max(1, min(os.cpu_count() or 1, 8))
+            self.workers = default_workers()
         for kind, labels in (("market", [m.label for m in self.markets]),
                              ("strategy", [s.label for s in self.strategies]),
                              ("broker", [b.label for b in self.brokers])):

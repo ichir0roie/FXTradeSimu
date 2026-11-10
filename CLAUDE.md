@@ -116,6 +116,8 @@ python -m fxsim verify --all               # 全部の動作ケース(定義と�
 - SQL は `fxsim/storage/`(writer.py / queries.py)と `web/lib/queries/` にだけ書く。場所(パス)は `fxsim/paths.py` から取る
 - コミット前に `ruff check fxsim tests` と `python -m pytest -q`。画面を触ったら `cd web && npx next build`
 - 結果に影響しないはずの整理をしたら、同じ設定を回して成績が 1 円も変わらないことを確かめる(結果は乱数のシードで決まる)
+- ワーカー数の既定は論理 CPU の半分 − 2(手元の画面が固まらないように)。ワーカーは nice 10 で動く。
+  増やすなら `FXSIM_WORKERS` か `--workers`、設定の `workers`(数は結果に影響しない)
 - 指標・コミット・PR の本文は普通の文体で書く
 
 ## よく使うコマンド

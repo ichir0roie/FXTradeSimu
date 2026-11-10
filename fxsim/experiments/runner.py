@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import contextlib
+import os
 import subprocess
 import time
 import traceback
@@ -23,6 +25,14 @@ from ..paths import DEFAULT_DB, REPO_ROOT
 from ..storage import Tx, checkpoint, connect, init_db, writer
 from ..strategies import STRATEGIES
 from .config import BrokerSpec, ExperimentConfig, MarketSpec, StrategySpec
+
+WORKER_NICE = 10
+
+
+def _lower_priority() -> None:
+    """ワーカーの優先度を下げる(画面の操作を先に回す)。対応しない OS では何もしない。"""
+    with contextlib.suppress(AttributeError, OSError):
+        os.nice(WORKER_NICE)
 
 
 def git_sha() -> str | None:
@@ -165,7 +175,7 @@ def run_experiment(cfg: ExperimentConfig, db_path: str | Path | None = None, log
         for t in tasks:
             done(run_path(db_path, t, cfg))
     else:
-        with ProcessPoolExecutor(max_workers=cfg.workers) as ex:
+        with ProcessPoolExecutor(max_workers=cfg.workers, initializer=_lower_priority) as ex:
             for f in as_completed([ex.submit(run_path, db_path, t, cfg) for t in tasks]):
                 done(f.result())
     status = "failed" if errors else "done"
