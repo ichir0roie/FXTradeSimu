@@ -31,7 +31,9 @@ ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦�
 3. **実装する**
    - 市場の悪意を増やす → 部品クラスを書き、既存モデルを複製した新しいモデル(新 ID・version)に組み込む。
      既存モデルの既定値を書き換えるときは version を上げ、提案書に旧値を残す
-   - 戦略 → `Strategy` を継承。`prepare` は因果的な numpy 計算だけ、`on_bar(i)` は足 i の終値までを見る
+   - 戦略 → `Strategy` を継承。`prepare` は因果的な numpy 計算だけ、`on_bar(i)` は足 i の終値までを見る。
+     量を変える戦略は `ctx.buy(units=)`、ナンピン・積み増しは `ctx.add`、前回の結果は `ctx.trades`。
+     賭け方(マーチンゲールなど)は `fxsim/strategies/staking.py` を使う
 4. **検査する**: `python -m pytest -q` と `python -m fxsim check-lookahead`
 5. **評価する**(下の「物差し」)。結果は自動で SQLite に入る
 6. **記録する**: 提案書に run 番号・主要な数字(表を `python -m fxsim report <run>` から貼る)・判定・次の一手
