@@ -34,7 +34,7 @@ fxsim/
     engine.py            1 ポジションのバックテスト
     metrics.py           成績
     lookahead.py         先読み検査
-  strategies/          戦略(base.py / indicators.py / builtin/ に 1 ファイル 1 戦略)
+  strategies/          戦略(base.py / indicators.py / staking.py(賭け方)/ builtin/ に 1 ファイル 1 戦略)
   catalog.py           組み込みの案をすべて登録する
   storage/             SQLite
     schema.py            テーブルとビュー
