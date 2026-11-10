@@ -204,7 +204,8 @@ def run_path(db_path: str, task: dict, cfg: dict) -> dict:
             writer = LiveWriter(
                 con, job["job_id"], bars,
                 store_trades=(trades_mode == "all") or (trades_mode == "detail" and detail),
-                equity_minutes=candle_tf if detail else int(cfg["storage"]["equity_timeframe"]),
+                equity_minutes=(max(candle_tf, int(cfg["storage"]["equity_detail_timeframe"])) if detail
+                                else int(cfg["storage"]["equity_timeframe"])),
                 delay_ms=float(cfg["live"]["delay_ms"]) if detail else 0.0)
             bt = Backtester(bars, strat, broker, eng, pip=md.pip, seed=task["seed"])
             try:
