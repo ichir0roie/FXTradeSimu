@@ -1,0 +1,7 @@
+id: B026
+name: ストキャスティクスの逆張り(1 時間足、20 / 80)
+strategy: stochastic_reversion
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

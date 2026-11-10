@@ -1,0 +1,7 @@
+id: B041
+name: ラブシェール(数列の両端の和を賭ける、±20 pip)
+strategy: labouchere
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

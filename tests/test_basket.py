@@ -228,9 +228,41 @@ def test_verification_of_a_multi_pair_behavior_uses_basket_patterns_and_null():
     from fxsim.verification import BASKET_PATTERNS
 
     t = verification_case("B011", years=30, seeds=[1, 2], block_days=250)
-    assert [p.market for p in t.patterns] == BASKET_PATTERNS
+    assert [p.market for p in t.patterns] == BASKET_PATTERNS + ["basket_bootstrap"]
+    ref = t.patterns[-1]
+    assert ref.display_label == "basket_bootstrap_demeaned"
+    assert ref.params["source"] == {"block_days": 250.0, "demean": True}
     assert t.period["start"] == "1999-01-04"
     cfg = to_experiment(t, load_cases().behaviors["B011"])
     assert [s.name for s in cfg.strategies] == ["xs_carry", "basket_direction_null"]
     boot = next(m for m in cfg.markets if m.model == "basket_bootstrap")
     assert boot.params["source"]["block_days"] == 250
+
+
+def test_drift_free_bootstrap_removes_the_mean_return():
+    """ドリフトを抜いた並べ替えは、最後の値の変化の期待値が 0(1 本ごとには 0 にならない。復元抽出なので)。"""
+    from fxsim.data import load_ohlc
+    from fxsim.markets.components.real import DEFAULT_DATASET, _block_bootstrap
+
+    s = load_ohlc(DEFAULT_DATASET).window(years=30)
+    lc = np.log(s.close)
+    ends = {}
+    for demean in (False, True):
+        ends[demean] = np.array([_block_bootstrap(lc, lc, lc, lc, s, 250, np.random.default_rng(k), demean)[0][-1]
+                                 - lc[0] for k in range(60)])
+    drift = lc[-1] - lc[0]
+    assert abs(ends[False].mean() - drift) < 3 * ends[False].std() / np.sqrt(60)
+    assert abs(ends[True].mean()) < 3 * ends[True].std() / np.sqrt(60)
+    legs = [MARKETS.create("basket_bootstrap", {"source": {"demean": True}}).generate(years=20, seed=k).meta["legs"]
+            for k in range(30)]
+    e = np.array([np.log(x["eurjpy"].mid[-1] / x["eurjpy"].mid[0]) for x in legs])
+    assert abs(e.mean()) < 3 * e.std() / np.sqrt(len(e))
+
+
+def test_c1_drops_the_real_requirement_only_without_intraday_real_data():
+    from fxsim.verification import real_requirement
+
+    assert real_requirement(np.array([5.0]), False)[0] is True
+    assert real_requirement(np.array([-5.0]), True)[0] is False      # 実データの結果があれば必ず使う
+    assert real_requirement(np.array([]), True)[0] is True
+    assert real_requirement(np.array([]), False)[0] is False

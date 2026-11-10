@@ -1,0 +1,7 @@
+id: B038
+name: パーリー(勝ったら倍、±20 pip)
+strategy: paroli
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

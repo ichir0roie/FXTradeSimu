@@ -83,12 +83,17 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 
 ### ひとつのモデルの長期検証(合否)
 ```bash
-python -m fxsim verify <動作ケース> --years 30 --seeds 1-10 --block-days <戦略が見る期間より長い日数>
+python -m fxsim verify <動作ケース>...      # 既定は 30 年・1-10・ブロック 250 日。動作ケースの verify で上書き
+python -m fxsim verify --all               # 全部の動作ケース(定義とコードが前回と同じなら飛ばす)
 ```
 - 「このモデルは長期的に利益を出すか」はこれで判定する(E002)。1 本のバックテストの結果で判断しない
 - 有意性は並べ替え(real_bootstrap)で測る。real_bridge は日足の戦略では実データのコピーなので数に入れない
 - 合格の条件と落とし穴は `fxsim/verification.py` の先頭と `docs/proposals/experiments/E002-model-verification.md`
 - 判定の仕組みを変えたら、陽性対照のテスト(`test_verification_passes_a_model_with_a_real_edge`)が合格のままか確かめる
+- 並べ替えのブロックは戦略が見る期間より長くする(動作ケースの `verify: {block_days: ...}`)
+- 日中の戦略は日足の実データでは回らないので、C1 の「実データでプラス」を外して並べ替えだけで判定する(2026-11 の判断。
+  日中の実データが手に入れば戻す)
+- 参考の組「ドリフトを抜いた並べ替え」は判定に使わない。買いに偏った戦略が円安とスワップだけで勝っていないかを見る(S037)
 
 ### 長期の基準実験
 `configs/long_run_v2.yaml`(E003、市場モデル v2)。大きな変更の後は回し直し、提案書の表と比べる。

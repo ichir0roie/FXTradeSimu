@@ -9,6 +9,9 @@ from ..backtest.schedule import TradingSchedule
 from ..markets import MARKETS
 from ..strategies import STRATEGIES
 
+# fxsim verify の既定(動作ケースの verify で上書きできる)。E009 と同じ物差し
+VERIFY_DEFAULTS = {"years": 30.0, "seeds": "1-10", "block_days": 250.0}
+
 
 def parse_seeds(seeds) -> list[int]:
     """[1, 2] / "1-10" / 3 のどれでも受ける。"""
@@ -31,6 +34,8 @@ class BehaviorCase:
     schedule: dict = field(default_factory=dict)
     broker: str | dict = "fair"
     engine: dict = field(default_factory=dict)
+    # fxsim verify の既定(years / seeds / block_days)。コマンドで指定すればそちらが優先
+    verify: dict = field(default_factory=dict)
     path: str = ""
 
     @property
@@ -51,7 +56,17 @@ class BehaviorCase:
         """複数ペアの戦略か(相場は basket_*、帰無は basket_direction_null)。"""
         return STRATEGIES.create(self.strategy, self.strategy_params()).multi
 
+    def verify_settings(self, **given) -> dict:
+        """検証の設定。コマンドで指定した値(None 以外)> 動作ケースの verify > 既定。"""
+        out = {**VERIFY_DEFAULTS, **self.verify}
+        out["seeds"] = parse_seeds(out["seeds"])
+        out.update({k: v for k, v in given.items() if v is not None})
+        return out
+
     def validate(self) -> None:
+        unknown = set(self.verify) - set(VERIFY_DEFAULTS)
+        if unknown:
+            raise ValueError(f"{self.id}: unknown verify keys {sorted(unknown)} (known: {sorted(VERIFY_DEFAULTS)})")
         STRATEGIES.create(self.strategy, self.strategy_params())
         self.trading_schedule()
         if self.broker_spec["preset"] not in BROKER_PRESETS:
@@ -61,7 +76,7 @@ class BehaviorCase:
         """記録に残す定義(ハッシュの元)。"""
         return {"id": self.id, "name": self.name, "strategy": self.strategy, "params": self.params,
                 "timeframe": self.timeframe, "schedule": self.trading_schedule().to_dict(),
-                "broker": self.broker, "engine": self.engine}
+                "broker": self.broker, "engine": self.engine, "verify": self.verify}
 
 
 @dataclass

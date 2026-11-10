@@ -1,0 +1,7 @@
+id: B024
+name: 移動平均のパーフェクトオーダー(4 時間足、5 / 20 / 60)
+strategy: perfect_order
+timeframe: 240
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

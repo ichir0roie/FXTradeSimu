@@ -1,0 +1,7 @@
+id: B033
+name: タートル(日足、20 日高値抜け、積み増し 4 回まで)
+strategy: turtle
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

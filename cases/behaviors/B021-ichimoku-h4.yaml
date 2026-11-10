@@ -1,0 +1,7 @@
+id: B021
+name: 一目均衡表(4 時間足、転換線・基準線・雲)
+strategy: ichimoku
+timeframe: 240
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

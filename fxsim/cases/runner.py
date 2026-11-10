@@ -179,6 +179,10 @@ def verification_case(behavior_id: str, *, years: float = 10.0, seeds: list[int]
         if src:
             p["params"] = {"source": src}
         patterns.append(p)
+    # 参考の組: ドリフト(期間の上げ下げ)を抜いた並べ替え。判定には使わない(verification の drift_free)
+    src = {"path": dataset} if dataset else {}
+    patterns.append({"market": ps.bootstrap, "label": ps.demeaned_label, "seeds": seeds,
+                     "params": {"source": {**src, "block_days": float(block_days), "demean": True}}})
     return TestCase(id=f"V-{behavior_id}", behavior=behavior_id, patterns=patterns,
                     name=f"{behavior_id} の長期検証(標準パターン、並べ替え {block_days:g} 日ブロック)",
                     period={"start": start, "end": end},

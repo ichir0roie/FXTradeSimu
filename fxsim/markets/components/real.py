@@ -106,6 +106,9 @@ class RealSkeleton(Component):
     class Params(_SourceParams):
         mode: str = "replay"          # replay | bootstrap | placebo
         block_days: float = 20.0
+        # bootstrap: 日次リターンの平均を引いてから並べ替える(この期間の上げ下げ = ドリフトを消す)。
+        # 買いに偏った戦略が円安に乗っただけで勝つのを切り分ける参考の組(verify の real_bootstrap_demeaned)
+        demean: bool = False
 
     def prepare_times(self, base: BaseParams, years, days, rng):
         s = _series(self.p, years, days)
@@ -116,7 +119,7 @@ class RealSkeleton(Component):
         lh = np.log(np.maximum(s.high, np.maximum(s.open, s.close)))
         ll = np.log(np.minimum(s.low, np.minimum(s.open, s.close)))
         if self.p.mode == "bootstrap":
-            lc, lo_, lh, ll = _block_bootstrap(lc, lo_, lh, ll, s, self.p.block_days, rng)
+            lc, lo_, lh, ll = _block_bootstrap(lc, lo_, lh, ll, s, self.p.block_days, rng, self.p.demean)
         elif self.p.mode == "placebo":
             lc, lo_, lh, ll = _placebo(lc, lo_, lh, ll, rng)
         elif self.p.mode != "replay":
@@ -143,10 +146,13 @@ class RealSkeleton(Component):
         ctx.meta["real_source"] = f"{self.p.path} ({self.p.mode})"
 
 
-def _block_bootstrap(lc, lo_, lh, ll, s: RealSeries, block_days: float, rng):
-    """終値のリターンと、足の形(始値・高値・安値の終値からの相対位置)を、ブロックごとに引き直す。"""
+def _block_bootstrap(lc, lo_, lh, ll, s: RealSeries, block_days: float, rng, demean: bool = False):
+    """終値のリターンと、足の形(始値・高値・安値の終値からの相対位置)を、ブロックごとに引き直す。
+    demean なら終値のリターンの平均を引いてから並べ替える(ドリフトを消す)。"""
     n = len(lc)
     r = np.diff(lc)
+    if demean:
+        r = r - r.mean()
     shape_o = (lo_ - np.r_[lc[0], lc[:-1]])[1:]     # 前の終値からの始値の窓
     shape_h = (lh - lc)[1:]
     shape_l = (ll - lc)[1:]

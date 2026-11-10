@@ -1,0 +1,7 @@
+id: B032
+name: 五十日の仲値(5 分足、7:00〜9:55 JST に買い)
+strategy: gotobi
+timeframe: 5
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000}

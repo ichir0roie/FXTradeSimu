@@ -42,9 +42,12 @@ GROUPS = {
     "real_bridge_malicious": "stress",
     "basket_real": "real", "basket_bootstrap": "bootstrap", "basket_placebo": "placebo",
     "basket_random_walk": "synthetic",
+    # 市場のラベルで引く参考の組: ドリフト(期間の上げ下げ)を抜いた並べ替え。判定には使わない
+    "real_bootstrap_demeaned": "demeaned", "basket_bootstrap_demeaned": "demeaned",
 }
 GROUP_LABELS = {"real": "実データ", "bootstrap": "並べ替え(独立)", "bridge": "実データ + 日中ランダム",
-                "placebo": "偽薬", "synthetic": "完全ランダム", "stress": "ストレス"}
+                "placebo": "偽薬", "synthetic": "完全ランダム", "stress": "ストレス",
+                "demeaned": "並べ替え(ドリフト抜き、参考)"}
 
 # 検証の標準のパターン(seeds は実行時に入る。real は決定的なので 1 本)
 STANDARD_PATTERNS = ["real", "real_bridge", "real_bootstrap", "real_bridge_placebo", "stylized", "malicious",
@@ -55,7 +58,8 @@ BASKET_PATTERNS = ["basket_real", "basket_bootstrap", "basket_placebo", "basket_
 
 @dataclass(frozen=True)
 class PatternSet:
-    """検証の標準のパターンの組。real は 1 本だけ回す実データ、bootstrap はブロックの長さを渡す並べ替え。"""
+    """検証の標準のパターンの組。real は 1 本だけ回す実データ、bootstrap はブロックの長さを渡す並べ替え。
+    bootstrap はドリフトを抜いた版(ラベル <bootstrap>_demeaned)も参考の組として回す。"""
     markets: tuple[str, ...]
     real: str
     bootstrap: str
@@ -63,6 +67,10 @@ class PatternSet:
 
     def uses_data(self, market: str) -> bool:
         return market.startswith(self.data_prefix)
+
+    @property
+    def demeaned_label(self) -> str:
+        return f"{self.bootstrap}_demeaned"
 
 
 def pattern_set(multi: bool) -> PatternSet:
@@ -90,8 +98,8 @@ def _rows(con: sqlite3.Connection, run_id: int) -> list[dict]:
     for d in queries.done_jobs_with_metrics(con, run_id):
         m = json.loads(d.pop("metrics_json") or "{}")
         d["yearly"] = m.get("yearly_pnl", {})
+        d["group"] = GROUPS.get(d["market_label"]) or GROUPS.get(d["market"], "synthetic")
         d["metrics"] = {k: m[k] for k in ("sharpe", "n_days", "daily_skew", "daily_kurt") if k in m}
-        d["group"] = GROUPS.get(d["market"], "synthetic")
         out.append(d)
     return out
 
@@ -148,9 +156,9 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
     def check(key, label, ok, detail):
         checks.append({"key": key, "label": label, "ok": bool(ok), "detail": detail})
 
+    no_intraday = not len(actual) and _real_too_coarse(con, run_id, model_label)
     if s_boot:
-        actual_ok = bool(len(actual)) and float(actual[0]) > 0
-        actual_txt = f" / 実データ {float(actual[0]):,.0f} 円" if len(actual) else " / 実データの結果なし"
+        actual_ok, actual_txt = real_requirement(actual, no_intraday)
         check("C1", "利益(並べ替え + 実データ)",
               s_boot["median"] > 0 and s_boot["positive_ratio"] >= c.min_positive_ratio and s_boot["t"] >= c.min_t
               and actual_ok,
@@ -173,6 +181,7 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
           f"中央値がプラスの年 {pos_years:.0%}({len(full_years)} 年中)/ 前半 {first:,.0f} 円 / 後半 {second:,.0f} 円")
 
     overfit = _deflated(model, n_trials)
+    drift_free = _drift_free(model, null)
 
     ok = {ch["key"]: ch["ok"] for ch in checks}
     if all(ok.values()):
@@ -200,7 +209,35 @@ def compute_verdict(con: sqlite3.Connection, run_id: int, model_label: str,
         "criteria": c.__dict__,
         "model": model_label,
         "overfit": overfit,
+        "drift_free": drift_free,
+        "no_intraday_real": bool(no_intraday),
     }
+
+
+def real_requirement(actual: np.ndarray, no_intraday: bool) -> tuple[bool, str]:
+    """C1 の「実データ 1 本の損益 > 0」。戦略の足が実データより細かくて回せないとき(日中の実データが無い)は
+    条件から外し、そう書く(2026-11 の利用者の判断。日中の 1 分足の実データが手に入れば外す)。"""
+    if len(actual):
+        return float(actual[0]) > 0, f" / 実データ {float(actual[0]):,.0f} 円"
+    if no_intraday:
+        return True, " / 実データ: 戦略の足より粗い日足しか無いので条件から外した(並べ替えだけで判定)"
+    return False, " / 実データの結果なし"
+
+
+def _real_too_coarse(con: sqlite3.Connection, run_id: int, model_label: str) -> bool:
+    """実データのパターンで、戦略の足がデータより細かくて飛ばされたか。"""
+    return any(r["strategy_label"] == model_label and "finer than the data" in (r["note"] or "")
+               for r in queries.skipped_jobs(con, run_id))
+
+
+def _drift_free(model: list[dict], null: dict) -> dict | None:
+    """参考: ドリフトを抜いた並べ替えの損益と、方向でたらめ版との差(判定には使わない)。"""
+    rows = [r for r in model if r["group"] == "demeaned"]
+    if not rows:
+        return None
+    s = summarize([r["pnl"] for r in rows])
+    diff = summarize([r["pnl"] - null[r["path_id"]]["pnl"] for r in rows if r["path_id"] in null])
+    return {"pnl": s, "paired": diff}
 
 
 def default_trials() -> int:
@@ -236,6 +273,14 @@ def format_verdict(v: dict) -> str:
     for g in v["groups"].values():
         lines.append(f"| {g['label']} | {g['n']} | {g['mean']:,.0f} | {g['median']:,.0f} | {g['positive_ratio']:.0%} | "
                      f"{g['t']:.2f} | {g.get('ruin_ratio', 0.0):.0%} | {g.get('null_mean', float('nan')):,.0f} |")
+    d = v.get("drift_free")
+    if d and d.get("pnl"):
+        p, q = d["pnl"], d.get("paired") or {}
+        lines += ["", "参考(判定には使わない): ドリフト(期間の上げ下げ)を抜いた並べ替えで "
+                      f"中央値 {p['median']:,.0f} 円 / "
+                      f"プラス {p['positive_ratio']:.0%} / t {p['t']:.2f}"
+                      + (f"、方向でたらめ版との差の t {q['t']:.2f}" if q else "")
+                      + "。買いに偏った戦略が円安とスワップだけで勝っていないかを見る"]
     o = v.get("overfit")
     if o:
         lines += ["", f"参考(判定には使わない): 実データの年率シャープ {o['sharpe_annual']:.2f}、"

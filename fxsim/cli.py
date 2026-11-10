@@ -12,7 +12,7 @@
     cases list                   動作ケース・テストケースと最新の結果
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
-    verify BEHAVIOR              動作ケースを標準パターンで長期検証し、合否を判定して記録
+    verify BEHAVIOR... | --all   動作ケースを標準パターンで長期検証し、合否を判定して記録
     summary [RUN...] [--all]     実験の概要を docs/results/<run_key>/ に書き出す(既定の DB への実験は終わったら自動)
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
@@ -202,23 +202,42 @@ def cmd_cases(args) -> None:
 
 def cmd_verify(args) -> None:
     from .cases import run_cases, verification_case
+    from .cases.loader import load_cases
     from .reports import run_report
     from .verification import format_verdict
 
     con = init_db(args.db)
-    t = verification_case(args.behavior, years=args.years, seeds=args.seeds, start=args.start, end=args.end,
-                          block_days=args.block_days, dataset=args.dataset)
-    if args.workers:
-        t.workers = args.workers
-    run_cases(con, args.db, [t.id], force=args.force, extra=[t])
-    latest = queries.latest_case_run(con, t.id)
-    if latest:
+    book = load_cases()
+    ids = sorted(book.behaviors) if args.all else args.behaviors
+    if not ids:
+        sys.exit("動作ケースの ID を指定するか --all を付けてください")
+    verdicts = []
+    for bid in ids:
+        if bid not in book.behaviors:
+            sys.exit(f"unknown behavior {bid}. known: {sorted(book.behaviors)}")
+        v = book.behaviors[bid].verify_settings(years=args.years, seeds=args.seeds, block_days=args.block_days)
+        t = verification_case(bid, years=v["years"], seeds=v["seeds"], start=args.start, end=args.end,
+                              block_days=v["block_days"], dataset=args.dataset)
+        if args.workers:
+            t.workers = args.workers
+        run_cases(con, args.db, [t.id], force=args.force, extra=[t])
+        latest = queries.latest_case_run(con, t.id)
+        if not latest:
+            continue
         run_id, summary = latest
-        print()
-        print(run_report(con, run_id, patterns=args.patterns))
-        if summary.get("verdict"):
+        verdict = summary.get("verdict")
+        if len(ids) == 1:
             print()
-            print(format_verdict(summary["verdict"]))
+            print(run_report(con, run_id, patterns=args.patterns))
+        if verdict:
+            print()
+            print(format_verdict(verdict))
+            verdicts.append((bid, book.behaviors[bid].strategy, verdict))
+    if len(verdicts) > 1:
+        print("\n## まとめ\n\n| 動作ケース | 戦略 | 判定 | C1 | C2 | C3 | C4 |\n|---|---|---|---|---|---|---|")
+        for bid, strat, v in verdicts:
+            ok = {c["key"]: "✓" if c["ok"] else "✗" for c in v["checks"]}
+            print(f"| {bid} | {strat} | {v['verdict']} | {ok['C1']} | {ok['C2']} | {ok['C3']} | {ok['C4']} |")
 
 
 def cmd_fetch_fred(args) -> None:
@@ -355,13 +374,14 @@ def build_parser() -> argparse.ArgumentParser:
     _db(p)
 
     p = add("verify", cmd_verify)
-    p.add_argument("behavior", help="動作ケースの ID(cases/behaviors)")
-    p.add_argument("--years", type=float, default=10.0)
-    p.add_argument("--seeds", type=parse_seeds, default=parse_seeds("1-8"))
+    p.add_argument("behaviors", nargs="*", help="動作ケースの ID(cases/behaviors)。複数可")
+    p.add_argument("--all", action="store_true", help="全部の動作ケース(定義とコードが前回と同じなら飛ばす)")
+    p.add_argument("--years", type=float, help="省略で動作ケースの verify、それも無ければ 30")
+    p.add_argument("--seeds", type=parse_seeds, help="省略で動作ケースの verify、それも無ければ 1-10")
     p.add_argument("--start")
     p.add_argument("--end")
-    p.add_argument("--block-days", type=float, default=20.0,
-                   help="並べ替えのブロックの長さ(日)。戦略が見る期間より長くする")
+    p.add_argument("--block-days", type=float,
+                   help="並べ替えのブロックの長さ(日)。戦略が見る期間より長くする。省略で動作ケースの verify か 250")
     p.add_argument("--dataset", help="実データ系に使う CSV(既定: data/real/usdjpy_d1_fred.csv)")
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--force", action="store_true")
