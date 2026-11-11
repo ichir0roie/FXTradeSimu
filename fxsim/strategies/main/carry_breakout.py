@@ -20,7 +20,7 @@ E012〜E025 のまとめ。
 
 相場は real_pairs(R013)/ real_pairs_bootstrap(R014)。金利差は、相場が足ごとの金利差を持てばそれ(並べ替えた相場)、
 無ければペアの短期金利の差(8 通貨の月次)。複数ペアを 1 つの口座で回す(PortfolioBacktester)。
-MT5 の常駐は 1 銘柄ずつなので未対応。
+MT5 の常駐は複数ペアの PortfolioTrader(`configs/trading/demo-majors-b047.yaml`、E027 で 10 ペアの再生)。
 """
 from __future__ import annotations
 

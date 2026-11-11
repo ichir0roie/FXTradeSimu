@@ -36,15 +36,12 @@ import numpy as np
 from ..backtest.broker import BrokerConfig
 from ..backtest.engine import EngineConfig
 from ..calendar import NS_MIN
-from ..cases.loader import load_cases
 from ..cases.model import BehaviorCase
-from ..strategies import STRATEGIES
 from ..strategies.guards import EquityFloor, floor_lots
-from ..strategies.main.base import MainStrategy
 from .config import TraderConfig
 from .feed import pip_from_digits, rates_to_bars
 from .mt5 import LivePosition, MT5Client, MT5Error, OrderResult, SymbolSpec
-from .signals import SimSnapshot, simulate
+from .signals import SimSnapshot
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +60,7 @@ class Action:
     sl: float | None = None         # modify: 絶対価格
     tp: float | None = None
     reason: str = ""
+    tag: str = ""                   # 注文のコメント(PortfolioTrader: どのシミュレーションの建玉か)。空なら comment
 
 
 @dataclass
@@ -79,6 +77,7 @@ class TraderState:
     pairs: dict = field(default_factory=dict)
     pending: list = field(default_factory=list)
     pending_bar_t: int | None = None
+    pending_due: float | None = None        # 待っている注文を出せる時刻になった時刻(スプレッドを待つ期限の起点)
 
     @classmethod
     def load(cls, path: Path) -> TraderState:
@@ -99,6 +98,13 @@ def net_side(real: list[LivePosition]) -> int:
     """実口座の建玉の向き。買いと売りが混ざっていれば 0(全部決済の対象)。"""
     sides = {p.side for p in real}
     return sides.pop() if len(sides) == 1 else 0
+
+
+def _same_level(a: float | None, b: float | None) -> bool:
+    """損切り・利確の値段が同じか。複数ペアでは円に換算して回した値段を銘柄の値段に戻すので、端数の誤差は同じとみなす。"""
+    if a is None or b is None:
+        return a is None and b is None
+    return abs(a - b) <= 1e-9 * max(abs(a), abs(b), 1.0)
 
 
 def plan(snap: SimSnapshot, real: list[LivePosition], prev: TraderState,
@@ -130,7 +136,8 @@ def plan(snap: SimSnapshot, real: list[LivePosition], prev: TraderState,
         elif o.kind == "reduce" and side == o.side:
             actions.append(Action("reduce", o.side, to_lots(o.units), reason="signal"))
     if (sim is not None and side == sim.side and not any(a.kind in ("open", "add") for a in actions)
-            and prev.sim_position_t == snap.position_t and (sim.sl, sim.tp) != (prev.sim_sl, prev.sim_tp)):
+            and prev.sim_position_t == snap.position_t
+            and not (_same_level(sim.sl, prev.sim_sl) and _same_level(sim.tp, prev.sim_tp))):
         actions.append(Action("modify", side, sl=sim.sl, tp=sim.tp, reason="sim moved stops"))
     return actions
 
@@ -167,26 +174,26 @@ class LiveTrader:
 
     def __init__(self, cfg: TraderConfig, client: MT5Client, behavior: BehaviorCase | None = None,
                  strategy_factory: Callable[[], object] | None = None, sleep: Callable[[float], None] | None = None,
-                 expected_login: int | None = None):
+                 expected_login: int | None = None, runner=None):
+        """戦略・シミュレーションのブローカー・エンジン・取引時間は runner(runners.Mt5Runner)から取る。
+        runner を省けば、設定と behavior / strategy_factory から作る。"""
         self.cfg = cfg
         self.expected_login = expected_login
         self.client = client
-        self.behavior = behavior or load_cases().behaviors[cfg.behavior]
-        params = self.behavior.strategy_params()
-        if strategy_factory is None and isinstance(STRATEGIES.create(self.behavior.strategy, params), MainStrategy):
-            # 床は実口座の有効証拠金で見る(下の check_floor)。シミュレーションの中では切る
-            params = {**params, "guard": {**(params.get("guard") or {}), "protect": 0.0}}
-        self.make_strategy = strategy_factory or (lambda: STRATEGIES.create(self.behavior.strategy, params))
-        probe = self.make_strategy()
-        if bool(getattr(probe, "multi", False)) != self.multi:
-            raise ValueError(f"{self.behavior.id}: {'multi' if getattr(probe, 'multi', False) else 'single'}-pair "
-                             f"strategy needs {'symbols' if getattr(probe, 'multi', False) else 'symbol'} "
+        if runner is None:
+            from ..runners.mt5 import Mt5Runner
+            runner = Mt5Runner(cfg, behavior=behavior, strategy_factory=strategy_factory)
+        self.runner = runner
+        self.behavior = runner.behavior
+        self.make_strategy = runner.make_strategy
+        if runner.multi != self.multi:
+            raise ValueError(f"{self.behavior.id}: {'multi' if runner.multi else 'single'}-pair "
+                             f"strategy needs {'symbols' if runner.multi else 'symbol'} "
                              "(multi-pair strategies run with PortfolioTrader)")
-        self.timeframe = int(probe.timeframe)
-        self.engine_cfg = EngineConfig(**self.behavior.engine)
-        self.sim_broker = sim_broker_for(self.behavior, cfg.sim_broker, self.engine_cfg,
-                                         getattr(probe, "engine", "classic") == "mt5")
-        self.schedule = self.behavior.trading_schedule()
+        self.timeframe = runner.timeframe
+        self.engine_cfg = runner.engine_config
+        self.sim_broker = runner.sim_broker
+        self.schedule = runner.schedule
         self.sleep = sleep if sleep is not None else time.sleep
         d = cfg.state_dir if not cfg.dry_run else cfg.state_dir.with_name(cfg.state_dir.name + ".dry")
         self.state_path = d / "state.json"
@@ -364,7 +371,7 @@ class LiveTrader:
         rates = self.fetch_rates(forming)
         bars = rates_to_bars(rates, self.timeframe, spec.point, self.utc_offset())
         pip = self.cfg.pip or pip_from_digits(spec.digits)
-        snap = simulate(bars, self.make_strategy(), self.sim_broker, self.engine_cfg, self.schedule, pip)
+        snap = self.runner.decide(bars, broker=self.sim_broker, pip=pip)
         real = self.client.positions(self.cfg.symbol, self.cfg.magic)
         actions = plan(snap, real, self.state, lambda u: lots_for(u, spec, self.cfg.volume_scale))
         close_t = int(bars.t[-2]) + self.timeframe * NS_MIN
@@ -420,7 +427,7 @@ class LiveTrader:
     def execute(self, a: Action, sym: str | None = None) -> list[OrderResult]:
         cfg, c = self.cfg, self.client
         sym = sym or cfg.symbol
-        kw = {"magic": cfg.magic, "deviation": cfg.deviation_points, "comment": cfg.comment}
+        kw = {"magic": cfg.magic, "deviation": cfg.deviation_points, "comment": (a.tag or cfg.comment)[:31]}
         real = c.positions(sym, cfg.magic)
         if a.kind == "close_all":
             return [self._send(lambda p=p: c.market(sym, -p.side, p.volume, position=p.ticket, **kw)) for p in real]

@@ -69,6 +69,17 @@ class TraderConfig:
     # 日足の注文を出すサーバーの時(None = 足の確定ですぐ)。判断はサーバーの 0 時(ロールオーバー)だが、その 1 時間は
     # スプレッドが平常の数倍に広がる(E017)ので、2 なら 2 時まで待ってから出す。待っている注文は state.json に残す
     fill_server_hour: int | None = None
+    # 動作ケースの戦略のパラメータへの上書き(試験用。例: 再生で取引の多い設定を流す)。本番では空にしておく
+    strategy_params: dict = field(default_factory=dict)
+    # 複数ペアだけ: 判断の足の金利差を、端末のスワップの点数(業者が実際に付ける分)から出す(False なら FRED の短期金利)。
+    # OANDA の点数は「次のロールオーバーで付く分」で、週末の分が付く日は 3 日分になる(2026-11-11 に確かめた)。
+    # 判断のたびに観測を残し、直近 10 回の中央値を 1 日分として使う。観測が broker_swap_min_obs 回に満たなければ FRED
+    broker_swap: bool = True
+    broker_swap_min_obs: int = 3
+    # 複数ペアだけ: 新規を出す直前のスプレッドが、直近 24 時間の 1 分足のスプレッドの中央値のこの倍を超えていたら待つ
+    # (0 = 見ない)。待つのは fill_wait_hours まで。過ぎたらそのまま出す
+    fill_max_spread_mult: float = 3.0
+    fill_wait_hours: float = 6.0
 
     def __post_init__(self):
         if isinstance(self.mt5, dict):

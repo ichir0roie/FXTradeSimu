@@ -50,6 +50,12 @@ class SymbolSpec:
     volume_step: float
     filling_mode: int
     stops_level: int          # 損切り・利確を置ける現在値からの最小距離(ポイント)
+    # 端末が知っていれば(無ければ None)。スワップ(swap_mode 1 = ポイント / ロット / 日)と、1 ティックの口座通貨での値
+    swap_mode: int | None = None
+    swap_long: float | None = None
+    swap_short: float | None = None
+    tick_value: float | None = None
+    tick_size: float | None = None
 
 
 @dataclass
@@ -61,6 +67,8 @@ class LivePosition:
     sl: float | None
     tp: float | None
     time: int                 # サーバー時刻(秒)
+    comment: str = ""         # 注文のときに付けたコメント(どのシミュレーションの建玉か、PortfolioTrader)
+    swap: float = 0.0         # たまったスワップ(口座の通貨)
 
 
 @dataclass
@@ -223,9 +231,14 @@ class MT5Client:
         if s is None:
             raise MT5Error(f"symbol_info({name}) failed: {self.last_error()}")
         s = _local(s)
+        def opt(k, cast=float):
+            v = getattr(s, k, None)
+            return cast(v) if v is not None else None
+
         spec = SymbolSpec(name, int(s.digits), float(s.point), float(s.trade_contract_size), float(s.volume_min),
                           float(s.volume_max), float(s.volume_step), int(s.filling_mode),
-                          int(getattr(s, "trade_stops_level", 0)))
+                          int(getattr(s, "trade_stops_level", 0)), opt("swap_mode", int), opt("swap_long"),
+                          opt("swap_short"), opt("trade_tick_value"), opt("trade_tick_size"))
         self._specs[name] = spec
         return spec
 
@@ -296,7 +309,8 @@ class MT5Client:
             if int(p.magic) != int(magic):
                 continue
             out.append(LivePosition(int(p.ticket), 1 if int(p.type) == buy else -1, float(p.volume),
-                                    float(p.price_open), float(p.sl) or None, float(p.tp) or None, int(p.time)))
+                                    float(p.price_open), float(p.sl) or None, float(p.tp) or None, int(p.time),
+                                    str(getattr(p, "comment", "") or ""), float(getattr(p, "swap", 0.0) or 0.0)))
         return out
 
     # ---- 注文 ----

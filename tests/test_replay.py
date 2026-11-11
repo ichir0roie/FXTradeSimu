@@ -78,3 +78,33 @@ def test_replay_with_faults_keeps_running(market_db, tmp_path):
     for t in r["traders"]:
         assert t["bars_decided"] > 0
         assert "両方の向きが混ざる" not in t["mismatch_kinds"]
+
+
+def test_multi_symbol_terminal_converts_profit_and_margin_to_yen():
+    """複数銘柄の端末: EURUSD の損益と証拠金は、USDJPY の気配で円に直す。"""
+    from fxsim.trading.replay import ReplayTerminal, VirtualClock, symbol_props
+
+    class _Feed:
+        def __init__(self, bid, ask):
+            self.bid, self.ask = bid, ask
+
+        def tick_index(self, now):
+            return 0
+
+        def quote(self, k):
+            return self.bid, self.ask, 1_000_000
+
+        def market_open(self, now):
+            return True
+
+    feeds = {"USDJPY": _Feed(150.0, 150.004), "EURUSD": _Feed(1.10000, 1.10006)}
+    term = ReplayTerminal(feeds, VirtualClock(0.0))
+    assert term.syms["EURUSD"].digits == 5 and term.syms["EURUSD"].swap_long == symbol_props("EURUSD").swap_long
+    assert term.jpy_per("EURUSD") == pytest.approx(150.002)
+    r = term._execute({"action": 1, "symbol": "EURUSD", "volume": 0.1, "type": 0, "type_filling": 1, "magic": 1})
+    assert r.retcode == 10009
+    p = next(iter(term.positions.values()))
+    assert p.symbol == "EURUSD" and p.price_open == pytest.approx(1.10006)
+    feeds["EURUSD"].bid, feeds["EURUSD"].ask = 1.10106, 1.10112           # 10 pip 上がった
+    assert term._profit(p) == pytest.approx(0.001 * 10_000 * 150.002)      # 10 ドル x 150 円
+    assert term.margin() == pytest.approx(10_000 * 1.10109 * 150.002 / 25)

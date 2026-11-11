@@ -23,7 +23,8 @@ DB(`data/fxsim.sqlite`)は手元だけのもので、コミットしない。
 | 実験の結果(コミットしない) | DB `data/fxsim.sqlite`(資産曲線・取引・ローソク足まで全部)。手元だけ。要るときは同じ設定で回し直す |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
 | MT5 の口座での常駐(fxsim trade) | コード `fxsim/trading/`、設定 `configs/trading/*.yaml`、状態と記録 `data/trading/<name>/`(コミットしない)、手順 `docs/TRADING.md`。動かすのは利用者の端末だけ |
-| 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
+| 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き、戦略とランナー)、悪意の一覧 `docs/MARKET_MALICE.md` |
+| 戦略を動かす | `fxsim/runners/`: Runner(ベース)/ SimRunner(シミュレーション)/ Mt5Runner(MT5 の口座)/ ReplayRunner(再生)。どの戦略のクラスも同じ窓口で動く |
 | これまでの評価の整理 | 投資の知見 `docs/INSIGHTS.md`、開発項目 `docs/ROADMAP.md`、戦略の候補 `docs/CANDIDATES.md` |
 
 ID の付け方: 市場モデル `M###`(合成)/ `R###`(実データ系)、戦略 `S###`、実験 `E###`、動作ケース `B###`、テストケース `T###`。
@@ -143,6 +144,7 @@ python -m fxsim verify --all               # 全部の動作ケース(定義と�
 ```bash
 python -m fxsim list                                   # 市場モデル・戦略・ブローカー
 python -m fxsim run configs/quick.yaml                 # 動作確認(数十秒)
+python -m fxsim sim B047 --market real_pairs           # 動作ケースか戦略を 1 本シミュレーション(runners.SimRunner)
 python -m fxsim report [RUN_ID] --patterns             # 結果を Markdown で
 python -m fxsim demo --years 0.5 --delay-ms 200        # 画面で追うためのゆっくりしたシミュレーション
 python -m fxsim summary <run_key>                      # 概要を docs/results/ に書き出し直す(--all で DB の全実行)

@@ -25,6 +25,7 @@
     trade check CONFIG           MT5 につなぎ、口座・銘柄・建玉と、いまの足での判断を見る(注文は出さない)
     trade status CONFIG          常駐の状態と直近の記録(data/trading/<name>/)
     trade-replay CONFIG...       常駐を相場の DB の 1 分足の再生の上で 24 時間動かし、動作を確かめる(故障も入れる)
+    sim TARGET --market MODEL    動作ケースか戦略を、相場モデルの上で 1 本シミュレーションする
 """
 from __future__ import annotations
 
@@ -418,8 +419,8 @@ def cmd_trade(args) -> None:
     import logging
     from dataclasses import asdict
 
+    from .runners import Mt5Runner
     from .trading import load_trader_config
-    from .trading.service import Service
 
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -451,49 +452,41 @@ def cmd_trade(args) -> None:
                     rest = {k: v for k, v in rec.items() if k != "kind"}
                     print(f"[{rec['kind']}] {json.dumps(rest, ensure_ascii=False, default=str)[:200]}")
         return
-    svc = Service(cfg)
+    runner = Mt5Runner(cfg)
     if args.action == "check":
-        cfg.dry_run = True
-        trader = svc.connect()
-        c = svc.client
-        print("server offset (h):", (c.server_offset(cfg.symbol) or 0) / 3600 if cfg.server_utc_offset_hours == "auto"
-              else cfg.server_utc_offset_hours)
-        forming = int(c.rates(cfg.symbol, trader.timeframe, 1)["time"][-1])
-        if cfg.symbols:                          # 複数ペア
-            decided = trader.decide(forming)
-            if decided is None:
-                print("some symbols have no forming bar yet; try again later")
-            else:
-                snap, per, meta = decided
-                print(json.dumps({"meta": meta, "sim_equity": snap.equity, "server_hour": trader.server_hour(),
-                                  "fill_server_hour": cfg.fill_server_hour,
-                                  "pairs": {s: {"sim_position": asdict(snap.pairs[s[:6].lower()].position)
-                                                if snap.pairs[s[:6].lower()].position else None,
-                                                "real": [asdict(p) for p in per[s][0]],
-                                                "actions": [asdict(a) for a in per[s][1]]} for s in cfg.symbols}},
-                                 ensure_ascii=False, indent=2, default=str))
-            c.shutdown()
-            return
-        snap, real, actions, meta = trader.decide(forming)
-        print(json.dumps({"meta": meta, "sim_position": asdict(snap.position) if snap.position else None,
-                          "sim_orders": [asdict(o) for o in snap.orders], "real": [asdict(p) for p in real],
-                          "actions": [asdict(a) for a in actions]}, ensure_ascii=False, indent=2, default=str))
-        c.shutdown()
+        print(json.dumps(runner.check(), ensure_ascii=False, indent=2, default=str))
         return
-    svc.install_signals()
-    svc.run(once=args.once)
+    runner.run(once=args.once)
+
+
+def cmd_sim(args) -> None:
+    """動作ケース(か戦略の名前)を、相場モデルの上で 1 本シミュレーションする(runners.SimRunner)。"""
+    from .runners import SimRunner
+
+    kw = {"strategy_params": json.loads(args.params) if args.params else None,
+          "broker": args.broker, "engine": json.loads(args.engine) if args.engine else None}
+    runner = SimRunner(args.target, **kw) if args.target.upper().startswith("B") and args.target[1:].isdigit() \
+        else SimRunner(strategy=args.target, **kw)
+    r = runner.run(args.market, params=json.loads(args.market_params) if args.market_params else None,
+                   years=args.years, seed=args.seed)
+    m = r.metrics
+    keys = ("final_equity", "total_return", "cagr", "sharpe", "max_dd", "n_trades", "trades_per_year",
+            "win_rate", "gross_pips_per_year", "net_pips_per_year", "swap_total", "ruined")
+    print(json.dumps({k: m.get(k) for k in keys} | {"costs": m.get("costs")}, ensure_ascii=False, indent=2,
+                     default=str))
 
 
 def cmd_trade_replay(args) -> None:
     from pathlib import Path
 
-    from .trading.replay import ReplayOptions, run_replay
+    from .runners import ReplayRunner
+    from .trading.replay import ReplayOptions
 
     manual = [json.loads(m) for m in args.manual]
     opts = ReplayOptions(start=args.start, end=args.end, faults=args.faults, seed=args.seed,
                          separate_accounts=args.separate_accounts, balance=args.balance, source=args.source,
                          out_dir=Path(args.out) if args.out else None, manual=manual)
-    r = run_replay(args.configs, opts, market_db=args.market_db)
+    r = ReplayRunner(args.configs, opts, market_db=args.market_db).run()
     print((Path(r["out_dir"]) / "report.md").read_text(encoding="utf-8"))
 
 
@@ -659,6 +652,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--once", action="store_true", help="新しい足を 1 本処理したら終わる")
     p.add_argument("--tail", type=int, default=20, help="status: 表示する記録の行数")
     p.add_argument("--log-level", default="info")
+
+    p = add("sim", cmd_sim, help="動作ケースか戦略を、相場モデルの上で 1 本シミュレーションする(runners.SimRunner)")
+    p.add_argument("target", help="動作ケースの ID(B047)か戦略の名前(main_carry_breakout)")
+    p.add_argument("--market", default="real", help="市場モデル(real_pairs・real_pair・malicious など)")
+    p.add_argument("--market-params", help="市場モデルのパラメータ(JSON)")
+    p.add_argument("--params", help="戦略のパラメータの上書き(JSON)")
+    p.add_argument("--broker", help="ブローカーの差し替え(fair・oanda・malicious など)")
+    p.add_argument("--engine", help="エンジンの設定の上書き(JSON)")
+    p.add_argument("--years", type=float)
+    p.add_argument("--seed", type=int, default=1)
 
     p = add("trade-replay", cmd_trade_replay, help="常駐を 1 分足の再生の上で動かして確かめる(docs/TRADING.md)")
     p.add_argument("configs", nargs="+", help="configs/trading/*.yaml(既定は同じ口座で一緒に動かす)")

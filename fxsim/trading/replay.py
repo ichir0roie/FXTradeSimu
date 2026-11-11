@@ -73,6 +73,18 @@ class SymbolProps:
     swap_short: float = -25.06
 
 
+# 2026-11-11 に OANDA-Japan MT5 Demo の端末から読んだ値(桁数・スワップの点数)。ほかの値は USDJPY と同じとみなす
+OANDA_SWAPS = {"USDJPY": (3, 10.16, -25.06), "EURUSD": (5, -5.69, 3.43), "GBPUSD": (5, -0.65, -0.88),
+               "AUDUSD": (5, 0.65, -2.53), "NZDUSD": (5, -2.66, 1.40), "USDCHF": (5, 7.12, -11.85),
+               "USDCAD": (5, 0.0, 0.0), "EURJPY": (3, 1.92, -11.91), "GBPJPY": (3, 7.08, -27.24),
+               "AUDJPY": (3, 9.10, -13.38)}
+
+
+def symbol_props(name: str) -> SymbolProps:
+    digits, sl, ss = OANDA_SWAPS.get(name[:6].upper(), (3, 0.0, 0.0))
+    return SymbolProps(name=name, digits=digits, point=10.0 ** -digits, swap_long=sl, swap_short=ss)
+
+
 @dataclass
 class AccountProps:
     login: int = 1
@@ -230,13 +242,27 @@ class Fault:
 
 
 class ReplayTerminal:
-    """1 つの口座の端末。どの常駐も同じ端末(同じ口座)を見る。常駐ごとの窓口は ModuleView。"""
+    """1 つの口座の端末。どの常駐も同じ端末(同じ口座)を見る。常駐ごとの窓口は ModuleView。
 
-    def __init__(self, feed: Feed, clock: VirtualClock, sym: SymbolProps | None = None,
+    銘柄は feeds(銘柄 -> Feed)の数だけ持てる(複数ペアの常駐用)。損益・証拠金・スワップは決済通貨で計算し、
+    その時の気配で円に直す(決済通貨が USD なら USDJPY、CHF・CAD なら USDJPY / USDCHF・USDCAD)。
+    サーバー側の逆指値とスワップは銘柄ごとに、その銘柄のティックの順に処理し、ストップアウトは全銘柄を進めた後に
+    口座全体で見る(銘柄をまたいだティックの前後は、時計の 1 歩の中では揃えない近似)。
+    """
+
+    def __init__(self, feed: Feed | dict[str, Feed], clock: VirtualClock, sym: SymbolProps | None = None,
                  acct: AccountProps | None = None, rng: np.random.Generator | None = None,
-                 p_reject: float = 0.0, p_lost: float = 0.0, cold_calls: int = 0):
-        self.feed, self.clock = feed, clock
-        self.sym = sym or SymbolProps()
+                 p_reject: float = 0.0, p_lost: float = 0.0, cold_calls: int = 0,
+                 syms: dict[str, SymbolProps] | None = None):
+        if isinstance(feed, dict):
+            self.feeds = dict(feed)
+            self.syms = {s: (syms or {}).get(s) or symbol_props(s) for s in self.feeds}
+        else:
+            s = sym or SymbolProps()
+            self.feeds, self.syms = {s.name: feed}, {s.name: s}
+        self.lead = next(iter(self.feeds))
+        self.feed, self.sym = self.feeds[self.lead], self.syms[self.lead]      # 1 銘柄のときと同じ名前
+        self.clock = clock
         self.acct = acct or AccountProps()
         self.balance = self.acct.balance
         self.positions: dict[int, RPos] = {}
@@ -248,73 +274,113 @@ class ReplayTerminal:
         self.calls: Counter = Counter()
         self.events: Counter = Counter()
         self.views: list[ModuleView] = []
-        self._k = max(feed.tick_index(clock.now), 0)      # 処理済みの最後のティック
-        self._day = self._server_day(self._k)
+        self._k = {s: max(f.tick_index(clock.now), 0) for s, f in self.feeds.items()}   # 処理済みの最後のティック
+        self._day = {s: self._server_day(s, k) for s, k in self._k.items()}
         self.lock = threading.RLock()
 
     # -- 時計が進んだときのサーバー側 --
-    def _server_day(self, k: int) -> int:
-        return self.feed.quote(k)[2] // DAY
+    def _server_day(self, s: str, k: int) -> int:
+        return self.feeds[s].quote(k)[2] // DAY
 
     def advance(self, now: float) -> None:
         with self.lock:
-            k1 = self.feed.tick_index(now)
-            if k1 <= self._k:
-                return
-            if not self.positions:
-                self._k, self._day = k1, self._server_day(k1)
-                return
-            for k in range(self._k + 1, k1 + 1):
-                self._on_tick(k)
-            self._k = k1
+            moved = False
+            for s, f in self.feeds.items():
+                k1 = f.tick_index(now)
+                if k1 <= self._k[s]:
+                    continue
+                moved = True
+                if not any(p.symbol == s for p in self.positions.values()):
+                    self._k[s], self._day[s] = k1, self._server_day(s, k1)
+                    continue
+                for k in range(self._k[s] + 1, k1 + 1):
+                    self._on_tick(s, k)
+                self._k[s] = k1
+            if moved:
+                self._stop_out(float(now))
 
-    def _on_tick(self, k: int) -> None:
-        bid, ask, st = self.feed.quote(k)
+    def _on_tick(self, s: str, k: int) -> None:
+        feed, sym = self.feeds[s], self.syms[s]
+        bid, ask, st = feed.quote(k)
         day = st // DAY
-        if day != self._day:
-            days = day - self._day
+        if day != self._day[s]:
+            days = day - self._day[s]
             for p in self.positions.values():
-                pts = self.sym.swap_long if p.side > 0 else self.sym.swap_short
-                p.swap += pts * self.sym.point * self.sym.contract_size * p.volume * days
+                if p.symbol != s:
+                    continue
+                pts = sym.swap_long if p.side > 0 else sym.swap_short
+                p.swap += pts * sym.point * sym.contract_size * p.volume * days * self.jpy_per(s)
             self.events["swap_days"] += days
-            self._day = day
-        gap = self.feed.tick_pos[k] == 0
-        tt = float(self.feed.tick_t[k])
-        prev, self._k = self._k, k                   # 損益・証拠金はこのティックの値段で
+            self._day[s] = day
+        gap = feed.tick_pos[k] == 0
+        tt = float(feed.tick_t[k])
+        prev, self._k[s] = self._k[s], k             # 損益・証拠金はこのティックの値段で
         for p in list(self.positions.values()):
+            if p.symbol != s:
+                continue
             px = bid if p.side > 0 else ask
             if p.sl is not None and (px - p.sl) * p.side <= 0:
                 self._close(p, p.volume, px if gap else p.sl, "sl", tt)
             elif p.tp is not None and (px - p.tp) * p.side >= 0:
                 self._close(p, p.volume, px if gap else p.tp, "tp", tt)
+        if len(self.feeds) == 1:                      # 1 銘柄はティックごと(これまでと同じ)
+            self._stop_out(tt)
+        self._k[s] = max(prev, k)
+
+    def _stop_out(self, tt: float) -> None:
         while self.positions and self.margin() > 0 and self.equity() / self.margin() * 100 <= self.acct.stop_out:
             worst = min(self.positions.values(), key=self._profit)
+            bid, ask, _ = self._quote(worst.symbol)
             self._close(worst, worst.volume, bid if worst.side > 0 else ask, "stop_out", tt)
-        self._k = max(prev, k)
 
     # -- 口座 --
-    def _quote(self) -> tuple[float, float, int]:
-        return self.feed.quote(max(self._k, 0))
+    def _quote(self, s: str | None = None) -> tuple[float, float, int]:
+        s = s or self.lead
+        return self.feeds[s].quote(max(self._k[s], 0))
+
+    def _mid(self, s: str) -> float:
+        bid, ask, _ = self._quote(s)
+        return (bid + ask) / 2
+
+    def jpy_per(self, s: str) -> float:
+        """銘柄 s の決済通貨 1 単位の円の値(今の気配)。"""
+        q = s[3:6].upper()
+        if q == "JPY":
+            return 1.0
+        names = {n[:6].upper(): n for n in self.feeds}
+        usdjpy = self._mid(names["USDJPY"]) if "USDJPY" in names else None
+        if usdjpy is None:
+            raise ValueError(f"replay needs USDJPY to convert {s} to yen")
+        if q == "USD":
+            return usdjpy
+        for code, f in ((f"{q}JPY", lambda v: v), (f"USD{q}", lambda v: usdjpy / v), (f"{q}USD", lambda v: usdjpy * v)):
+            if code in names:
+                return f(self._mid(names[code]))
+        raise ValueError(f"replay cannot convert {q} to yen (add USD{q} or {q}JPY)")
 
     def _profit(self, p: RPos) -> float:
-        bid, ask, _ = self._quote()
+        bid, ask, _ = self._quote(p.symbol)
         px = bid if p.side > 0 else ask
-        return (px - p.price_open) * p.side * p.volume * self.sym.contract_size
+        return (px - p.price_open) * p.side * p.volume * self.syms[p.symbol].contract_size * self.jpy_per(p.symbol)
 
     def equity(self) -> float:
         return self.balance + sum(self._profit(p) + p.swap for p in self.positions.values())
 
     def margin(self) -> float:
-        bid, ask, _ = self._quote()
-        mid = (bid + ask) / 2
-        side_vol = {1: 0.0, -1: 0.0}
-        for p in self.positions.values():
-            side_vol[p.side] += p.volume
-        return max(side_vol.values()) * self.sym.contract_size * mid / self.acct.leverage
+        total = 0.0
+        for s in {p.symbol for p in self.positions.values()}:
+            side_vol = {1: 0.0, -1: 0.0}
+            for p in self.positions.values():
+                if p.symbol == s:
+                    side_vol[p.side] += p.volume
+            total += (max(side_vol.values()) * self.syms[s].contract_size * self._mid(s) * self.jpy_per(s)
+                      / self.acct.leverage)
+        return total
 
     def _close(self, p: RPos, volume: float, price: float, reason: str, t: float | None = None) -> float:
         frac = volume / p.volume
-        profit = (price - p.price_open) * p.side * volume * self.sym.contract_size
+        profit = (price - p.price_open) * p.side * volume * self.syms[p.symbol].contract_size \
+            * self.jpy_per(p.symbol)
         swap = p.swap * frac
         self.balance += profit + swap
         p.swap -= swap
@@ -322,7 +388,7 @@ class ReplayTerminal:
         if p.volume <= 1e-9:
             del self.positions[p.ticket]
         self.deals.append({"t": self.clock.now if t is None else t, "ticket": p.ticket, "entry": "out", "side": p.side,
-                           "volume": volume,
+                           "volume": volume, "symbol": p.symbol,
                            "price": price, "profit": profit, "swap": swap, "reason": reason, "magic": p.magic})
         self.events[f"close_{reason}"] += 1
         return price
@@ -346,8 +412,11 @@ class ReplayTerminal:
             return r
 
     def _execute(self, req: dict):
-        sym = self.sym
-        bid, ask, st = self._quote()
+        name = req.get("symbol") or self.lead
+        if name not in self.feeds:
+            return _result(10013, f"invalid request (unknown symbol {name})")
+        sym, feed = self.syms[name], self.feeds[name]
+        bid, ask, st = self._quote(name)
         if req.get("action") == 6:                                   # TRADE_ACTION_SLTP
             p = self.positions.get(int(req.get("position", 0)))
             if p is None:
@@ -355,14 +424,14 @@ class ReplayTerminal:
             sl, tp = (req.get("sl") or None), (req.get("tp") or None)
             if (sl, tp) == (p.sl, p.tp):
                 return _result(10025, "no changes")
-            if not self._stops_ok(p.side, sl, tp, bid, ask):
+            if not self._stops_ok(p.side, sl, tp, *self._quote(p.symbol)[:2], self.syms[p.symbol]):
                 return _result(10016, "invalid stops")
             p.sl, p.tp = sl, tp
             self.events["modify"] += 1
             return _result(10009, "done")
         if req.get("action") != 1:
             return _result(10013, "invalid request")
-        if not self.feed.market_open(self.clock.now):
+        if not feed.market_open(self.clock.now):
             self.events["market_closed"] += 1
             return _result(10018, "market closed")
         vol = float(req["volume"])
@@ -381,10 +450,10 @@ class ReplayTerminal:
             return _result(10009, "done", price=price, volume=vol)
         price = ask if side > 0 else bid
         sl, tp = (req.get("sl") or None), (req.get("tp") or None)
-        if not self._stops_ok(side, sl, tp, bid, ask):
+        if not self._stops_ok(side, sl, tp, bid, ask, sym):
             return _result(10016, "invalid stops")
         mid = (bid + ask) / 2
-        extra = vol * sym.contract_size * mid / self.acct.leverage
+        extra = vol * sym.contract_size * mid * self.jpy_per(name) / self.acct.leverage
         if self.equity() - (self.margin() + extra) < 0:
             return _result(10019, "no money")
         self.next_ticket += 1
@@ -392,12 +461,14 @@ class ReplayTerminal:
                  str(req.get("comment", "")))
         self.positions[p.ticket] = p
         self.deals.append({"t": self.clock.now, "ticket": p.ticket, "entry": "in", "side": side, "volume": vol,
-                           "price": price, "profit": 0.0, "swap": 0.0, "reason": "client", "magic": p.magic})
+                           "symbol": name, "price": price, "profit": 0.0, "swap": 0.0, "reason": "client",
+                           "magic": p.magic})
         self.events["open"] += 1
         return _result(10009, "done", price=price, volume=vol, order=p.ticket, deal=p.ticket)
 
-    def _stops_ok(self, side: int, sl, tp, bid: float, ask: float) -> bool:
-        lvl = self.sym.stops_level * self.sym.point
+    def _stops_ok(self, side: int, sl, tp, bid: float, ask: float, sym: SymbolProps | None = None) -> bool:
+        sym = sym or self.sym
+        lvl = sym.stops_level * sym.point
         ref = bid if side > 0 else ask
         if sl is not None and (ref - sl) * side < lvl:
             return False
@@ -495,15 +566,25 @@ class ModuleView:
     def symbol_info(self, name):
         if not self._gate("symbol_info"):
             return None
-        s = self.term.sym
+        s = self.term.syms.get(name)
+        if s is None:
+            self._err = (-1, f"unknown symbol {name}")
+            return None
+        t = self.term
+        with t.lock:
+            tick_value = s.point * s.contract_size * t.jpy_per(name)     # 1 ティック・1 ロットの円の値(今の気配)
         return SimpleNamespace(digits=s.digits, point=s.point, trade_contract_size=s.contract_size,
                                volume_min=s.volume_min, volume_max=s.volume_max, volume_step=s.volume_step,
-                               filling_mode=s.filling_mode, trade_stops_level=s.stops_level)
+                               filling_mode=s.filling_mode, trade_stops_level=s.stops_level, swap_mode=1,
+                               swap_long=s.swap_long, swap_short=s.swap_short, trade_tick_value=tick_value,
+                               trade_tick_size=s.point)
 
     def symbol_info_tick(self, name):
         if not self._gate("symbol_info_tick"):
             return None
-        bid, ask, st = self.term._quote()
+        if name not in self.term.feeds:
+            return None
+        bid, ask, st = self.term._quote(name)
         return SimpleNamespace(time=st, bid=bid, ask=ask, last=0.0, volume=0, time_msc=st * 1000, flags=4)
 
     def copy_rates_from_pos(self, name, tf, start, count):
@@ -513,7 +594,11 @@ class ModuleView:
             self.cold -= 1
             self._err = (-1, "Terminal: Call failed")
             return None
-        return self.term.feed.rates(TF_CODES[int(tf)], self.term.clock.now, int(count))
+        feed = self.term.feeds.get(name)
+        if feed is None:
+            self._err = (-1, f"unknown symbol {name}")
+            return None
+        return feed.rates(TF_CODES[int(tf)], self.term.clock.now, int(count))
 
     def positions_get(self, symbol=None):
         if not self._gate("positions_get"):
@@ -530,7 +615,9 @@ class ModuleView:
         if not self._gate("order_calc_profit"):
             return None
         side = 1 if int(otype) == 0 else -1
-        return (price_close - price_open) * side * volume * self.term.sym.contract_size
+        t = self.term
+        with t.lock:
+            return (price_close - price_open) * side * volume * t.syms[symbol].contract_size * t.jpy_per(symbol)
 
     def order_send(self, req):
         if not self._gate("order_send"):
@@ -709,6 +796,7 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
     """設定(configs/trading/*.yaml)の常駐を、1 分足の再生の上で動かす。結果(report の材料)を返す。"""
     import fxsim.trading.config as tconfig
     import fxsim.trading.mt5 as tmt5
+    import fxsim.trading.portfolio as tportfolio
     import fxsim.trading.service as tservice
     import fxsim.trading.trader as ttrader
 
@@ -718,16 +806,15 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
     cfgs = [load_trader_config(p) for p in config_paths]
     con = prices.open_market_db(market_db)
     symbol = cfgs[0].symbol
-    if any(c.symbol != symbol for c in cfgs):
-        raise ValueError("all configs must trade the same symbol")
+    symbols = list(dict.fromkeys(s for c in cfgs for s in (c.symbols or [c.symbol])))   # 全常駐の銘柄(重複なし)
     srcs = prices.sources(con, symbol, 1)
     source = opts.source or (srcs[0] if srcs else None)
     if source is None:
         raise ValueError(f"no M1 rates for {symbol} in the market DB")
-    sym = SymbolProps(name=symbol)
-    feed = Feed(con, source, symbol, sym.point)
+    syms = {s: symbol_props(s) for s in symbols}
+    feeds = {s: Feed(con, source, s, syms[s].point) for s in symbols}
     tfs = sorted({_tf_of(c) for c in cfgs})
-    first_ok = max(feed.first_full_bar_utc(tf) for tf in tfs)
+    first_ok = max(f.first_full_bar_utc(tf) for f in feeds.values() for tf in tfs)
     if opts.start:
         start = float(np.datetime64(opts.start, "s").astype(np.int64))
     else:                                       # 最初の足の後の月曜 0 時(UTC)
@@ -736,7 +823,8 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
         start = float((d + np.timedelta64(int((7 - wd) % 7) or 7, "D")).astype("datetime64[s]").astype(np.int64))
     if start < first_ok:
         raise ValueError(f"start must be at or after {_iso(first_ok)} (first full bar built from M1)")
-    end = float(np.datetime64(opts.end, "s").astype(np.int64)) if opts.end else float(feed.t[-1] + 59)
+    end = (float(np.datetime64(opts.end, "s").astype(np.int64)) if opts.end
+           else float(min(f.t[-1] for f in feeds.values()) + 59))
     stamp = _rt.strftime("%Y%m%dT%H%M%S")
     out = Path(opts.out_dir) if opts.out_dir else tconfig.TRADING_DIR / "replay" / stamp
     out.mkdir(parents=True, exist_ok=True)
@@ -749,9 +837,9 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
     for k in range(n_terms):
         creds = load_credentials(cfgs[k].account)
         acct = AccountProps(login=creds.login if creds else 1 + k, balance=opts.balance)
-        terminals.append(ReplayTerminal(feed, clock, sym, acct, np.random.default_rng(opts.seed * 100 + k),
+        terminals.append(ReplayTerminal(feeds, clock, None, acct, np.random.default_rng(opts.seed * 100 + k),
                                         p_reject=0.03 if faulty else 0.0, p_lost=0.02 if faulty else 0.0,
-                                        cold_calls=2 if faulty else 0))
+                                        cold_calls=2 if faulty else 0, syms=syms))
     sched = Scheduler(clock, terminals)
     names = [c.name for c in cfgs]
     plan = _fault_plan(rng, start, end, names) if faulty else {"terminal": [], "bridge": [], "suspend": [],
@@ -762,7 +850,7 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
 
     # 時計を差し替える(この関数の中だけ)
     vt = VirtualTime(clock, sched)
-    saved = {m: m.time for m in (ttrader, tservice, tmt5)}
+    saved = {m: m.time for m in (ttrader, tservice, tmt5, tportfolio)}
     saved_dir = tconfig.TRADING_DIR
     for m in saved:
         m.time = vt
@@ -771,14 +859,18 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
     # 計測: 判断(シミュレーション)にかかった実時間
     decide_cost: dict[str, list[float]] = {n: [] for n in names}
     orig_decide = ttrader.LiveTrader.decide
+    orig_pdecide = tportfolio.PortfolioTrader.decide
 
-    def timed_decide(self, forming):
-        t0 = _rt.process_time()
-        try:
-            return orig_decide(self, forming)
-        finally:
-            decide_cost.setdefault(self.cfg.name, []).append(_rt.process_time() - t0)
-    ttrader.LiveTrader.decide = timed_decide
+    def timed(orig):
+        def f(self, forming):
+            t0 = _rt.process_time()
+            try:
+                return orig(self, forming)
+            finally:
+                decide_cost.setdefault(self.cfg.name, []).append(_rt.process_time() - t0)
+        return f
+    ttrader.LiveTrader.decide = timed(orig_decide)
+    tportfolio.PortfolioTrader.decide = timed(orig_pdecide)
 
     handler = _LogCapture(clock, out / "replay.log")
     root = logging.getLogger("fxsim")
@@ -826,11 +918,12 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
             m.time = t
         tconfig.TRADING_DIR = saved_dir
         ttrader.LiveTrader.decide = orig_decide
+        tportfolio.PortfolioTrader.decide = orig_pdecide
         root.removeHandler(handler)
         root.setLevel(prev_level)
         handler.close()
     result = {
-        "start": _iso(start), "end": _iso(end), "source": source, "symbol": symbol, "out_dir": str(out),
+        "start": _iso(start), "end": _iso(end), "source": source, "symbol": ", ".join(symbols), "out_dir": str(out),
         "faults": opts.faults, "seed": opts.seed, "configs": config_paths,
         "wall_sec": _rt.perf_counter() - wall0, "cpu_sec": _rt.process_time() - cpu0,
         "plan": {k: ([asdict(f) for f in v] if k != "restart" else {n: list(map(float, ts)) for n, ts in v.items()})
@@ -838,9 +931,12 @@ def run_replay(config_paths: list[str], opts: ReplayOptions, market_db: str | Pa
         "restarts": dict(restarts), "decide_cpu": {n: _stats(v) for n, v in decide_cost.items()},
         "log": handler.counts(),
         "terminals": [_terminal_summary(t) for t in terminals],
-        "traders": [_trader_summary(c, out, feed, start, end, plan) for c in cfgs],
+        "traders": [(_portfolio_summary(c, out, feeds[c.symbol], start, end, terminals) if c.symbols
+                     else _trader_summary(c, out, feeds[c.symbol], start, end, plan)) for c in cfgs],
     }
     (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    deals = [d for t in terminals for d in t.deals]
+    (out / "deals.json").write_text(json.dumps(deals, default=float), encoding="utf-8")
     (out / "report.md").write_text(report(result), encoding="utf-8")
     return result
 
@@ -1002,6 +1098,109 @@ def _trader_summary(cfg, out: Path, feed: Feed, start: float, end: float, plan: 
             "floor_skip": dict(floor_skip), "state": state}
 
 
+def _bar_timing(bars: list[dict], feed: Feed, tf: int, start: float, end: float) -> tuple[list, list, list]:
+    """判断の遅れ・確定した足・判断しなかった足(_trader_summary と同じ決め方)。"""
+    lat, seen = [], set()
+    for r in bars:
+        close_t = float(np.datetime64(r["bar_close_utc"], "s").astype(np.int64))
+        j = min(int(np.searchsorted(feed.t, close_t - 3600)), len(feed.t) - 1)
+        while j < len(feed.t) - 1 and feed.t[j] < close_t:
+            j += 1
+        if r["ts"] >= start + 1:
+            lat.append(r["ts"] - max(close_t, float(feed.t[j])))
+        seen.add(int(close_t))
+    dd = feed._prep(tf)
+    expected = []
+    for g in range(1, len(dd["first"]) - 1):
+        next_tick_utc = int(feed.t[dd["first"][g + 1]])
+        if start + tf * 60 <= next_tick_utc <= end:
+            st = int(dd["starts"][g])
+            close_utc = st - (feed.st[dd["first"][g]] - feed.t[dd["first"][g]]) + tf * 60
+            expected.append(int(close_utc))
+    missed = [e for e in expected if not any(abs(e - s) <= 3600 for s in seen)]
+    return expected, missed, lat
+
+
+def _portfolio_summary(cfg, out: Path, feed: Feed, start: float, end: float, terminals: list) -> dict:
+    """複数ペアの常駐(PortfolioTrader)の記録のまとめ。"""
+    d = out / cfg.name
+    jp = d / "journal.jsonl"
+    recs = [json.loads(line) for line in jp.read_text(encoding="utf-8").splitlines() if line.strip()] \
+        if jp.exists() else []
+    bars = [r for r in recs if r["kind"] == "bar"]
+    fills = [r for r in recs if r["kind"] == "fill"]
+    tf = _tf_of(cfg)
+    expected, missed, lat = _bar_timing(bars, feed, tf, start, end)
+    # 食い違い: 判断の時点のシミュレーションの建玉と実口座の建玉(注文の前)の向き。ペアごと。
+    # 起動(つなぎ直し)したときにシミュレーションが持っていた建玉は、設計どおり実口座では建てずに待つ
+    session_ts = sorted(r["ts"] for r in recs if r["kind"] == "startup")
+    held_at_start: dict[str, object] = {}
+    k_session = -1
+    kinds: Counter = Counter()
+    mismatch = []
+    for a in bars:
+        k = int(np.searchsorted(session_ts, a["ts"], side="right")) - 1
+        new_session = k != k_session
+        k_session = k
+        for sym in cfg.symbols:
+            pos = a["sim"]["positions"].get(sym[:6].lower())
+            # 同じ建玉かは建てた足の位置で見る(円への換算を毎回その時の気配でし直すので、換算した建値は日ごとに変わる)
+            ident = (pos["side"], pos["entry_idx"]) if pos else None
+            if new_session:
+                held_at_start[sym] = ident
+            sim_side = pos["side"] if pos else 0
+            sides = {p["side"] for p in a["real"].get(sym, [])}
+            real_side = sides.pop() if len(sides) == 1 else (0 if not sides else 9)
+            if sim_side != real_side:
+                kind = ("起動の前からの建玉(設計どおり待つ)" if real_side == 0 and ident == held_at_start.get(sym)
+                        else "実口座だけ持たない" if real_side == 0 else "実口座だけ持つ" if sim_side == 0
+                        else "両方の向きが混ざる" if real_side == 9 else "向きが逆")
+                kinds[kind] += 1
+                mismatch.append({"bar": a["bar_close_utc"], "symbol": sym, "sim": sim_side, "real": real_side})
+    results: Counter = Counter()
+    fill_hours: Counter = Counter()
+    fill_kinds: Counter = Counter()
+    sim_opens: Counter = Counter()
+    for r in fills:
+        fill_hours[int((r["ts"] + feed.server_offset_at(r["ts"])) // 3600 % 24)] += 1
+        for a in r["actions"]:
+            fill_kinds[a["kind"]] += 1
+            if a["kind"] == "open":
+                sim_opens[a["symbol"]] += 1
+        for x in r.get("results", []):
+            for y in x["results"]:
+                results["ok" if y["ok"] else f"fail_{y['retcode']}"] += 1
+    real_in: Counter = Counter()
+    real_out: Counter = Counter()
+    pnl = 0.0
+    for t in terminals:
+        for dl in t.deals:
+            if dl["magic"] != cfg.magic:
+                continue
+            if dl["entry"] == "in":
+                real_in[dl.get("symbol", "?")] += 1
+            else:
+                real_out[f"{dl.get('symbol', '?')} {dl['reason']}"] += 1
+                pnl += dl["profit"] + dl["swap"]
+        with t.lock:
+            pnl += sum(t._profit(p) + p.swap for p in t.positions.values() if p.magic == cfg.magic)
+    sim_eq = [r["sim"]["equity"] for r in bars if r["ts"] >= start + 1]
+    other = Counter(r["kind"] for r in recs if r["kind"] not in ("bar", "fill"))
+    state = json.loads((d / "state.json").read_text(encoding="utf-8")) if (d / "state.json").exists() else {}
+    return {"name": cfg.name, "behavior": cfg.behavior, "timeframe": tf, "magic": cfg.magic, "multi": True,
+            "bars_decided": len(bars), "bars_expected": len(expected), "missed": len(missed),
+            "missed_list": [_iso(m) for m in missed][:50],
+            "latency_sec": _q(lat), "late_over_5min": int(sum(x > 300 for x in lat)),
+            "mismatch_bars": len(mismatch), "mismatch_kinds": dict(kinds), "mismatch_list": mismatch[:30],
+            "actions": dict(fill_kinds), "order_results": dict(results),
+            "fill_server_hours": dict(sorted(fill_hours.items())),
+            "sim_opens": dict(sim_opens), "real_opens": dict(real_in), "real_closes": dict(real_out),
+            "real_pnl": pnl, "sim_equity_first_last": [sim_eq[0], sim_eq[-1]] if sim_eq else None,
+            "journal_kinds": dict(other), "floor_skip": dict(Counter(r.get("reason", "") for r in recs
+                                                                     if r["kind"] == "floor_skip")),
+            "state": {k: v for k, v in state.items() if k != "pairs"}}
+
+
 def _q(v: list[float]) -> dict:
     if not v:
         return {"n": 0}
@@ -1035,8 +1234,16 @@ def report(r: dict) -> str:
                      f"{t['order_results']} | {cpu_s} |")
     lines += ["", "## 常駐ごとの中身", ""]
     for t in r["traders"]:
-        lines += [f"### {t['name']}", "",
-                  f"- 出した注文の種類: {t['actions']}",
+        lines += [f"### {t['name']}", ""]
+        if t.get("multi"):
+            se = t["sim_equity_first_last"]
+            sim_txt = f"{se[0]:,.0f} → {se[1]:,.0f} 円" if se else "記録なし"
+            lines += [f"- 注文を出したサーバーの時: {t['fill_server_hours']}",
+                      f"- シミュレーションの新規(ペアごと): {t['sim_opens']} / 実口座の新規: {t['real_opens']}",
+                      f"- 実口座の決済(ペアと理由): {t['real_closes']}",
+                      f"- 実口座の損益(この常駐、未決済を含む): {t['real_pnl']:+,.0f} 円 / "
+                      f"シミュレーションの仮の口座: {sim_txt}"]
+        lines += [f"- 出した注文の種類: {t['actions']}",
                   f"- 床で外した新規: {t['floor_skip'] or 'なし'}",
                   f"- 食い違いの種類: {t['mismatch_kinds'] or 'なし'}",
                   f"- 記録の種類: {t['journal_kinds']}",

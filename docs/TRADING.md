@@ -175,7 +175,22 @@ fill_server_hour: 2          # 判断はサーバーの 0 時、注文は 2 時�
 - `fill_server_hour` があれば、サーバーの時刻がその時になるまで注文を `state.json` の `pending` に置いて待つ。
   待っている間に次の足の判断が出たら古い注文は捨てる(journal に `pending_dropped`)。出す直前に消すので二重には出ない
 - 口座の床は口座全体の有効証拠金で見る。割ったら symbols の全ペアの、この常駐の建玉を決済する
-- 対円でないペアの円への換算に、USDJPY と、決済通貨のペア(USDCHF・USDCAD など)を symbols に入れておく
+- 対円でない決済通貨のペアの円への換算は、端末の 1 ティックの口座通貨での値(`trade_tick_value`)から出す。
+  端末が返さなければ、USDJPY と決済通貨のペア(USDCHF・USDCAD など)の気配から(symbols に入れておく)
+- 建玉の同一性: 新規の注文のコメントに「シミュレーションのどの建玉か」(建てる足の日付、例 `fxsim:261111`)を付け、
+  チケットと一緒に state.pairs に残す。シミュレーションが同じ向きで持っていても、別の建玉(印が違う)に属する実口座の
+  建玉は決済し、建て直さない
+- 出し直し: 待っている注文は、出して成功を確かめてから 1 件ずつ消す。送信中に切れたら残り、つなぎ直した後に出し直す。
+  新規は、同じ印の建玉がすでに口座にあれば出さない(約定した後に切れた注文を二重に出さない。E014 の宿題)
+- 金利差: 判断の足は、端末のスワップの点数から「受け取れる年率」を出して使う(`broker_swap`)。OANDA の点数は
+  「次のロールオーバーで付く分」で、週末の分が付く日は 3 日分になる(2026-11-11 の水曜に 1 日 10.16 → 30.6 点に変わった)。
+  判断のたびの観測を残し、直近 10 回の中央値を 1 日分とする。観測が `broker_swap_min_obs`(既定 3)回に満たなければ FRED。
+  判断の足に使った値は state.pairs の `live_diff` に足の日付ごとに残し、次の日からの計算でもその足はその値を使う
+  (月次の表に戻すと、前の日の「入る」判断が消え、建てた翌日に手仕舞っていた。E027)。それより前の足は FRED の表
+- 損切りの付け直し: シミュレーションは円に換算した値段で回し、換算(K)は判断のたびにその時の気配で取り直す。
+  損切り・利確は銘柄の値段に戻してから前の日と比べる(円の値段のまま比べると毎日「動いた」ことになっていた。E027)
+- スプレッド: 新規を出す直前のスプレッドが、直近 24 時間の 1 分足の中央値の `fill_max_spread_mult`(既定 3)倍を超えていたら
+  `fill_wait_hours`(既定 6)まで待つ
 - 金利差はペアの短期金利の差(`data/real/short_rates_monthly_fred.csv`)。月に 1 回 `python -m fxsim fetch-fred` で取り直す
 
 2026-11-11 にデモ口座の端末へ `trade check` でつないで確かめた(注文は出していない): 10 ペアの日足 2,959 本で
@@ -213,9 +228,22 @@ python -m fxsim trade-replay ... --faults none --start 2026-09-01 --end 2026-10-
 - 同じ設定の常駐は既定で同じ口座(床を共有する)。`--separate-accounts` で分ける。`--manual` で手動の建玉を足せる
 - `--faults default` は、端末が落ちる・橋が切れる・常駐の再起動・注文の送信中の切断・一時的な拒否・ログインの直後の履歴待ち・
   PC のスリープを、シードで決まる時刻に入れる
-- 記録は `data/trading/replay/<時刻>/`(`report.md`・`result.json`・`replay.log`・常駐ごとの journal と state)。
+- 記録は `data/trading/replay/<時刻>/`(`report.md`・`result.json`・`deals.json`・`replay.log`・常駐ごとの journal と state)。
   report は、判断した足 / 確定した足・判断しなかった足・判断の遅れ・シミュレーションと実口座の食い違い・注文の結果・
   判断の CPU・端末の関数の呼び出しの回数
+- 複数ペアの常駐(`symbols` のある設定)も流せる。偽の端末は全常駐の銘柄を持ち、損益・証拠金・スワップは決済通貨で計算して
+  その時の気配で円に直す(銘柄ごとの桁数とスワップの点数はデモの端末から読んだ値、`replay.OANDA_SWAPS`)。
+  report には、注文を出したサーバーの時・シミュレーションと実口座の新規の数(ペアごと)・実口座の損益も出る。
+  10 ペア x 2 本の 12 週で実時間 40 分ほど(1 日 1 回の判断が 1 本 0.8 秒)
+
+```bash
+python -m fxsim fetch-mt5 configs/market_data/oanda-demo-majors.yaml     # 10 ペアの M1・M5・H1(と D1)を溜める
+python -m fxsim trade-replay configs/trading/demo-majors-b047.yaml configs/replay/majors-b047-loose.yaml
+python -m fxsim.research.replay_vs_backtest data/trading/replay/<時刻> configs/trading/demo-majors-b047.yaml
+```
+
+`configs/replay/` は再生の試験用の設定(`strategy_params` でしきい値をゆるめて取引を増やすなど)。本番の口座では動かさない。
+`replay_vs_backtest` は、再生で実口座に通った新規と、同じ戦略を相場の DB の日足でそのまま回したバックテストの新規を突き合わせる
 
 ### systemd(ユーザー単位)で常駐させる
 

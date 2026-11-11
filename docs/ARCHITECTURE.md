@@ -7,6 +7,34 @@ configs/*.yaml ──> fxsim.experiments.runner ──> data/fxsim.sqlite <─�
                          └─ backtest: 売買を回す ──────┘ jobs / equity / trades(途中経過も逐次)
 ```
 
+## 戦略とランナー
+
+```
+戦略(strategies/ の 1 ファイル 1 クラス、41 個)          動作ケース(cases/behaviors/B###.yaml、47 本)
+  Strategy          1 ペア(on_bar で ctx.buy / sell)        戦略 + パラメータ + ブローカー + エンジン + 取引時間
+  BasketStrategy    複数ペア(ctx.target)                          │
+  MainStrategy      MT5 前提(Mt5Context、共通の対策 guards)       ▼
+        │                                              Runner(runners/base.py): 戦略を作り、最後の確定足の判断
+        └────────────── どれも同じ窓口で ──────────────▶   (decide = コアのモデル)を共通で持つ
+                                                          ├ SimRunner     シミュレーション(相場モデルの経路で最後まで)
+                                                          ├ Mt5Runner     MT5 の口座(LiveTrader / PortfolioTrader)
+                                                          └ ReplayRunner  Mt5Runner + 1 分足を再生する偽の端末
+```
+
+- 戦略のクラスは、どのランナーでも書き換えずに動く。ランナーは戦略の種類(1 ペア / 複数ペア / MT5 のテスター)を見て、
+  エンジン(Backtester / PortfolioBacktester / Mt5Tester)を選ぶ(`backtest/portfolio.build_backtester`)
+- シミュレーションと MT5 の口座は、同じ `Runner.decide` で判断する。MT5 の口座では、足が確定するたびに起点からの足で
+  シミュレーションを回し、最後の確定足の注文と建玉を写して、実口座の建玉と突き合わせる(`trading/trader.plan`)
+- 実験(experiments/runner.py の各ジョブ)・`fxsim sim`・`fxsim trade`・`fxsim trade-replay` は全部ランナーを通る
+
+```python
+from fxsim.runners import SimRunner, Mt5Runner, ReplayRunner
+SimRunner("B047").run("real_pairs", params={"source": {"start": "2020-01-01"}})   # 動作ケース
+SimRunner(strategy="ma_cross", strategy_params={"fast": 10}).run("malicious", years=3)  # 戦略の名前
+Mt5Runner("configs/trading/demo-majors-b047.yaml").run()
+ReplayRunner(["configs/trading/demo-majors-b047.yaml"]).run()
+```
+
 ## パッケージ構成
 
 依存の向きは上から下だけ(下の層は上の層を知らない)。SQL は `storage/`(Python)と `web/lib/queries/`(画面)にだけ書く。
@@ -43,6 +71,7 @@ fxsim/
     builtin/             基本検証の戦略(tier = basic、1 ファイル 1 戦略)
     main/                本命の戦略(tier = main、engine = mt5。base.MainStrategy を継承)
     guards.py            本命の戦略に共通の対策(量・費用の門・回転の上限・終値の損切り・ドローダウンの止め)
+  runners/             戦略を動かすランナー(base.Runner / sim.SimRunner / mt5.Mt5Runner / replay.ReplayRunner)
   catalog.py           組み込みの案をすべて登録する
   storage/             SQLite
     schema.py            テーブルとビュー
@@ -71,6 +100,8 @@ fxsim/
     history.py           MT5 の足を相場の DB に書き足す(fetch-mt5、configs/market_data/*.yaml)
     signals.py           MT5 の足でバックテストを回し、最後の確定足の注文とシミュレーションの建玉を写し取る
     trader.py            実口座の建玉との突き合わせ(plan)と注文、状態と記録(data/trading/<name>/)
+    portfolio.py         複数ペアの常駐(PortfolioTrader)。全ペアの足をそろえ、円に換算し、注文のコメントの印と
+                         チケットで建玉を管理し、業者のスワップで判断し、指定の時刻とスプレッドを待って注文を出す
     service.py           常駐のループ(つなぎ直し・シグナル)
     replay.py            常駐を相場の DB の 1 分足の再生の上で動かす(trade-replay)。偽の端末と仮想の時計、故障の注入
   cli.py               python -m fxsim ...

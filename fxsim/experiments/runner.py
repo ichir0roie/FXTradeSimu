@@ -17,7 +17,6 @@ from pathlib import Path
 
 from .. import catalog  # noqa: F401  (ワーカーでも登録を済ませる)
 from ..backtest import BrokerConfig, compute_metrics
-from ..backtest.portfolio import build_backtester
 from ..data import MarketData
 from ..markets import MARKETS
 from ..markets.evaluation import compute_facts, score_facts
@@ -107,7 +106,14 @@ def _candle_timeframe(cfg: ExperimentConfig, md: MarketData) -> int:
 
 
 def _run_job(con, job: JobTask, task: PathTask, md: MarketData, cfg: ExperimentConfig, candle_tf: int) -> None:
-    strat = STRATEGIES.create(job.strategy.name, job.strategy.params)
+    from dataclasses import asdict
+
+    from ..runners import SimRunner
+
+    runner = SimRunner(strategy=job.strategy.name, strategy_params=job.strategy.params,
+                       broker={"preset": job.broker.preset, "overrides": job.broker.overrides},
+                       engine=asdict(cfg.engine), schedule=job.strategy.schedule)
+    strat = runner.probe
     tf = strat.timeframe
     if tf < md.step_minutes or tf % md.step_minutes:
         writer.mark_job(con, job.job_id, "skipped", f"timeframe {tf}m is finer than the data ({md.step_minutes}m)")
@@ -120,8 +126,7 @@ def _run_job(con, job: JobTask, task: PathTask, md: MarketData, cfg: ExperimentC
                       else cfg.storage.equity_timeframe)
     w = writer.JobWriter(con, job.job_id, bars, store_trades=cfg.storage.store_trades(task.detail),
                          equity_minutes=equity_minutes, delay_ms=cfg.live.delay_ms if task.detail else 0.0)
-    bt = build_backtester(md, strat, BrokerConfig.preset(job.broker.preset, job.broker.overrides), cfg.engine,
-                          seed=task.seed, schedule=job.strategy.trading_schedule())
+    bt = runner.backtester(md, seed=task.seed)
     try:
         bt.run(progress=w.progress, every=cfg.live.flush_every)
     except Exception as e:

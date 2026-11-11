@@ -14,9 +14,10 @@ log = logging.getLogger(__name__)
 
 
 class Service:
-    def __init__(self, cfg: TraderConfig, module=None, heartbeat_sec: float = 3600.0):
+    def __init__(self, cfg: TraderConfig, module=None, heartbeat_sec: float = 3600.0, runner=None):
         self.cfg = cfg
         self.module = module
+        self.runner = runner            # runners.Mt5Runner(省けば設定から作る)
         self.heartbeat_sec = heartbeat_sec
         self.stop_event = threading.Event()
         self.client: MT5Client | None = None
@@ -27,11 +28,11 @@ class Service:
         self.client = MT5Client(module, self.cfg.mt5)
         creds = load_credentials(self.cfg.account)
         self.client.connect(creds)
-        cls = LiveTrader
-        if self.cfg.symbols:                     # 複数ペアの戦略(B047 など)
-            from .portfolio import PortfolioTrader
-            cls = PortfolioTrader
-        self.trader = cls(self.cfg, self.client, expected_login=creds.login if creds else None)
+        if self.runner is None:
+            from ..runners.mt5 import Mt5Runner
+            self.runner = Mt5Runner(self.cfg, module=self.module)
+        # 1 銘柄は LiveTrader、複数ペア(symbols)は PortfolioTrader
+        self.trader = self.runner.make_trader(self.client, expected_login=creds.login if creds else None)
         self.trader.startup()
         return self.trader
 
