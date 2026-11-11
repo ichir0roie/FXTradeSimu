@@ -1,6 +1,7 @@
 # S040 main_carry_breakout: 10 ペアの口座で、スワップ狙い + ブレイクアウト(本命の 3 本目)
 
-- 種類: 戦略 / 状態: 実装済み、しきい値は E026 で決めた。デモ口座での常駐の準備ができた(`configs/trading/demo-majors-b047.yaml`)
+- 種類: 戦略 / 状態: 実装済み、しきい値は E026 で決めた。取引の幅は E030 で 2 週にした(B049、`configs/trading/demo-majors-b049.yaml`)。
+  B047(4 週)は E026・E027 の記録として残す
 - 実装: `fxsim/strategies/main/carry_breakout.py`(登録名 `main_carry_breakout` v1)、動作ケース B047
 - 親: S039(B046)、E012〜E025
 
