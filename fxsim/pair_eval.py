@@ -70,7 +70,14 @@ def pattern_label(pair: str, start: str) -> str:
     return f"{pair} {start[:7]}"
 
 
-def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None) -> TestCase:
+def broker_override(b: BehaviorCase, preset: str) -> dict:
+    """動作ケースのブローカーを preset に差し替える。MT5 の口座の上書き(mt5)はそのまま残す。"""
+    ov = (b.broker_spec.get("overrides") or {}).get("mt5")
+    return {"preset": preset, "label": preset, "overrides": {"mt5": ov} if ov else {}}
+
+
+def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None, broker: str | None = None,
+                   daily_fill_hour: int | None = None) -> TestCase:
     """動作ケースを、ペア x 期間の実データのパターンで、方向でたらめ版と対にして回すテストケース。
 
     ID は P-<動作ケース>。"""
@@ -83,13 +90,17 @@ def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None) -> TestCase:
     else:
         for pair in pairs or PAIRS:
             for start, end in r.windows:
-                patterns.append({"market": "real_pair", "label": pattern_label(pair, start),
-                                 "params": {"source": {"path": f"db:{pair}/{r.data_tf}", "start": start,
-                                                       "end": end}}})
+                src = {"path": f"db:{pair}/{r.data_tf}", "start": start, "end": end}
+                if daily_fill_hour is not None and r.data_tf == "D1":
+                    src["daily_fill_hour"] = int(daily_fill_hour)
+                patterns.append({"market": "real_pair", "label": pattern_label(pair, start), "params": {"source": src}})
     years = max((np.datetime64(e) - np.datetime64(s)).astype(int) / 365.25 for s, e in r.windows)
-    return TestCase(id=f"P-{b.id}", behavior=b.id, patterns=patterns,
-                    name=f"{b.id} の実データ評価(ペア x 期間、{r.data_tf})", period={"years": round(float(years), 2)},
-                    detail_seeds=[], null=True)
+    suffix = (f"-{broker}" if broker else "") + (f"-h{daily_fill_hour}" if daily_fill_hour is not None
+                                                 and r.data_tf == "D1" else "")
+    return TestCase(id=f"P-{b.id}{suffix}", behavior=b.id, patterns=patterns,
+                    name=f"{b.id} の実データ評価(ペア x 期間、{r.data_tf}{'、' + broker if broker else ''})",
+                    period={"years": round(float(years), 2)}, detail_seeds=[], null=True,
+                    broker=broker_override(b, broker) if broker else None)
 
 
 # ---- 判定 -----------------------------------------------------------------------

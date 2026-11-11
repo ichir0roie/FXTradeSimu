@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..calendar import parse_server_tz
 from ..data import Bars
 
 # MT5 の時間足の名前(TIMEFRAME_*)。動作ケースの timeframe(分)から引く
@@ -31,23 +32,6 @@ def rates_to_bars(rates: np.ndarray, timeframe: int, point: float, utc_offset_se
                 bid_open=bo, bid_high=bh, bid_low=bl, bid_close=bc,
                 ask_open=bo + s, ask_high=bh + s, ask_low=bl + s, ask_close=bc + s,
                 spread_mean=s, spread_max=s.copy(), ticks=ticks, start_idx=np.arange(n, dtype=np.int64))
-
-
-def parse_server_tz(rule: str) -> tuple[str, int]:
-    """'America/New_York+7' -> ('America/New_York', 7)。サーバー時刻 = その地域の時刻 + 時間。'UTC+2' は固定のずれ。"""
-    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-    rule = rule.strip()
-    try:                       # Etc/GMT-2 のように、符号まで含めて地域の名前のもの
-        ZoneInfo(rule)
-        return rule, 0
-    except (ZoneInfoNotFoundError, ValueError):
-        pass
-    for sign in ("+", "-"):
-        zone, sep, hours = rule.rpartition(sign)
-        if sep and zone and hours.replace(".", "", 1).isdigit():
-            return zone, round(float(hours) * 3600) * (1 if sign == "+" else -1)
-    return rule, 0
 
 
 def server_to_utc(server_sec, rule: str) -> np.ndarray:

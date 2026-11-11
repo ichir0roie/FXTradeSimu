@@ -28,6 +28,8 @@ R012 real_pair             相場の DB(MT5 の足)の 1 ペアをそのまま�
                            円以外が決済通貨のペアは期間の最初の円換算で価格を一定倍して、損益を円にそろえる。
                            スプレッドは足ごとの記録(前後の足の最大)、足の中の順番は MT5 のテスターと同じ、
                            スワップはペアの金利差。主要ペアの実データでの全戦略の評価(E016)に使う
+                           v2(E017): 同じ銘柄の 1 分足のサーバーの時ごとの平均スプレッドを下限にする。
+                           v1 は {"spread": {"hour_profile": False}}
 """
 from .. import MARKETS
 from ..base import MarketModel
@@ -89,8 +91,8 @@ def build_placebo(params: dict) -> MarketModel:
     return MarketModel("real_bridge_placebo", "5", _bridge(RealSkeleton(mode="placebo"))).with_params(params)
 
 
-@MARKETS.register("real_pair", version="1",
+@MARKETS.register("real_pair", version="2",
                   description="相場の DB(MT5 の足)の 1 ペアをそのまま再生(円に換算、記録のスプレッド、ペアの金利差)",
                   tags=("real",))
 def build_real_pair(params: dict) -> MarketModel:
-    return MarketModel("real_pair", "1", [PairReplay(), RecordedSpread()]).with_params(params)
+    return MarketModel("real_pair", "2", [PairReplay(), RecordedSpread()]).with_params(params)

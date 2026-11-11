@@ -59,7 +59,7 @@ def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
         "workers": t.workers,
         "engine": b.engine,
         "storage": VERIFY_STORAGE if t.verify else CASE_STORAGE,
-        "brokers": [b.broker_spec],
+        "brokers": [t.broker or b.broker_spec],
         "markets": markets,
         "strategies": strategies,
     })

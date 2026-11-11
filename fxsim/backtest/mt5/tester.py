@@ -693,7 +693,7 @@ class Mt5Tester(Backtester):
         if pts is not None:
             return pts * self.sym.point * units * days
         if b.swap_mode == "rates":
-            return units * self.c[max(i - 1, 0)] * (side * self.rate_diff[i] - b.swap_markup) * days / 365
+            return units * self.c[max(i - 1, 0)] * b.swap_annual(side, self.rate_diff[i]) * days / 365
         return (b.swap_long_per_10k if side > 0 else b.swap_short_per_10k) * days * units / 10_000
 
     def _swap(self, i: int) -> None:

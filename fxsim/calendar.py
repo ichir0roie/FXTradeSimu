@@ -65,3 +65,33 @@ def rollover_weight(day_id: int) -> int:
 
 def steps_per_year(step_minutes: int) -> float:
     return TRADING_MINUTES_PER_YEAR / step_minutes
+
+
+def parse_server_tz(rule: str) -> tuple[str, int]:
+    """'America/New_York+7' -> ('America/New_York', 7)。サーバー時刻 = その地域の時刻 + 時間。'UTC+2' は固定のずれ。"""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    rule = rule.strip()
+    try:                       # Etc/GMT-2 のように、符号まで含めて地域の名前のもの
+        ZoneInfo(rule)
+        return rule, 0
+    except (ZoneInfoNotFoundError, ValueError):
+        pass
+    for sign in ("+", "-"):
+        zone, sep, hours = rule.rpartition(sign)
+        if sep and zone and hours.replace(".", "", 1).isdigit():
+            return zone, round(float(hours) * 3600) * (1 if sign == "+" else -1)
+    return rule, 0
+
+
+def server_hour(t_ns: np.ndarray, rule: str) -> np.ndarray:
+    """UTC の時刻(ns)の、MT5 のサーバー時刻での時(0〜23)。rule は parse_server_tz の書式。
+
+    OANDA Japan など「NY + 7 時間」の業者では、ロールオーバー(NY の 17 時)が夏も冬もサーバーの 0 時になる。
+    """
+    import pandas as pd
+
+    zone, shift = parse_server_tz(rule)
+    local = pd.to_datetime(np.asarray(t_ns, dtype=np.int64), utc=True).tz_convert(zone)
+    sec = local.hour.to_numpy() * 3600 + local.minute.to_numpy() * 60 + local.second.to_numpy() + shift
+    return (sec // 3600) % 24

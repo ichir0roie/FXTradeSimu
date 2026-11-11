@@ -117,6 +117,7 @@ class TestCase:
     workers: int = 0
     verify: bool = False      # True: 方向でたらめ版(direction_null)を対で回し、合否を判定して記録する
     null: bool = False        # True: 方向でたらめ版を対で回すだけ(判定は呼んだ側。fxsim pair-eval)
+    broker: dict | None = None  # 動作ケースのブローカーの差し替え(fxsim pair-eval --broker)
     path: str = ""
 
     def __post_init__(self):
@@ -151,4 +152,6 @@ class TestCase:
              "verify": self.verify}
         if self.null:
             d["null"] = True
+        if self.broker:
+            d["broker"] = self.broker
         return d

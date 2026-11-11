@@ -550,8 +550,8 @@ class Backtester:
             return
         b, p = self.broker, self.pos
         if b.swap_mode == "rates":
-            # 買いは金利差を受け取り、売りは払う。ブローカーは両側から swap_markup を取る(年率)
-            annual = p.side * self.rate_diff[i] - b.swap_markup
+            # 買いは金利差を受け取り、売りは払う。ブローカーは両側から取り分を引く(年率、BrokerConfig.swap_annual)
+            annual = b.swap_annual(p.side, self.rate_diff[i])
             amt = p.units * self.c[i - 1] * annual * days / 365
         else:
             rate = b.swap_long_per_10k if p.side > 0 else b.swap_short_per_10k

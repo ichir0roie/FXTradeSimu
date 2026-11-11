@@ -34,6 +34,7 @@ class RealSeries:
     step_minutes: int        # 典型的な間隔
     source: str
     spread: np.ndarray | None = None   # 足ごとのスプレッド(価格)。DB から読んだときだけ
+    server_tz: str | None = None       # 業者のサーバー時刻の決まり(DB から読んだときだけ。calendar.parse_server_tz)
 
     def __len__(self) -> int:
         return len(self.times)
@@ -47,7 +48,8 @@ class RealSeries:
             lo = max(lo, int(np.searchsorted(t, first)))
         sl = slice(lo, hi)
         return RealSeries(t[sl], self.open[sl], self.high[sl], self.low[sl], self.close[sl], self.has_ohlc,
-                          self.step_minutes, self.source, None if self.spread is None else self.spread[sl])
+                          self.step_minutes, self.source, None if self.spread is None else self.spread[sl],
+                          self.server_tz)
 
 
 @lru_cache(maxsize=8)
@@ -115,7 +117,7 @@ def _load_db(spec: str) -> RealSeries:
     s = r["spread"].astype(float) * float(info["point"])
     half = s / 2
     return RealSeries(times, r["open"] + half, r["high"] + half, r["low"] + half, r["close"] + half, True, tf,
-                      f"{DB_PREFIX}{source}/{symbol}/{tf_text}", s)
+                      f"{DB_PREFIX}{source}/{symbol}/{tf_text}", s, info.get("server_tz"))
 
 
 def bar_end_ns(start_sec: np.ndarray, timeframe: int) -> np.ndarray:

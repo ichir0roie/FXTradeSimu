@@ -42,6 +42,14 @@ BROKER_PRESETS: dict[str, dict] = {
                       positive_slippage=False, hunt_prob=0.35, hunt_pips=3.0, spread_markup_pips=0.3,
                       spread_floor_pips=0.5, commission_per_10k=0.0, swap_mode="rates", swap_markup=0.01,
                       last_look_prob=0.3, zero_cut=False),
+    # OANDA 証券の MT5 スタンダード(国内)を、仮想の悪意を入れずに写したもの(E017)。スプレッドは市場モデルの側
+    # (real_pair が業者の記録を使う)で、上乗せはしない。デモは成行が即約定でリクオートなし(E014)なので、滑りは小さく
+    # 有利・不利の両方。スワップの業者の取り分は 2026-11-11 の端末のスワップの点数と各国の短期金利の差から逆算した
+    # 10 ペアの平均(受け取る側 0.44%、払う側 1.10%)。証拠金維持率 100% でロスカット、ゼロカットなし(国内)
+    "oanda": dict(slippage_pips=0.1, adverse_only=False, slippage_spread_k=0.0, stop_slippage_mult=1.0,
+                  positive_slippage=True, hunt_prob=0.0, hunt_pips=0.0, spread_markup_pips=0.0,
+                  spread_floor_pips=0.0, commission_per_10k=0.0, swap_mode="rates", swap_markup=0.0044,
+                  swap_markup_pay=0.011, last_look_prob=0.0, zero_cut=False, losscut_level=1.0, leverage=25.0),
 }
 
 
@@ -62,6 +70,7 @@ class BrokerConfig:
     swap_long_per_10k: float = 0.0    # fixed のとき: 円 / 日 / 1 万通貨
     swap_short_per_10k: float = 0.0
     swap_markup: float = 0.0          # rates のとき: ブローカーが両側から取る年率(0.01 = 1%)
+    swap_markup_pay: float | None = None   # 金利差を払う側の取り分(None なら swap_markup と同じ)
     rates_path: str = "data/real/policy_rates_usd_jpy.csv"
     last_look_prob: float = 0.0       # 客に有利に動いた新規注文を拒否する確率
     zero_cut: bool = True             # マイナス残高を 0 に戻す(客に請求しない)か
@@ -92,6 +101,12 @@ class BrokerConfig:
         if name not in BROKER_PRESETS:
             raise KeyError(f"unknown broker preset '{name}'. known: {sorted(BROKER_PRESETS)}")
         return cls(name=name, **{**BROKER_PRESETS[name], **(overrides or {})})
+
+    def swap_annual(self, side: int, diff: float) -> float:
+        """建玉の向きと金利差(基軸 − 決済、年率)から、スワップの年率(受け取りが正)。業者の取り分を引く。"""
+        gross = side * diff
+        pay = self.swap_markup_pay if (self.swap_markup_pay is not None and gross < 0) else self.swap_markup
+        return gross - pay
 
     def to_dict(self) -> dict:
         return asdict(self)

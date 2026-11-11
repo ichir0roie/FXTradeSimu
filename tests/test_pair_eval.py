@@ -180,3 +180,46 @@ def test_real_ohlc_stops_fill_at_the_level_inside_a_bar_and_at_the_open_across_a
     assert tr.reason == "sl"
     assert tr.entry_price == pytest.approx(150.0)
     assert tr.exit_price == pytest.approx(want_fill)
+
+
+def test_oanda_swap_markup_is_smaller_on_the_receiving_side():
+    b = BrokerConfig.preset("oanda")
+    assert b.swap_annual(1, 0.03) == pytest.approx(0.03 - 0.0044)       # 受け取る側
+    assert b.swap_annual(-1, 0.03) == pytest.approx(-0.03 - 0.011)      # 払う側
+    m = BrokerConfig.preset("malicious")
+    assert m.swap_annual(1, 0.03) == pytest.approx(0.02) and m.swap_annual(-1, 0.03) == pytest.approx(-0.04)
+
+
+def test_pair_eval_can_swap_the_broker_and_keep_the_mt5_account():
+    book = load_cases()
+    t = pair_eval_case(book.behaviors["B045"], broker="oanda", daily_fill_hour=2)
+    assert t.id == "P-B045-oanda-h2"
+    assert t.broker == {"preset": "oanda", "label": "oanda", "overrides": {"mt5": {"preset": "jp_domestic"}}}
+    assert {p.params["source"]["daily_fill_hour"] for p in t.patterns} == {2}
+    cfg = to_experiment(t, book.behaviors["B045"])
+    assert cfg.brokers[0].preset == "oanda"
+    h1 = pair_eval_case(book.behaviors["B001"], broker="oanda", daily_fill_hour=2)
+    assert h1.id == "P-B001-oanda" and "daily_fill_hour" not in h1.patterns[0].params["source"]
+
+
+def test_daily_open_pays_the_rollover_spread_unless_the_fill_is_delayed(tmp_path, monkeypatch):
+    """日足の始値の点は、1 分足のサーバーの 0 時台(ロールオーバー)の平均スプレッド。daily_fill_hour で遅らせられる。"""
+    path = tmp_path / "market.sqlite"
+    monkeypatch.setattr(paths, "MARKET_DB", path)
+    load_ohlc.cache_clear()
+    con = prices.open_market_db(path)
+    # 1 分足 3 日分。サーバー時刻 = UTC + 2 なので、サーバーの 0 時台は UTC 22 時台。そこだけ 5 pip、ほかは 0.5 pip
+    n = 3 * 1440
+    t = T0 + np.arange(n, dtype=np.int64) * 60
+    sp = np.where(((t // 3600) % 24) == 22, 50, 5)
+    _write(con, "USDJPY", 1, np.full(n, 150.0), spread_pts=sp, start=T0)
+    _write(con, "USDJPY", 1440, [150.0] * 30, start=T0 - 20 * 86_400)
+    con.commit()
+    con.close()
+    for hour, want in [(0, 5.0), (2, 0.5)]:
+        md = MARKETS.create("real_pair", {"source": {"path": "db:USDJPY/D1", "daily_fill_hour": hour}}) \
+            .generate(years=1.0, seed=1)
+        pts = md.spread.reshape(-1, 4) / md.pip
+        assert np.median(pts[:, 0]) == pytest.approx(want)               # 始値の点
+        assert np.median(pts[:, 1]) == pytest.approx((5.0 + 23 * 0.5) / 24, abs=0.05)   # 足の中は 1 日の平均
+    load_ohlc.cache_clear()

@@ -1,0 +1,675 @@
+{
+ "run_key": "P-B013-oanda-20261111T050758-b7dfc7",
+ "name": "P-B013-oanda B013 の実データ評価(ペア x 期間、basket、oanda)",
+ "kind": "test_case",
+ "proposal": "P-B013-oanda",
+ "status": "done",
+ "created_at": "2026-11-11T05:07:58Z",
+ "finished_at": "2026-11-11T05:07:58Z",
+ "git_sha": "17a9556+dirty",
+ "years": 6.0,
+ "notes": "behavior B013: 通貨のバリュー(対円 7 ペア、5 年で下がった上位 2 を買い・上がった 2 を売る、21 日ごとに入れ替え)",
+ "elapsed_sec": 0.1738877296447754,
+ "seeds": [
+  1
+ ],
+ "config": {
+  "name": "P-B013-oanda B013 の実データ評価(ペア x 期間、basket、oanda)",
+  "markets": [
+   {
+    "model": "basket_real",
+    "label": "basket 1999-01",
+    "params": {
+     "source": {
+      "start": "1999-01-01",
+      "end": "2004-12-31"
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "basket_real",
+    "label": "basket 2005-01",
+    "params": {
+     "source": {
+      "start": "2005-01-01",
+      "end": "2010-12-31"
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "basket_real",
+    "label": "basket 2011-01",
+    "params": {
+     "source": {
+      "start": "2011-01-01",
+      "end": "2016-12-31"
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "basket_real",
+    "label": "basket 2017-01",
+    "params": {
+     "source": {
+      "start": "2017-01-01",
+      "end": "2021-12-31"
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "basket_real",
+    "label": "basket 2022-01",
+    "params": {
+     "source": {
+      "start": "2022-01-01",
+      "end": "2026-11-10"
+     }
+    },
+    "seeds": [
+     1
+    ]
+   }
+  ],
+  "strategies": [
+   {
+    "name": "xs_value",
+    "label": "B013",
+    "params": {
+     "lookback": 1260,
+     "hold_days": 21,
+     "n_long": 2,
+     "n_short": 2,
+     "gross": 1.5,
+     "timeframe": 1440
+    },
+    "schedule": {
+     "decision_every": 1,
+     "outside": "hold"
+    }
+   },
+   {
+    "name": "basket_direction_null",
+    "label": "NULL",
+    "params": {
+     "inner": "xs_value",
+     "inner_params": {
+      "lookback": 1260,
+      "hold_days": 21,
+      "n_long": 2,
+      "n_short": 2,
+      "gross": 1.5
+     },
+     "timeframe": 1440
+    },
+    "schedule": {
+     "decision_every": 1,
+     "outside": "hold"
+    }
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "oanda",
+    "label": "oanda",
+    "overrides": {}
+   }
+  ],
+  "years": 6.0,
+  "seeds": [
+   1
+  ],
+  "detail_seeds": [],
+  "workers": 6,
+  "kind": "test_case",
+  "proposal": "P-B013-oanda",
+  "notes": "behavior B013: 通貨のバリュー(対円 7 ペア、5 年で下がった上位 2 を買い・上がった 2 を売る、21 日ごとに入れ替え)",
+  "engine": {
+   "initial_balance": 1000000.0,
+   "sizing": "fixed",
+   "units": 10000.0,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0,
+   "ruin_frac": 0.1,
+   "stop_at_ruin": false
+  },
+  "storage": {
+   "candle_timeframe": 240,
+   "trades": "detail",
+   "equity_timeframe": 1440,
+   "equity_detail_timeframe": 1440,
+   "events": true
+  },
+  "live": {
+   "flush_every": 500,
+   "delay_ms": 0.0
+  },
+  "brokers_resolved": {
+   "oanda": {
+    "name": "oanda",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0044,
+    "swap_markup_pay": 0.011,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 1.0,
+    "mt5": {}
+   }
+  }
+ },
+ "case_runs": [
+  {
+   "test_id": "P-B013-oanda",
+   "behavior_id": "B013",
+   "test_hash": "f915898f86",
+   "behavior_hash": "8c9856cb6e",
+   "code_sha": "17a9556+dirty",
+   "status": "done",
+   "created_at": "2026-11-11T05:07:58Z",
+   "finished_at": "2026-11-11T05:07:58Z",
+   "summary": {
+    "by_market": {
+     "basket 1999-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -93845.09683331288,
+       "median": -93845.09683331288,
+       "total": -93845.09683331288,
+       "std": 0.0,
+       "min": -93845.09683331288,
+       "max": -93845.09683331288,
+       "p10": -93845.09683331288,
+       "p90": -93845.09683331288,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -354.8492577373255,
+       "median": -354.8492577373255,
+       "total": -354.8492577373255,
+       "std": 0.0,
+       "min": -354.8492577373255,
+       "max": -354.8492577373255,
+       "p10": -354.8492577373255,
+       "p90": -354.8492577373255,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.5797713289779751,
+       "median": -0.5797713289779751,
+       "total": -0.5797713289779751,
+       "std": 0.0,
+       "min": -0.5797713289779751,
+       "max": -0.5797713289779751,
+       "p10": -0.5797713289779751,
+       "p90": -0.5797713289779751,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.12403836471259072,
+       "median": 0.12403836471259072,
+       "total": 0.12403836471259072,
+       "std": 0.0,
+       "min": 0.12403836471259072,
+       "max": 0.12403836471259072,
+       "p10": 0.12403836471259072,
+       "p90": 0.12403836471259072,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.0675944333996026,
+       "median": 2.0675944333996026,
+       "total": 2.0675944333996026,
+       "std": 0.0,
+       "min": 2.0675944333996026,
+       "max": 2.0675944333996026,
+       "p10": 2.0675944333996026,
+       "p90": 2.0675944333996026,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "basket 2005-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -30365.81438063644,
+       "median": -30365.81438063644,
+       "total": -30365.81438063644,
+       "std": 0.0,
+       "min": -30365.81438063644,
+       "max": -30365.81438063644,
+       "p10": -30365.81438063644,
+       "p90": -30365.81438063644,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 121.3463299783745,
+       "median": 121.3463299783745,
+       "total": 121.3463299783745,
+       "std": 0.0,
+       "min": 121.3463299783745,
+       "max": 121.3463299783745,
+       "p10": 121.3463299783745,
+       "p90": 121.3463299783745,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.2252185798487713,
+       "median": -0.2252185798487713,
+       "total": -0.2252185798487713,
+       "std": 0.0,
+       "min": -0.2252185798487713,
+       "max": -0.2252185798487713,
+       "p10": -0.2252185798487713,
+       "p90": -0.2252185798487713,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.07515261565688294,
+       "median": 0.07515261565688294,
+       "total": 0.07515261565688294,
+       "std": 0.0,
+       "min": 0.07515261565688294,
+       "max": 0.07515261565688294,
+       "p10": 0.07515261565688294,
+       "p90": 0.07515261565688294,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.3774834437086094,
+       "median": 1.3774834437086094,
+       "total": 1.3774834437086094,
+       "std": 0.0,
+       "min": 1.3774834437086094,
+       "max": 1.3774834437086094,
+       "p10": 1.3774834437086094,
+       "p90": 1.3774834437086094,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "basket 2011-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 43449.035373582505,
+       "median": 43449.035373582505,
+       "total": 43449.035373582505,
+       "std": 0.0,
+       "min": 43449.035373582505,
+       "max": 43449.035373582505,
+       "p10": 43449.035373582505,
+       "p90": 43449.035373582505,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 408.7699529680538,
+       "median": 408.7699529680538,
+       "total": 408.7699529680538,
+       "std": 0.0,
+       "min": 408.7699529680538,
+       "max": 408.7699529680538,
+       "p10": 408.7699529680538,
+       "p90": 408.7699529680538,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.14324060449051307,
+       "median": 0.14324060449051307,
+       "total": 0.14324060449051307,
+       "std": 0.0,
+       "min": 0.14324060449051307,
+       "max": 0.14324060449051307,
+       "p10": 0.14324060449051307,
+       "p90": 0.14324060449051307,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.10789035362471809,
+       "median": 0.10789035362471809,
+       "total": 0.10789035362471809,
+       "std": 0.0,
+       "min": 0.10789035362471809,
+       "max": 0.10789035362471809,
+       "p10": 0.10789035362471809,
+       "p90": 0.10789035362471809,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.3820598006644518,
+       "median": 1.3820598006644518,
+       "total": 1.3820598006644518,
+       "std": 0.0,
+       "min": 1.3820598006644518,
+       "max": 1.3820598006644518,
+       "p10": 1.3820598006644518,
+       "p90": 1.3820598006644518,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "basket 2017-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "basket 2022-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     }
+    },
+    "all": {
+     "pnl": {
+      "n": 5,
+      "mean": -16152.375168073364,
+      "median": 0.0,
+      "total": -80761.87584036682,
+      "std": 50774.76597606579,
+      "min": -93845.09683331288,
+      "max": 43449.035373582505,
+      "p10": -68453.3838522423,
+      "p90": 26069.421224149508,
+      "positive_ratio": 0.2,
+      "t": -0.7113338324575804
+     },
+     "net_pips_per_year": {
+      "n": 5,
+      "mean": 35.05340504182057,
+      "median": 0.0,
+      "total": 175.26702520910283,
+      "std": 274.5870062203994,
+      "min": -354.8492577373255,
+      "max": 408.7699529680538,
+      "p10": -212.9095546423953,
+      "p90": 293.80050377218214,
+      "positive_ratio": 0.4,
+      "t": 0.28545340726513074
+     },
+     "sharpe": {
+      "n": 5,
+      "mean": -0.1323498608672467,
+      "median": 0.0,
+      "total": -0.6617493043362335,
+      "std": 0.2827515008938479,
+      "min": -0.5797713289779751,
+      "max": 0.14324060449051307,
+      "p10": -0.43795022932629357,
+      "p90": 0.08594436269430786,
+      "positive_ratio": 0.2,
+      "t": -1.046655047899843
+     },
+     "max_dd": {
+      "n": 5,
+      "mean": 0.06141626679883835,
+      "median": 0.07515261565688294,
+      "total": 0.30708133399419174,
+      "std": 0.05876642499842297,
+      "min": 0.0,
+      "max": 0.12403836471259072,
+      "p10": 0.0,
+      "p90": 0.11757916027744167,
+      "positive_ratio": 0.6,
+      "t": 2.336894706291072
+     },
+     "trades_per_year": {
+      "n": 5,
+      "mean": 0.9654275355545329,
+      "median": 1.3774834437086094,
+      "total": 4.827137677772664,
+      "std": 0.9249655452089182,
+      "min": 0.0,
+      "max": 2.0675944333996026,
+      "p10": 0.0,
+      "p90": 1.7933805803055423,
+      "positive_ratio": 0.6,
+      "t": 2.333883254389157
+     },
+     "ruin_ratio": 0.0
+    },
+    "patterns": [
+     {
+      "market": "basket 1999-01",
+      "seed": 1,
+      "pnl": -19284.783758869627,
+      "sharpe": -0.11868143077287459
+     },
+     {
+      "market": "basket 2005-01",
+      "seed": 1,
+      "pnl": -85868.43826246995,
+      "sharpe": -0.6159318049349395
+     },
+     {
+      "market": "basket 2011-01",
+      "seed": 1,
+      "pnl": 63304.17350489693,
+      "sharpe": 0.47007872792884453
+     },
+     {
+      "market": "basket 2017-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "basket 2022-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "basket 1999-01",
+      "seed": 1,
+      "pnl": -93845.09683331288,
+      "sharpe": -0.5797713289779751
+     },
+     {
+      "market": "basket 2005-01",
+      "seed": 1,
+      "pnl": -30365.81438063644,
+      "sharpe": -0.2252185798487713
+     },
+     {
+      "market": "basket 2011-01",
+      "seed": 1,
+      "pnl": 43449.035373582505,
+      "sharpe": 0.14324060449051307
+     },
+     {
+      "market": "basket 2017-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "basket 2022-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     }
+    ]
+   }
+  }
+ ]
+}

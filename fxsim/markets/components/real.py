@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from ...calendar import NS_DAY, NS_MIN, trading_times
+from ...calendar import NS_DAY, NS_MIN, server_hour, trading_times
 from ...data.real import DB_PREFIX, RealSeries, load_ohlc
 from ..base import BaseParams, Component, GenContext, Stage
 
@@ -129,6 +129,27 @@ def jpy_per_unit(ccy: str, t_ns: int) -> float:
     raise ValueError(f"no rate in the market DB to convert {ccy} to JPY")
 
 
+def _hourly_spread(symbol: str) -> tuple[np.ndarray, str] | None:
+    """相場の DB の 1 分足の、サーバー時刻の時(足の始まり)ごとのスプレッドの平均(価格)と、サーバー時刻の決まり。
+
+    サーバー時刻で分けるのは、ロールオーバー(NY の 17 時)が夏も冬もサーバーの 0 時になるため
+    (UTC で分けると夏と冬が混ざる)。
+    1 分足が無ければ None。
+    """
+    try:
+        m1 = load_ohlc(f"{DB_PREFIX}{symbol}/M1")
+    except ValueError:
+        return None
+    if m1.spread is None or len(m1) < 24 * 60 or not m1.server_tz:
+        return None
+    h = server_hour(m1.times - NS_MIN, m1.server_tz)
+    out = np.zeros(24)
+    for k in range(24):
+        v = m1.spread[h == k]
+        out[k] = float(v.mean()) if len(v) else 0.0
+    return out, m1.server_tz
+
+
 class PairReplay(RealReplay):
     """相場の DB(MT5 の足)の 1 ペアをそのまま再生し、円の口座で回せるようにする(real_pair、R012)。
 
@@ -137,13 +158,17 @@ class PairReplay(RealReplay):
     - 足の中の順番は MT5 のテスター(1 分足 OHLC)と同じ: 陽線は 始値 → 安値 → 高値 → 終値、
       陰線は 始値 → 高値 → 安値 → 終値。足の中は連続して動いたとみなす(Bars.points_per_bar)
       (RealReplay は常に高値が先で、損切りと利確が同じ足に入ったときの順番が偏る)
-    - 足ごとの記録のスプレッドを meta に置く(RecordedSpread が使う)
+    - 足ごとの記録のスプレッドを meta に置く(RecordedSpread が使う)。同じ銘柄の 1 分足が相場の DB にあれば、
+      その UTC の時ごとの平均(1 分ごとの最小の平均)も置く(1 時間足・日足の記録は足の中の最小で、ふだんの幅より狭いため)
     - スワップはペアの金利差(8 通貨の短期金利の月次)。meta["swap_pair"] で backtest と戦略に伝える
     """
 
     @dataclass
     class Params(_SourceParams):
         to_jpy: bool = True          # 決済通貨を円に換算する(価格に K を掛ける)
+        # 日足の始値の点のスプレッドに使うサーバーの時。0 = MT5 の日足の始まり(ロールオーバー)。
+        # 2 なら「判断は日足の確定、約定は 2 時間後」の近似(値段は始値のまま、スプレッドだけ 2 時台の平均)
+        daily_fill_hour: int = 0
 
     def prepare_times(self, base: BaseParams, years, days, rng):
         s = _series(self.p, years, days)
@@ -162,6 +187,22 @@ class PairReplay(RealReplay):
         self._price = np.stack([s.open, first, second, s.close], axis=1).ravel() * k
         spread = s.spread if s.spread is not None else np.full(len(s), np.nan)
         self._spread = np.repeat(spread * k, 4)
+        self._profile = None
+        found = _hourly_spread(symbol)
+        if found is not None:
+            # 始値・終値の点はその時刻のサーバーの時の平均。高値・安値の点は足が覆う時間の平均
+            # (日足の高安はロールオーバーの時刻には付かない。点の時刻は並びのための仮のもの)。
+            # MT5 の日足はサーバーの 0 時(ロールオーバー)に始まる
+            prof, rule = found
+            if s.step_minutes >= 1440:
+                h_open = np.full(len(s), int(self.p.daily_fill_hour) % 24, dtype=np.int64)
+                h_close = np.full(len(s), 23)
+            else:
+                h_open = server_hour(start, rule)
+                h_close = server_hour(s.times - sec, rule)
+            n_h = max(1, s.step_minutes // 60)
+            cover = np.stack([prof[(h_open + d) % 24] for d in range(n_h)], axis=1).mean(axis=1)
+            self._profile = np.stack([prof[h_open], cover, cover, prof[h_close]], axis=1).ravel() * k
         b = replace(base, p0=float(s.close[0] * k), pip=native_pip * k, step_minutes=s.step_minutes,
                     annual_vol=_realized_vol(s.close, s.step_minutes),
                     start=str(np.datetime64(int(s.times[0]), "ns"))[:10])
@@ -170,6 +211,8 @@ class PairReplay(RealReplay):
     def apply(self, ctx: GenContext) -> None:
         super().apply(ctx)
         ctx.meta["_recorded_spread"] = self._spread
+        if self._profile is not None:
+            ctx.meta["_spread_profile"] = self._profile
         ctx.meta["_bar_points"] = 4
         ctx.meta["ohlc_points"] = 4           # 点は実データの OHLC(backtest は足の中を連続とみなす)
         ctx.meta["swap_pair"] = self._symbol.lower()

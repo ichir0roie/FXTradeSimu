@@ -274,7 +274,7 @@ def cmd_pair_eval(args) -> None:
         if bid not in book.behaviors:
             sys.exit(f"unknown behavior {bid}. known: {sorted(book.behaviors)}")
         b = book.behaviors[bid]
-        t = pair_eval_case(b, pairs=args.pairs)
+        t = pair_eval_case(b, pairs=args.pairs, broker=args.broker, daily_fill_hour=args.daily_fill_hour)
         if args.workers:
             t.workers = args.workers
         if not args.rejudge:
@@ -569,6 +569,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("behaviors", nargs="*", help="動作ケースの ID(cases/behaviors)。複数可")
     p.add_argument("--all", action="store_true", help="全部の動作ケース(定義とコードが前回と同じなら飛ばす)")
     p.add_argument("--pairs", nargs="+", help="ペアを絞る(既定は主要 10 ペア)")
+    p.add_argument("--broker", help="動作ケースのブローカーを差し替える(例: oanda)。テストケースの ID に付く")
+    p.add_argument("--daily-fill-hour", type=int,
+                   help="日足の約定のスプレッドに使うサーバーの時(既定 0 = ロールオーバー)。2 で 2 時間遅らせた近似")
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--force", action="store_true")
     p.add_argument("--rejudge", action="store_true", help="回し直さずに、記録済みの結果で判定だけやり直す")

@@ -36,6 +36,8 @@ class RecordedSpread(Component):
     そこで足の境目の点(始値の点は前の足、終値の点は次の足)に、隣の足の記録との最大を使う。足の中の点(高値・安値)は
     その足の記録のまま(広がるのは境目の前後の数分なので、足全体を広げると損切りが刺さりすぎる)。
     記録が無い・下限より狭い点は floor_pips。1 本 1 点の相場(_bar_points が無い)では前後の足の最大。
+    hour_profile なら、同じ銘柄の 1 分足の UTC の時ごとの平均(_spread_profile)も下限にする(v2。1 時間足・日足の記録は
+    足の中の最小なので、ふだんの幅より狭い。日足の始値の点はロールオーバーの時間の平均になる)。
     """
 
     key = "spread"
@@ -44,6 +46,7 @@ class RecordedSpread(Component):
     @dataclass
     class Params:
         floor_pips: float = 0.1      # 記録が無い・これより狭い点の下限(pip)
+        hour_profile: bool = True    # 1 分足の時ごとの平均を下限にする(False で real_pair v1 と同じ)
 
     def apply(self, ctx: GenContext) -> None:
         rec = ctx.meta.get("_recorded_spread")
@@ -61,7 +64,11 @@ class RecordedSpread(Component):
         else:
             pts[:, 0] = np.maximum(per_bar, prev)          # 始値の点
             pts[:, -1] = np.maximum(per_bar, nxt)          # 終値の点
-        ctx.spread = np.maximum(pts.ravel(), floor)[:ctx.n]
+        out = np.maximum(pts.ravel(), floor)[:ctx.n]
+        prof = ctx.meta.get("_spread_profile")
+        if self.p.hour_profile and prof is not None:
+            out = np.maximum(out, np.asarray(prof, dtype=float)[:ctx.n])
+        ctx.spread = out
 
 
 class DynamicSpread(Component):
