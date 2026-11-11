@@ -88,6 +88,7 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 ```bash
 python -m fxsim pair-eval <動作ケース>...    # または --all。相場の DB の 10 ペアを期間に切り、方向でたらめ版と対で回す(E016)
 python -m fxsim pair-eval --all --broker oanda  # 仮想の悪意を外した OANDA の口座の条件(E017)。日足は --daily-fill-hour 2 も
+python -m fxsim pair-eval --all --broker oanda --daily-fill-hour 2 --swap-side  # スワップを受け取る向きの新規だけ(E022)
 ```
 - 合成の相場を使わない評価。判定(R1〜R5)は `fxsim/pair_eval.py` の先頭。相場は `real_pair`(R012)
 - 1 本の歴史(USDJPY)で合格しても、ペアを変えると消えることがある(B045)。verify と両方で見る

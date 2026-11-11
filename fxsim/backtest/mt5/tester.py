@@ -349,6 +349,9 @@ class Mt5Tester(Backtester):
         if not reducing:
             if not self._entry_allowed():
                 return self._result(TRADE_RETCODE_MARKET_CLOSED)
+            if not self.swap_side_ok(side):           # EngineConfig.swap_side_only(業者の拒否ではなく、自分の決まり)
+                self.stats["swap_blocked"] += 1
+                return self._result(TRADE_RETCODE_REJECT, comment="swap side")
             if self.acct.mode == "hedging" and len(self.positions) + len(self.orders) >= self.acct.max_positions:
                 return self._result(TRADE_RETCODE_LIMIT_POSITIONS)
             if not self._stops_ok(side, self._bid() if side > 0 else self._ask(), sl, tp):

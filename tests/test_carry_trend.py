@@ -77,3 +77,42 @@ def test_spread_gate_blocks_new_entries_when_the_spread_is_wide():
         results[mult] = (len(bt.deals), s.blocked["spread"])
     assert results[0.0][0] > 0 and results[0.0][1] == 0
     assert results[0.5][0] == 0 and results[0.5][1] > 0
+
+
+class _Always:
+    """毎足、同じ向きに入る(1 ペアのエンジン用)。"""
+    multi = False
+    warmup = 0
+    timeframe = 1440
+
+    def __init__(self, side):
+        self.side = side
+
+    def prepare(self, bars, rng):
+        pass
+
+    def on_bar(self, i, ctx):
+        if ctx.side != self.side:
+            (ctx.buy if self.side > 0 else ctx.sell)(units=10_000)
+
+
+def test_swap_side_only_blocks_entries_that_pay_swap_in_every_engine():
+    md = _daily(np.linspace(130, 100, 120))           # 下げ続ける: main_trend_d1 は売りたがる
+    b = md.bars(1440)
+    diff = load_rates(MULTI_RATES).pair_differential("usdjpy", b.t)
+    assert (diff > 0.0044).all()                      # この期間の USDJPY は買いがスワップを受け取る
+    broker = BrokerConfig.preset("oanda", {"mt5": {"preset": "jp_domestic"}})
+    for side, want_trades in [(1, True), (-1, False)]:
+        bt = build_backtester(md, _Always(side), broker, EngineConfig(swap_side_only=True), seed=1)
+        bt.run()
+        assert (len(bt.trades) > 0) == want_trades
+        assert (bt.stats["swap_blocked"] > 0) == (not want_trades)
+    # MT5 のテスター(本命の戦略)
+    s = STRATEGIES.create("main_trend_d1", {"slow": 20, "mom": 10, "guard": {"cost_multiple": 0}})
+    bt = build_backtester(md, s, broker, EngineConfig(swap_side_only=True), seed=1)
+    bt.run()
+    assert len(bt.deals) == 0 and bt.stats["swap_blocked"] > 0
+    s = STRATEGIES.create("main_trend_d1", {"slow": 20, "mom": 10, "guard": {"cost_multiple": 0}})
+    bt = build_backtester(md, s, broker, EngineConfig(), seed=1)
+    bt.run()
+    assert len(bt.deals) > 0

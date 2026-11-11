@@ -155,9 +155,13 @@ class PortfolioContext:
         side = int(np.sign(side))
         if side == cur:
             return
+        leg.i = self._pb.i
+        swap_ok = leg.swap_side_ok(side) if side else True
+        if not swap_ok:
+            leg.stats["swap_blocked"] += 1
         if side == 0:
             self._pb.submit(leg, _Order("close"))
-        elif self.can_enter:
+        elif self.can_enter and swap_ok:
             self._pb.submit(leg, _Order("enter", side, None, None, units))
         elif cur == -side:
             self._pb.submit(leg, _Order("close"))

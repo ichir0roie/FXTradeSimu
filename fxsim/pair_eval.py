@@ -77,7 +77,7 @@ def broker_override(b: BehaviorCase, preset: str) -> dict:
 
 
 def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None, broker: str | None = None,
-                   daily_fill_hour: int | None = None) -> TestCase:
+                   daily_fill_hour: int | None = None, swap_side: bool = False) -> TestCase:
     """動作ケースを、ペア x 期間の実データのパターンで、方向でたらめ版と対にして回すテストケース。
 
     ID は P-<動作ケース>。"""
@@ -96,11 +96,12 @@ def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None, broker: str 
                 patterns.append({"market": "real_pair", "label": pattern_label(pair, start), "params": {"source": src}})
     years = max((np.datetime64(e) - np.datetime64(s)).astype(int) / 365.25 for s, e in r.windows)
     suffix = (f"-{broker}" if broker else "") + (f"-h{daily_fill_hour}" if daily_fill_hour is not None
-                                                 and r.data_tf == "D1" else "")
+                                                 and r.data_tf == "D1" else "") + ("-swap" if swap_side else "")
     return TestCase(id=f"P-{b.id}{suffix}", behavior=b.id, patterns=patterns,
                     name=f"{b.id} の実データ評価(ペア x 期間、{r.data_tf}{'、' + broker if broker else ''})",
                     period={"years": round(float(years), 2)}, detail_seeds=[], null=True,
-                    broker=broker_override(b, broker) if broker else None)
+                    broker=broker_override(b, broker) if broker else None,
+                    engine={"swap_side_only": True} if swap_side else None)
 
 
 # ---- 判定 -----------------------------------------------------------------------

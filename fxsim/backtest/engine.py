@@ -38,6 +38,9 @@ class EngineConfig:
     # 既定(False)は数えるだけで、損益は変わらない
     ruin_frac: float = 0.1
     stop_at_ruin: bool = False
+    # スワップを受け取る向き(業者の取り分を引いた年率 > 0)の新規だけを出す(E022)。払う向きの新規は止め、逆向きの建玉が
+    # あれば決済だけする。積み増し・決済・損切りは止めない。どの戦略にも外から掛けられる(pair-eval --swap-side)
+    swap_side_only: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -148,7 +151,10 @@ class StrategyContext:
 
     def _enter(self, side: int, sl, tp, units) -> None:
         e = self._e
-        if e.can_enter[e.i]:
+        swap_ok = e.swap_side_ok(side)
+        if not swap_ok and not (e.pos is not None and e.pos.side == side):
+            e.stats["swap_blocked"] += 1
+        if e.can_enter[e.i] and swap_ok:
             e._submit(_Order("enter", side, sl, tp, units))
         elif e.pos is not None and e.pos.side == -side:
             e._submit(_Order("close"))
@@ -250,7 +256,7 @@ class Backtester:
         self.halted = False          # 取引を止めた(有効証拠金 0 以下、または stop_at_ruin で破綻)
         self.min_equity = self.balance
         self.stats = {"hunted": 0, "losscut": 0, "swap_total": 0.0, "slippage_pips": 0.0, "commission_total": 0.0,
-                      "slippage_total": 0.0, "rejected": 0, "zero_cut": 0.0, "blocked": 0}
+                      "slippage_total": 0.0, "rejected": 0, "zero_cut": 0.0, "blocked": 0, "swap_blocked": 0}
         self._prepare_prices()
 
     # ---- 足ごとの価格(ブローカーの上乗せ込み)を先に用意する ----
@@ -292,6 +298,16 @@ class Backtester:
             diff = (self._rate_diff_override if self._rate_diff_override is not None
                     else load_rates(b.rates_path).differential(bars.t))
             self.rate_diff = np.asarray(diff, dtype=float).tolist()
+
+    def swap_side_ok(self, side: int, i: int | None = None) -> bool:
+        """swap_side_only のとき、足 i(既定は今の足)で side の新規がスワップを受け取る向きか。"""
+        if not self.cfg.swap_side_only:
+            return True
+        b = self.broker
+        if b.swap_mode == "rates":
+            k = self.i if i is None else i
+            return b.swap_annual(side, self.rate_diff[k]) > 0
+        return (b.swap_long_per_10k if side > 0 else b.swap_short_per_10k) > 0
 
     # ---- 注文の受付 ----
     def _submit(self, order: _Order) -> None:

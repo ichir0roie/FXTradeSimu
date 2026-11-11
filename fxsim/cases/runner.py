@@ -57,7 +57,7 @@ def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
         "seeds": first_seeds,
         "detail_seeds": t.detail_seeds if t.detail_seeds is not None else first_seeds,
         "workers": t.workers,
-        "engine": b.engine,
+        "engine": {**b.engine, **(t.engine or {})},
         "storage": VERIFY_STORAGE if t.verify else CASE_STORAGE,
         "brokers": [t.broker or b.broker_spec],
         "markets": markets,

@@ -1,0 +1,4967 @@
+{
+ "run_key": "P-B046-oanda-h2-swap-20261111T070118-909076",
+ "name": "P-B046-oanda-h2-swap B046 の実データ評価(ペア x 期間、D1、oanda)",
+ "kind": "test_case",
+ "proposal": "P-B046-oanda-h2-swap",
+ "status": "done",
+ "created_at": "2026-11-11T07:01:18Z",
+ "finished_at": "2026-11-11T07:01:24Z",
+ "git_sha": "2b0d235+dirty",
+ "years": 6.86,
+ "notes": "behavior B046: 本命 2 本目 main_carry_trend(日足、スワップを受け取る向きだけ + 200 日平均の保険 + 共通の対策、OANDA の MT5 口座)",
+ "elapsed_sec": 6.447472095489502,
+ "seeds": [
+  1
+ ],
+ "config": {
+  "name": "P-B046-oanda-h2-swap B046 の実データ評価(ペア x 期間、D1、oanda)",
+  "markets": [
+   {
+    "model": "real_pair",
+    "label": "USDJPY 1996-01",
+    "params": {
+     "source": {
+      "path": "db:USDJPY/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDJPY 2002-01",
+    "params": {
+     "source": {
+      "path": "db:USDJPY/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDJPY 2008-01",
+    "params": {
+     "source": {
+      "path": "db:USDJPY/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDJPY 2014-01",
+    "params": {
+     "source": {
+      "path": "db:USDJPY/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDJPY 2020-01",
+    "params": {
+     "source": {
+      "path": "db:USDJPY/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURUSD 1996-01",
+    "params": {
+     "source": {
+      "path": "db:EURUSD/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURUSD 2002-01",
+    "params": {
+     "source": {
+      "path": "db:EURUSD/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURUSD 2008-01",
+    "params": {
+     "source": {
+      "path": "db:EURUSD/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURUSD 2014-01",
+    "params": {
+     "source": {
+      "path": "db:EURUSD/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURUSD 2020-01",
+    "params": {
+     "source": {
+      "path": "db:EURUSD/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPUSD 1996-01",
+    "params": {
+     "source": {
+      "path": "db:GBPUSD/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPUSD 2002-01",
+    "params": {
+     "source": {
+      "path": "db:GBPUSD/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPUSD 2008-01",
+    "params": {
+     "source": {
+      "path": "db:GBPUSD/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPUSD 2014-01",
+    "params": {
+     "source": {
+      "path": "db:GBPUSD/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPUSD 2020-01",
+    "params": {
+     "source": {
+      "path": "db:GBPUSD/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDUSD 1996-01",
+    "params": {
+     "source": {
+      "path": "db:AUDUSD/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDUSD 2002-01",
+    "params": {
+     "source": {
+      "path": "db:AUDUSD/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDUSD 2008-01",
+    "params": {
+     "source": {
+      "path": "db:AUDUSD/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDUSD 2014-01",
+    "params": {
+     "source": {
+      "path": "db:AUDUSD/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDUSD 2020-01",
+    "params": {
+     "source": {
+      "path": "db:AUDUSD/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "NZDUSD 1996-01",
+    "params": {
+     "source": {
+      "path": "db:NZDUSD/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "NZDUSD 2002-01",
+    "params": {
+     "source": {
+      "path": "db:NZDUSD/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "NZDUSD 2008-01",
+    "params": {
+     "source": {
+      "path": "db:NZDUSD/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "NZDUSD 2014-01",
+    "params": {
+     "source": {
+      "path": "db:NZDUSD/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "NZDUSD 2020-01",
+    "params": {
+     "source": {
+      "path": "db:NZDUSD/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCHF 1996-01",
+    "params": {
+     "source": {
+      "path": "db:USDCHF/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCHF 2002-01",
+    "params": {
+     "source": {
+      "path": "db:USDCHF/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCHF 2008-01",
+    "params": {
+     "source": {
+      "path": "db:USDCHF/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCHF 2014-01",
+    "params": {
+     "source": {
+      "path": "db:USDCHF/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCHF 2020-01",
+    "params": {
+     "source": {
+      "path": "db:USDCHF/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCAD 1996-01",
+    "params": {
+     "source": {
+      "path": "db:USDCAD/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCAD 2002-01",
+    "params": {
+     "source": {
+      "path": "db:USDCAD/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCAD 2008-01",
+    "params": {
+     "source": {
+      "path": "db:USDCAD/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCAD 2014-01",
+    "params": {
+     "source": {
+      "path": "db:USDCAD/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "USDCAD 2020-01",
+    "params": {
+     "source": {
+      "path": "db:USDCAD/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURJPY 1996-01",
+    "params": {
+     "source": {
+      "path": "db:EURJPY/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURJPY 2002-01",
+    "params": {
+     "source": {
+      "path": "db:EURJPY/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURJPY 2008-01",
+    "params": {
+     "source": {
+      "path": "db:EURJPY/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURJPY 2014-01",
+    "params": {
+     "source": {
+      "path": "db:EURJPY/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "EURJPY 2020-01",
+    "params": {
+     "source": {
+      "path": "db:EURJPY/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPJPY 1996-01",
+    "params": {
+     "source": {
+      "path": "db:GBPJPY/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPJPY 2002-01",
+    "params": {
+     "source": {
+      "path": "db:GBPJPY/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPJPY 2008-01",
+    "params": {
+     "source": {
+      "path": "db:GBPJPY/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPJPY 2014-01",
+    "params": {
+     "source": {
+      "path": "db:GBPJPY/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "GBPJPY 2020-01",
+    "params": {
+     "source": {
+      "path": "db:GBPJPY/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDJPY 1996-01",
+    "params": {
+     "source": {
+      "path": "db:AUDJPY/D1",
+      "start": "1996-01-01",
+      "end": "2001-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDJPY 2002-01",
+    "params": {
+     "source": {
+      "path": "db:AUDJPY/D1",
+      "start": "2002-01-01",
+      "end": "2007-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDJPY 2008-01",
+    "params": {
+     "source": {
+      "path": "db:AUDJPY/D1",
+      "start": "2008-01-01",
+      "end": "2013-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDJPY 2014-01",
+    "params": {
+     "source": {
+      "path": "db:AUDJPY/D1",
+      "start": "2014-01-01",
+      "end": "2019-12-31",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   },
+   {
+    "model": "real_pair",
+    "label": "AUDJPY 2020-01",
+    "params": {
+     "source": {
+      "path": "db:AUDJPY/D1",
+      "start": "2020-01-01",
+      "end": "2026-11-10",
+      "daily_fill_hour": 2
+     }
+    },
+    "seeds": [
+     1
+    ]
+   }
+  ],
+  "strategies": [
+   {
+    "name": "main_carry_trend",
+    "label": "B046",
+    "params": {
+     "guard": {
+      "max_spread_mult": 3.0,
+      "stop_price": "mid",
+      "hold_days_est": 60
+     },
+     "timeframe": 1440
+    },
+    "schedule": {
+     "decision_every": 1,
+     "outside": "hold"
+    }
+   },
+   {
+    "name": "main_direction_null",
+    "label": "NULL",
+    "params": {
+     "inner": "main_carry_trend",
+     "inner_params": {
+      "guard": {
+       "max_spread_mult": 3.0,
+       "stop_price": "mid",
+       "hold_days_est": 60
+      }
+     },
+     "timeframe": 1440
+    },
+    "schedule": {
+     "decision_every": 1,
+     "outside": "hold"
+    }
+   }
+  ],
+  "brokers": [
+   {
+    "preset": "oanda",
+    "label": "oanda",
+    "overrides": {
+     "mt5": {
+      "preset": "jp_domestic"
+     }
+    }
+   }
+  ],
+  "years": 6.86,
+  "seeds": [
+   1
+  ],
+  "detail_seeds": [],
+  "workers": 6,
+  "kind": "test_case",
+  "proposal": "P-B046-oanda-h2-swap",
+  "notes": "behavior B046: 本命 2 本目 main_carry_trend(日足、スワップを受け取る向きだけ + 200 日平均の保険 + 共通の対策、OANDA の MT5 口座)",
+  "engine": {
+   "initial_balance": 1000000.0,
+   "sizing": "fixed",
+   "units": 10000.0,
+   "risk_fraction": 0.01,
+   "min_units": 1000.0,
+   "max_units": 1000000.0,
+   "ruin_frac": 0.1,
+   "stop_at_ruin": false,
+   "swap_side_only": true
+  },
+  "storage": {
+   "candle_timeframe": 240,
+   "trades": "detail",
+   "equity_timeframe": 1440,
+   "equity_detail_timeframe": 1440,
+   "events": true
+  },
+  "live": {
+   "flush_every": 500,
+   "delay_ms": 0.0
+  },
+  "brokers_resolved": {
+   "oanda": {
+    "name": "oanda",
+    "slippage_pips": 0.1,
+    "adverse_only": false,
+    "slippage_spread_k": 0.0,
+    "stop_slippage_mult": 1.0,
+    "positive_slippage": true,
+    "hunt_prob": 0.0,
+    "hunt_pips": 0.0,
+    "spread_markup_pips": 0.0,
+    "spread_floor_pips": 0.0,
+    "commission_per_10k": 0.0,
+    "swap_mode": "rates",
+    "swap_long_per_10k": 0.0,
+    "swap_short_per_10k": 0.0,
+    "swap_markup": 0.0044,
+    "swap_markup_pay": 0.011,
+    "rates_path": "data/real/policy_rates_usd_jpy.csv",
+    "last_look_prob": 0.0,
+    "zero_cut": false,
+    "intrabar": "path",
+    "gap_k": 6.0,
+    "touch": "bridge",
+    "leverage": 25.0,
+    "losscut_level": 1.0,
+    "mt5": {
+     "preset": "jp_domestic"
+    }
+   }
+  }
+ },
+ "case_runs": [
+  {
+   "test_id": "P-B046-oanda-h2-swap",
+   "behavior_id": "B046",
+   "test_hash": "8f41daa2df",
+   "behavior_hash": "c527e191e8",
+   "code_sha": "2b0d235+dirty",
+   "status": "done",
+   "created_at": "2026-11-11T07:01:18Z",
+   "finished_at": "2026-11-11T07:01:24Z",
+   "summary": {
+    "by_market": {
+     "AUDJPY 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 2056.190448743757,
+       "median": 2056.190448743757,
+       "total": 2056.190448743757,
+       "std": 0.0,
+       "min": 2056.190448743757,
+       "max": 2056.190448743757,
+       "p10": 2056.190448743757,
+       "p90": 2056.190448743757,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -59.775425868716326,
+       "median": -59.775425868716326,
+       "total": -59.775425868716326,
+       "std": 0.0,
+       "min": -59.775425868716326,
+       "max": -59.775425868716326,
+       "p10": -59.775425868716326,
+       "p90": -59.775425868716326,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.06032872524965843,
+       "median": 0.06032872524965843,
+       "total": 0.06032872524965843,
+       "std": 0.0,
+       "min": 0.06032872524965843,
+       "max": 0.06032872524965843,
+       "p10": 0.06032872524965843,
+       "p90": 0.06032872524965843,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.016386194552198318,
+       "median": 0.016386194552198318,
+       "total": 0.016386194552198318,
+       "std": 0.0,
+       "min": 0.016386194552198318,
+       "max": 0.016386194552198318,
+       "p10": 0.016386194552198318,
+       "p90": 0.016386194552198318,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.8333333333333335,
+       "median": 2.8333333333333335,
+       "total": 2.8333333333333335,
+       "std": 0.0,
+       "min": 2.8333333333333335,
+       "max": 2.8333333333333335,
+       "p10": 2.8333333333333335,
+       "p90": 2.8333333333333335,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDJPY 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 47452.35864950786,
+       "median": 47452.35864950786,
+       "total": 47452.35864950786,
+       "std": 0.0,
+       "min": 47452.35864950786,
+       "max": 47452.35864950786,
+       "p10": 47452.35864950786,
+       "p90": 47452.35864950786,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 70.38472661946872,
+       "median": 70.38472661946872,
+       "total": 70.38472661946872,
+       "std": 0.0,
+       "min": 70.38472661946872,
+       "max": 70.38472661946872,
+       "p10": 70.38472661946872,
+       "p90": 70.38472661946872,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6391612424016417,
+       "median": 0.6391612424016417,
+       "total": 0.6391612424016417,
+       "std": 0.0,
+       "min": 0.6391612424016417,
+       "max": 0.6391612424016417,
+       "p10": 0.6391612424016417,
+       "p90": 0.6391612424016417,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.019189136245049414,
+       "median": 0.019189136245049414,
+       "total": 0.019189136245049414,
+       "std": 0.0,
+       "min": 0.019189136245049414,
+       "max": 0.019189136245049414,
+       "p10": 0.019189136245049414,
+       "p90": 0.019189136245049414,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.0809743252139565,
+       "median": 3.0809743252139565,
+       "total": 3.0809743252139565,
+       "std": 0.0,
+       "min": 3.0809743252139565,
+       "max": 3.0809743252139565,
+       "p10": 3.0809743252139565,
+       "p90": 3.0809743252139565,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDJPY 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 3443.1725125242956,
+       "median": 3443.1725125242956,
+       "total": 3443.1725125242956,
+       "std": 0.0,
+       "min": 3443.1725125242956,
+       "max": 3443.1725125242956,
+       "p10": 3443.1725125242956,
+       "p90": 3443.1725125242956,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -187.11161648992297,
+       "median": -187.11161648992297,
+       "total": -187.11161648992297,
+       "std": 0.0,
+       "min": -187.11161648992297,
+       "max": -187.11161648992297,
+       "p10": -187.11161648992297,
+       "p90": -187.11161648992297,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.05673409003195159,
+       "median": 0.05673409003195159,
+       "total": 0.05673409003195159,
+       "std": 0.0,
+       "min": 0.05673409003195159,
+       "max": 0.05673409003195159,
+       "p10": 0.05673409003195159,
+       "p90": 0.05673409003195159,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.03034741774384135,
+       "median": 0.03034741774384135,
+       "total": 0.03034741774384135,
+       "std": 0.0,
+       "min": 0.03034741774384135,
+       "max": 0.03034741774384135,
+       "p10": 0.03034741774384135,
+       "p90": 0.03034741774384135,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.3744321868916285,
+       "median": 3.3744321868916285,
+       "total": 3.3744321868916285,
+       "std": 0.0,
+       "min": 3.3744321868916285,
+       "max": 3.3744321868916285,
+       "p10": 3.3744321868916285,
+       "p90": 3.3744321868916285,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDJPY 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -12359.032489296165,
+       "median": -12359.032489296165,
+       "total": -12359.032489296165,
+       "std": 0.0,
+       "min": -12359.032489296165,
+       "max": -12359.032489296165,
+       "p10": -12359.032489296165,
+       "p90": -12359.032489296165,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -194.18268048477213,
+       "median": -194.18268048477213,
+       "total": -194.18268048477213,
+       "std": 0.0,
+       "min": -194.18268048477213,
+       "max": -194.18268048477213,
+       "p10": -194.18268048477213,
+       "p90": -194.18268048477213,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.3481098542991998,
+       "median": -0.3481098542991998,
+       "total": -0.3481098542991998,
+       "std": 0.0,
+       "min": -0.3481098542991998,
+       "max": -0.3481098542991998,
+       "p10": -0.3481098542991998,
+       "p90": -0.3481098542991998,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.019608446738894645,
+       "median": 0.019608446738894645,
+       "total": 0.019608446738894645,
+       "std": 0.0,
+       "min": 0.019608446738894645,
+       "max": 0.019608446738894645,
+       "p10": 0.019608446738894645,
+       "p90": 0.019608446738894645,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.3440514469453375,
+       "median": 3.3440514469453375,
+       "total": 3.3440514469453375,
+       "std": 0.0,
+       "min": 3.3440514469453375,
+       "max": 3.3440514469453375,
+       "p10": 3.3440514469453375,
+       "p90": 3.3440514469453375,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDJPY 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 36584.74626692163,
+       "median": 36584.74626692163,
+       "total": 36584.74626692163,
+       "std": 0.0,
+       "min": 36584.74626692163,
+       "max": 36584.74626692163,
+       "p10": 36584.74626692163,
+       "p90": 36584.74626692163,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 173.9714883496747,
+       "median": 173.9714883496747,
+       "total": 173.9714883496747,
+       "std": 0.0,
+       "min": 173.9714883496747,
+       "max": 173.9714883496747,
+       "p10": 173.9714883496747,
+       "p90": 173.9714883496747,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6040205363108204,
+       "median": 0.6040205363108204,
+       "total": 0.6040205363108204,
+       "std": 0.0,
+       "min": 0.6040205363108204,
+       "max": 0.6040205363108204,
+       "p10": 0.6040205363108204,
+       "p90": 0.6040205363108204,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.014998768292941417,
+       "median": 0.014998768292941417,
+       "total": 0.014998768292941417,
+       "std": 0.0,
+       "min": 0.014998768292941417,
+       "max": 0.014998768292941417,
+       "p10": 0.014998768292941417,
+       "p90": 0.014998768292941417,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.1922428330522767,
+       "median": 2.1922428330522767,
+       "total": 2.1922428330522767,
+       "std": 0.0,
+       "min": 2.1922428330522767,
+       "max": 2.1922428330522767,
+       "p10": 2.1922428330522767,
+       "p90": 2.1922428330522767,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDUSD 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -949.7835763662588,
+       "median": -949.7835763662588,
+       "total": -949.7835763662588,
+       "std": 0.0,
+       "min": -949.7835763662588,
+       "max": -949.7835763662588,
+       "p10": -949.7835763662588,
+       "p90": -949.7835763662588,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -9.336731651547236,
+       "median": -9.336731651547236,
+       "total": -9.336731651547236,
+       "std": 0.0,
+       "min": -9.336731651547236,
+       "max": -9.336731651547236,
+       "p10": -9.336731651547236,
+       "p90": -9.336731651547236,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.12072103155432402,
+       "median": -0.12072103155432402,
+       "total": -0.12072103155432402,
+       "std": 0.0,
+       "min": -0.12072103155432402,
+       "max": -0.12072103155432402,
+       "p10": -0.12072103155432402,
+       "p90": -0.12072103155432402,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0023382149427041976,
+       "median": 0.0023382149427041976,
+       "total": 0.0023382149427041976,
+       "std": 0.0,
+       "min": 0.0023382149427041976,
+       "max": 0.0023382149427041976,
+       "p10": 0.0023382149427041976,
+       "p90": 0.0023382149427041976,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.1667735728030789,
+       "median": 0.1667735728030789,
+       "total": 0.1667735728030789,
+       "std": 0.0,
+       "min": 0.1667735728030789,
+       "max": 0.1667735728030789,
+       "p10": 0.1667735728030789,
+       "p90": 0.1667735728030789,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDUSD 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 58885.843819648726,
+       "median": 58885.843819648726,
+       "total": 58885.843819648726,
+       "std": 0.0,
+       "min": 58885.843819648726,
+       "max": 58885.843819648726,
+       "p10": 58885.843819648726,
+       "p90": 58885.843819648726,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 308.8505444420357,
+       "median": 308.8505444420357,
+       "total": 308.8505444420357,
+       "std": 0.0,
+       "min": 308.8505444420357,
+       "max": 308.8505444420357,
+       "p10": 308.8505444420357,
+       "p90": 308.8505444420357,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.8577332828071785,
+       "median": 0.8577332828071785,
+       "total": 0.8577332828071785,
+       "std": 0.0,
+       "min": 0.8577332828071785,
+       "max": 0.8577332828071785,
+       "p10": 0.8577332828071785,
+       "p90": 0.8577332828071785,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.020552037976174845,
+       "median": 0.020552037976174845,
+       "total": 0.020552037976174845,
+       "std": 0.0,
+       "min": 0.020552037976174845,
+       "max": 0.020552037976174845,
+       "p10": 0.020552037976174845,
+       "p90": 0.020552037976174845,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.16527866752082,
+       "median": 2.16527866752082,
+       "total": 2.16527866752082,
+       "std": 0.0,
+       "min": 2.16527866752082,
+       "max": 2.16527866752082,
+       "p10": 2.16527866752082,
+       "p90": 2.16527866752082,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDUSD 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 14267.381500622607,
+       "median": 14267.381500622607,
+       "total": 14267.381500622607,
+       "std": 0.0,
+       "min": 14267.381500622607,
+       "max": 14267.381500622607,
+       "p10": 14267.381500622607,
+       "p90": 14267.381500622607,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 138.96340747853887,
+       "median": 138.96340747853887,
+       "total": 138.96340747853887,
+       "std": 0.0,
+       "min": 138.96340747853887,
+       "max": 138.96340747853887,
+       "p10": 138.96340747853887,
+       "p90": 138.96340747853887,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.26976080393037855,
+       "median": 0.26976080393037855,
+       "total": 0.26976080393037855,
+       "std": 0.0,
+       "min": 0.26976080393037855,
+       "max": 0.26976080393037855,
+       "p10": 0.26976080393037855,
+       "p90": 0.26976080393037855,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.027144940654837142,
+       "median": 0.027144940654837142,
+       "total": 0.027144940654837142,
+       "std": 0.0,
+       "min": 0.027144940654837142,
+       "max": 0.027144940654837142,
+       "p10": 0.027144940654837142,
+       "p90": 0.027144940654837142,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 4.174694926140013,
+       "median": 4.174694926140013,
+       "total": 4.174694926140013,
+       "std": 0.0,
+       "min": 4.174694926140013,
+       "max": 4.174694926140013,
+       "p10": 4.174694926140013,
+       "p90": 4.174694926140013,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDUSD 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -2277.785101976944,
+       "median": -2277.785101976944,
+       "total": -2277.785101976944,
+       "std": 0.0,
+       "min": -2277.785101976944,
+       "max": -2277.785101976944,
+       "p10": -2277.785101976944,
+       "p90": -2277.785101976944,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -39.46081568916649,
+       "median": -39.46081568916649,
+       "total": -39.46081568916649,
+       "std": 0.0,
+       "min": -39.46081568916649,
+       "max": -39.46081568916649,
+       "p10": -39.46081568916649,
+       "p90": -39.46081568916649,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.1974408329711841,
+       "median": -0.1974408329711841,
+       "total": -0.1974408329711841,
+       "std": 0.0,
+       "min": -0.1974408329711841,
+       "max": -0.1974408329711841,
+       "p10": -0.1974408329711841,
+       "p90": -0.1974408329711841,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.006336874799577587,
+       "median": 0.006336874799577587,
+       "total": 0.006336874799577587,
+       "std": 0.0,
+       "min": 0.006336874799577587,
+       "max": 0.006336874799577587,
+       "p10": 0.006336874799577587,
+       "p90": 0.006336874799577587,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.33440514469453375,
+       "median": 0.33440514469453375,
+       "total": 0.33440514469453375,
+       "std": 0.0,
+       "min": 0.33440514469453375,
+       "max": 0.33440514469453375,
+       "p10": 0.33440514469453375,
+       "p90": 0.33440514469453375,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "AUDUSD 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURJPY 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 1072.171077285544,
+       "median": 1072.171077285544,
+       "total": 1072.171077285544,
+       "std": 0.0,
+       "min": 1072.171077285544,
+       "max": 1072.171077285544,
+       "p10": 1072.171077285544,
+       "p90": 1072.171077285544,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -124.9692131701623,
+       "median": -124.9692131701623,
+       "total": -124.9692131701623,
+       "std": 0.0,
+       "min": -124.9692131701623,
+       "max": -124.9692131701623,
+       "p10": -124.9692131701623,
+       "p90": -124.9692131701623,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.023298415552756264,
+       "median": 0.023298415552756264,
+       "total": 0.023298415552756264,
+       "std": 0.0,
+       "min": 0.023298415552756264,
+       "max": 0.023298415552756264,
+       "p10": 0.023298415552756264,
+       "p90": 0.023298415552756264,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.025436897531283507,
+       "median": 0.025436897531283507,
+       "total": 0.025436897531283507,
+       "std": 0.0,
+       "min": 0.025436897531283507,
+       "max": 0.025436897531283507,
+       "p10": 0.025436897531283507,
+       "p90": 0.025436897531283507,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.8155136268343814,
+       "median": 3.8155136268343814,
+       "total": 3.8155136268343814,
+       "std": 0.0,
+       "min": 3.8155136268343814,
+       "max": 3.8155136268343814,
+       "p10": 3.8155136268343814,
+       "p90": 3.8155136268343814,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURJPY 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 12932.103700137348,
+       "median": 12932.103700137348,
+       "total": 12932.103700137348,
+       "std": 0.0,
+       "min": 12932.103700137348,
+       "max": 12932.103700137348,
+       "p10": 12932.103700137348,
+       "p90": 12932.103700137348,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 14.89604202951988,
+       "median": 14.89604202951988,
+       "total": 14.89604202951988,
+       "std": 0.0,
+       "min": 14.89604202951988,
+       "max": 14.89604202951988,
+       "p10": 14.89604202951988,
+       "p90": 14.89604202951988,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.2227518645241013,
+       "median": 0.2227518645241013,
+       "total": 0.2227518645241013,
+       "std": 0.0,
+       "min": 0.2227518645241013,
+       "max": 0.2227518645241013,
+       "p10": 0.2227518645241013,
+       "p90": 0.2227518645241013,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.02788681123953141,
+       "median": 0.02788681123953141,
+       "total": 0.02788681123953141,
+       "std": 0.0,
+       "min": 0.02788681123953141,
+       "max": 0.02788681123953141,
+       "p10": 0.02788681123953141,
+       "p90": 0.02788681123953141,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.331197950032031,
+       "median": 3.331197950032031,
+       "total": 3.331197950032031,
+       "std": 0.0,
+       "min": 3.331197950032031,
+       "max": 3.331197950032031,
+       "p10": 3.331197950032031,
+       "p90": 3.331197950032031,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURJPY 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURJPY 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURJPY 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 7871.622991711949,
+       "median": 7871.622991711949,
+       "total": 7871.622991711949,
+       "std": 0.0,
+       "min": 7871.622991711949,
+       "max": 7871.622991711949,
+       "p10": 7871.622991711949,
+       "p90": 7871.622991711949,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 4.939322806326304,
+       "median": 4.939322806326304,
+       "total": 4.939322806326304,
+       "std": 0.0,
+       "min": 4.939322806326304,
+       "max": 4.939322806326304,
+       "p10": 4.939322806326304,
+       "p90": 4.939322806326304,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.16916682218838308,
+       "median": 0.16916682218838308,
+       "total": 0.16916682218838308,
+       "std": 0.0,
+       "min": 0.16916682218838308,
+       "max": 0.16916682218838308,
+       "p10": 0.16916682218838308,
+       "p90": 0.16916682218838308,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0156290174629177,
+       "median": 0.0156290174629177,
+       "total": 0.0156290174629177,
+       "std": 0.0,
+       "min": 0.0156290174629177,
+       "max": 0.0156290174629177,
+       "p10": 0.0156290174629177,
+       "p90": 0.0156290174629177,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.0230466554243958,
+       "median": 1.0230466554243958,
+       "total": 1.0230466554243958,
+       "std": 0.0,
+       "min": 1.0230466554243958,
+       "max": 1.0230466554243958,
+       "p10": 1.0230466554243958,
+       "p90": 1.0230466554243958,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURUSD 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 25115.048445676104,
+       "median": 25115.048445676104,
+       "total": 25115.048445676104,
+       "std": 0.0,
+       "min": 25115.048445676104,
+       "max": 25115.048445676104,
+       "p10": 25115.048445676104,
+       "p90": 25115.048445676104,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 341.53494702336604,
+       "median": 341.53494702336604,
+       "total": 341.53494702336604,
+       "std": 0.0,
+       "min": 341.53494702336604,
+       "max": 341.53494702336604,
+       "p10": 341.53494702336604,
+       "p90": 341.53494702336604,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6626025229843805,
+       "median": 0.6626025229843805,
+       "total": 0.6626025229843805,
+       "std": 0.0,
+       "min": 0.6626025229843805,
+       "max": 0.6626025229843805,
+       "p10": 0.6626025229843805,
+       "p90": 0.6626025229843805,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.007482558580240724,
+       "median": 0.007482558580240724,
+       "total": 0.007482558580240724,
+       "std": 0.0,
+       "min": 0.007482558580240724,
+       "max": 0.007482558580240724,
+       "p10": 0.007482558580240724,
+       "p90": 0.007482558580240724,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.3497728747566515,
+       "median": 1.3497728747566515,
+       "total": 1.3497728747566515,
+       "std": 0.0,
+       "min": 1.3497728747566515,
+       "max": 1.3497728747566515,
+       "p10": 1.3497728747566515,
+       "p90": 1.3497728747566515,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURUSD 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 14810.18794956198,
+       "median": 14810.18794956198,
+       "total": 14810.18794956198,
+       "std": 0.0,
+       "min": 14810.18794956198,
+       "max": 14810.18794956198,
+       "p10": 14810.18794956198,
+       "p90": 14810.18794956198,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 164.72817133035463,
+       "median": 164.72817133035463,
+       "total": 164.72817133035463,
+       "std": 0.0,
+       "min": 164.72817133035463,
+       "max": 164.72817133035463,
+       "p10": 164.72817133035463,
+       "p90": 164.72817133035463,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.511580682464029,
+       "median": 0.511580682464029,
+       "total": 0.511580682464029,
+       "std": 0.0,
+       "min": 0.511580682464029,
+       "max": 0.511580682464029,
+       "p10": 0.511580682464029,
+       "p90": 0.511580682464029,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.009375844653789796,
+       "median": 0.009375844653789796,
+       "total": 0.009375844653789796,
+       "std": 0.0,
+       "min": 0.009375844653789796,
+       "max": 0.009375844653789796,
+       "p10": 0.009375844653789796,
+       "p90": 0.009375844653789796,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.6662395900064062,
+       "median": 0.6662395900064062,
+       "total": 0.6662395900064062,
+       "std": 0.0,
+       "min": 0.6662395900064062,
+       "max": 0.6662395900064062,
+       "p10": 0.6662395900064062,
+       "p90": 0.6662395900064062,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURUSD 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURUSD 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 14364.444728976232,
+       "median": 14364.444728976232,
+       "total": 14364.444728976232,
+       "std": 0.0,
+       "min": 14364.444728976232,
+       "max": 14364.444728976232,
+       "p10": 14364.444728976232,
+       "p90": 14364.444728976232,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 123.06933201528383,
+       "median": 123.06933201528383,
+       "total": 123.06933201528383,
+       "std": 0.0,
+       "min": 123.06933201528383,
+       "max": 123.06933201528383,
+       "p10": 123.06933201528383,
+       "p90": 123.06933201528383,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.5231326522851227,
+       "median": 0.5231326522851227,
+       "total": 0.5231326522851227,
+       "std": 0.0,
+       "min": 0.5231326522851227,
+       "max": 0.5231326522851227,
+       "p10": 0.5231326522851227,
+       "p90": 0.5231326522851227,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.005329245620725598,
+       "median": 0.005329245620725598,
+       "total": 0.005329245620725598,
+       "std": 0.0,
+       "min": 0.005329245620725598,
+       "max": 0.005329245620725598,
+       "p10": 0.005329245620725598,
+       "p90": 0.005329245620725598,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.33440514469453375,
+       "median": 0.33440514469453375,
+       "total": 0.33440514469453375,
+       "std": 0.0,
+       "min": 0.33440514469453375,
+       "max": 0.33440514469453375,
+       "p10": 0.33440514469453375,
+       "p90": 0.33440514469453375,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "EURUSD 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 8673.621790791629,
+       "median": 8673.621790791629,
+       "total": 8673.621790791629,
+       "std": 0.0,
+       "min": 8673.621790791629,
+       "max": 8673.621790791629,
+       "p10": 8673.621790791629,
+       "p90": 8673.621790791629,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 21.482711695229312,
+       "median": 21.482711695229312,
+       "total": 21.482711695229312,
+       "std": 0.0,
+       "min": 21.482711695229312,
+       "max": 21.482711695229312,
+       "p10": 21.482711695229312,
+       "p90": 21.482711695229312,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.1678472860034257,
+       "median": 0.1678472860034257,
+       "total": 0.1678472860034257,
+       "std": 0.0,
+       "min": 0.1678472860034257,
+       "max": 0.1678472860034257,
+       "p10": 0.1678472860034257,
+       "p90": 0.1678472860034257,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.017387924620116624,
+       "median": 0.017387924620116624,
+       "total": 0.017387924620116624,
+       "std": 0.0,
+       "min": 0.017387924620116624,
+       "max": 0.017387924620116624,
+       "p10": 0.017387924620116624,
+       "p90": 0.017387924620116624,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.7537942664418213,
+       "median": 1.7537942664418213,
+       "total": 1.7537942664418213,
+       "std": 0.0,
+       "min": 1.7537942664418213,
+       "max": 1.7537942664418213,
+       "p10": 1.7537942664418213,
+       "p90": 1.7537942664418213,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPJPY 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 31068.58609353716,
+       "median": 31068.58609353716,
+       "total": 31068.58609353716,
+       "std": 0.0,
+       "min": 31068.58609353716,
+       "max": 31068.58609353716,
+       "p10": 31068.58609353716,
+       "p90": 31068.58609353716,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 398.9611149009704,
+       "median": 398.9611149009704,
+       "total": 398.9611149009704,
+       "std": 0.0,
+       "min": 398.9611149009704,
+       "max": 398.9611149009704,
+       "p10": 398.9611149009704,
+       "p90": 398.9611149009704,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6614657606773717,
+       "median": 0.6614657606773717,
+       "total": 0.6614657606773717,
+       "std": 0.0,
+       "min": 0.6614657606773717,
+       "max": 0.6614657606773717,
+       "p10": 0.6614657606773717,
+       "p90": 0.6614657606773717,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.020439098311491315,
+       "median": 0.020439098311491315,
+       "total": 0.020439098311491315,
+       "std": 0.0,
+       "min": 0.020439098311491315,
+       "max": 0.020439098311491315,
+       "p10": 0.020439098311491315,
+       "p90": 0.020439098311491315,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.5,
+       "median": 0.5,
+       "total": 0.5,
+       "std": 0.0,
+       "min": 0.5,
+       "max": 0.5,
+       "p10": 0.5,
+       "p90": 0.5,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPJPY 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 36616.823484863155,
+       "median": 36616.823484863155,
+       "total": 36616.823484863155,
+       "std": 0.0,
+       "min": 36616.823484863155,
+       "max": 36616.823484863155,
+       "p10": 36616.823484863155,
+       "p90": 36616.823484863155,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 160.56207307076608,
+       "median": 160.56207307076608,
+       "total": 160.56207307076608,
+       "std": 0.0,
+       "min": 160.56207307076608,
+       "max": 160.56207307076608,
+       "p10": 160.56207307076608,
+       "p90": 160.56207307076608,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.4598911399165368,
+       "median": 0.4598911399165368,
+       "total": 0.4598911399165368,
+       "std": 0.0,
+       "min": 0.4598911399165368,
+       "max": 0.4598911399165368,
+       "p10": 0.4598911399165368,
+       "p90": 0.4598911399165368,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.020030531261829347,
+       "median": 0.020030531261829347,
+       "total": 0.020030531261829347,
+       "std": 0.0,
+       "min": 0.020030531261829347,
+       "max": 0.020030531261829347,
+       "p10": 0.020030531261829347,
+       "p90": 0.020030531261829347,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.1666666666666665,
+       "median": 2.1666666666666665,
+       "total": 2.1666666666666665,
+       "std": 0.0,
+       "min": 2.1666666666666665,
+       "max": 2.1666666666666665,
+       "p10": 2.1666666666666665,
+       "p90": 2.1666666666666665,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPJPY 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPJPY 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPJPY 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 42660.64434601751,
+       "median": 42660.64434601751,
+       "total": 42660.64434601751,
+       "std": 0.0,
+       "min": 42660.64434601751,
+       "max": 42660.64434601751,
+       "p10": 42660.64434601751,
+       "p90": 42660.64434601751,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 373.0261018957033,
+       "median": 373.0261018957033,
+       "total": 373.0261018957033,
+       "std": 0.0,
+       "min": 373.0261018957033,
+       "max": 373.0261018957033,
+       "p10": 373.0261018957033,
+       "p90": 373.0261018957033,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6542956824094934,
+       "median": 0.6542956824094934,
+       "total": 0.6542956824094934,
+       "std": 0.0,
+       "min": 0.6542956824094934,
+       "max": 0.6542956824094934,
+       "p10": 0.6542956824094934,
+       "p90": 0.6542956824094934,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.016262409252430877,
+       "median": 0.016262409252430877,
+       "total": 0.016262409252430877,
+       "std": 0.0,
+       "min": 0.016262409252430877,
+       "max": 0.016262409252430877,
+       "p10": 0.016262409252430877,
+       "p90": 0.016262409252430877,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.0230466554243958,
+       "median": 1.0230466554243958,
+       "total": 1.0230466554243958,
+       "std": 0.0,
+       "min": 1.0230466554243958,
+       "max": 1.0230466554243958,
+       "p10": 1.0230466554243958,
+       "p90": 1.0230466554243958,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPUSD 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -15884.759062200552,
+       "median": -15884.759062200552,
+       "total": -15884.759062200552,
+       "std": 0.0,
+       "min": -15884.759062200552,
+       "max": -15884.759062200552,
+       "p10": -15884.759062200552,
+       "p90": -15884.759062200552,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -289.4570034729169,
+       "median": -289.4570034729169,
+       "total": -289.4570034729169,
+       "std": 0.0,
+       "min": -289.4570034729169,
+       "max": -289.4570034729169,
+       "p10": -289.4570034729169,
+       "p90": -289.4570034729169,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.47317188719163833,
+       "median": -0.47317188719163833,
+       "total": -0.47317188719163833,
+       "std": 0.0,
+       "min": -0.47317188719163833,
+       "max": -0.47317188719163833,
+       "p10": -0.47317188719163833,
+       "p90": -0.47317188719163833,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.02463155897027313,
+       "median": 0.02463155897027313,
+       "total": 0.02463155897027313,
+       "std": 0.0,
+       "min": 0.02463155897027313,
+       "max": 0.02463155897027313,
+       "p10": 0.02463155897027313,
+       "p90": 0.02463155897027313,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.36210253082414,
+       "median": 2.36210253082414,
+       "total": 2.36210253082414,
+       "std": 0.0,
+       "min": 2.36210253082414,
+       "max": 2.36210253082414,
+       "p10": 2.36210253082414,
+       "p90": 2.36210253082414,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPUSD 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 14131.675694375997,
+       "median": 14131.675694375997,
+       "total": 14131.675694375997,
+       "std": 0.0,
+       "min": 14131.675694375997,
+       "max": 14131.675694375997,
+       "p10": 14131.675694375997,
+       "p90": 14131.675694375997,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 85.09042674881812,
+       "median": 85.09042674881812,
+       "total": 85.09042674881812,
+       "std": 0.0,
+       "min": 85.09042674881812,
+       "max": 85.09042674881812,
+       "p10": 85.09042674881812,
+       "p90": 85.09042674881812,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.22686952396829377,
+       "median": 0.22686952396829377,
+       "total": 0.22686952396829377,
+       "std": 0.0,
+       "min": 0.22686952396829377,
+       "max": 0.22686952396829377,
+       "p10": 0.22686952396829377,
+       "p90": 0.22686952396829377,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.017705177498610676,
+       "median": 0.017705177498610676,
+       "total": 0.017705177498610676,
+       "std": 0.0,
+       "min": 0.017705177498610676,
+       "max": 0.017705177498610676,
+       "p10": 0.017705177498610676,
+       "p90": 0.017705177498610676,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.4996796925048046,
+       "median": 0.4996796925048046,
+       "total": 0.4996796925048046,
+       "std": 0.0,
+       "min": 0.4996796925048046,
+       "max": 0.4996796925048046,
+       "p10": 0.4996796925048046,
+       "p90": 0.4996796925048046,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPUSD 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPUSD 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 13281.520407650853,
+       "median": 13281.520407650853,
+       "total": 13281.520407650853,
+       "std": 0.0,
+       "min": 13281.520407650853,
+       "max": 13281.520407650853,
+       "p10": 13281.520407650853,
+       "p90": 13281.520407650853,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 190.91242779005375,
+       "median": 190.91242779005375,
+       "total": 190.91242779005375,
+       "std": 0.0,
+       "min": 190.91242779005375,
+       "max": 190.91242779005375,
+       "p10": 190.91242779005375,
+       "p90": 190.91242779005375,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.587765738507824,
+       "median": 0.587765738507824,
+       "total": 0.587765738507824,
+       "std": 0.0,
+       "min": 0.587765738507824,
+       "max": 0.587765738507824,
+       "p10": 0.587765738507824,
+       "p90": 0.587765738507824,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.00828390667843043,
+       "median": 0.00828390667843043,
+       "total": 0.00828390667843043,
+       "std": 0.0,
+       "min": 0.00828390667843043,
+       "max": 0.00828390667843043,
+       "p10": 0.00828390667843043,
+       "p90": 0.00828390667843043,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.0032154340836013,
+       "median": 1.0032154340836013,
+       "total": 1.0032154340836013,
+       "std": 0.0,
+       "min": 1.0032154340836013,
+       "max": 1.0032154340836013,
+       "p10": 1.0032154340836013,
+       "p90": 1.0032154340836013,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "GBPUSD 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "NZDUSD 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -3877.944016383495,
+       "median": -3877.944016383495,
+       "total": -3877.944016383495,
+       "std": 0.0,
+       "min": -3877.944016383495,
+       "max": -3877.944016383495,
+       "p10": -3877.944016383495,
+       "p90": -3877.944016383495,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -47.80193175210478,
+       "median": -47.80193175210478,
+       "total": -47.80193175210478,
+       "std": 0.0,
+       "min": -47.80193175210478,
+       "max": -47.80193175210478,
+       "p10": -47.80193175210478,
+       "p90": -47.80193175210478,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.11665663693518867,
+       "median": -0.11665663693518867,
+       "total": -0.11665663693518867,
+       "std": 0.0,
+       "min": -0.11665663693518867,
+       "max": -0.11665663693518867,
+       "p10": -0.11665663693518867,
+       "p90": -0.11665663693518867,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.01544426326601234,
+       "median": 0.01544426326601234,
+       "total": 0.01544426326601234,
+       "std": 0.0,
+       "min": 0.01544426326601234,
+       "max": 0.01544426326601234,
+       "p10": 0.01544426326601234,
+       "p90": 0.01544426326601234,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.4952076677316295,
+       "median": 1.4952076677316295,
+       "total": 1.4952076677316295,
+       "std": 0.0,
+       "min": 1.4952076677316295,
+       "max": 1.4952076677316295,
+       "p10": 1.4952076677316295,
+       "p90": 1.4952076677316295,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "NZDUSD 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 56925.07169230166,
+       "median": 56925.07169230166,
+       "total": 56925.07169230166,
+       "std": 0.0,
+       "min": 56925.07169230166,
+       "max": 56925.07169230166,
+       "p10": 56925.07169230166,
+       "p90": 56925.07169230166,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 310.0485255602664,
+       "median": 310.0485255602664,
+       "total": 310.0485255602664,
+       "std": 0.0,
+       "min": 310.0485255602664,
+       "max": 310.0485255602664,
+       "p10": 310.0485255602664,
+       "p90": 310.0485255602664,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.8209738069557369,
+       "median": 0.8209738069557369,
+       "total": 0.8209738069557369,
+       "std": 0.0,
+       "min": 0.8209738069557369,
+       "max": 0.8209738069557369,
+       "p10": 0.8209738069557369,
+       "p90": 0.8209738069557369,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.022822571847884988,
+       "median": 0.022822571847884988,
+       "total": 0.022822571847884988,
+       "std": 0.0,
+       "min": 0.022822571847884988,
+       "max": 0.022822571847884988,
+       "p10": 0.022822571847884988,
+       "p90": 0.022822571847884988,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.1666666666666665,
+       "median": 2.1666666666666665,
+       "total": 2.1666666666666665,
+       "std": 0.0,
+       "min": 2.1666666666666665,
+       "max": 2.1666666666666665,
+       "p10": 2.1666666666666665,
+       "p90": 2.1666666666666665,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "NZDUSD 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 9372.412260320038,
+       "median": 9372.412260320038,
+       "total": 9372.412260320038,
+       "std": 0.0,
+       "min": 9372.412260320038,
+       "max": 9372.412260320038,
+       "p10": 9372.412260320038,
+       "p90": 9372.412260320038,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 24.89687468996802,
+       "median": 24.89687468996802,
+       "total": 24.89687468996802,
+       "std": 0.0,
+       "min": 24.89687468996802,
+       "max": 24.89687468996802,
+       "p10": 24.89687468996802,
+       "p90": 24.89687468996802,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.1798281242761481,
+       "median": 0.1798281242761481,
+       "total": 0.1798281242761481,
+       "std": 0.0,
+       "min": 0.1798281242761481,
+       "max": 0.1798281242761481,
+       "p10": 0.1798281242761481,
+       "p90": 0.1798281242761481,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.016886111546130445,
+       "median": 0.016886111546130445,
+       "total": 0.016886111546130445,
+       "std": 0.0,
+       "min": 0.016886111546130445,
+       "max": 0.016886111546130445,
+       "p10": 0.016886111546130445,
+       "p90": 0.016886111546130445,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 4.341682723185613,
+       "median": 4.341682723185613,
+       "total": 4.341682723185613,
+       "std": 0.0,
+       "min": 4.341682723185613,
+       "max": 4.341682723185613,
+       "p10": 4.341682723185613,
+       "p90": 4.341682723185613,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "NZDUSD 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 2701.4511556280777,
+       "median": 2701.4511556280777,
+       "total": 2701.4511556280777,
+       "std": 0.0,
+       "min": 2701.4511556280777,
+       "max": 2701.4511556280777,
+       "p10": 2701.4511556280777,
+       "p90": 2701.4511556280777,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 32.830659451242425,
+       "median": 32.830659451242425,
+       "total": 32.830659451242425,
+       "std": 0.0,
+       "min": 32.830659451242425,
+       "max": 32.830659451242425,
+       "p10": 32.830659451242425,
+       "p90": 32.830659451242425,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.14987657221261122,
+       "median": 0.14987657221261122,
+       "total": 0.14987657221261122,
+       "std": 0.0,
+       "min": 0.14987657221261122,
+       "max": 0.14987657221261122,
+       "p10": 0.14987657221261122,
+       "p90": 0.14987657221261122,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.004283815327856224,
+       "median": 0.004283815327856224,
+       "total": 0.004283815327856224,
+       "std": 0.0,
+       "min": 0.004283815327856224,
+       "max": 0.004283815327856224,
+       "p10": 0.004283815327856224,
+       "p90": 0.004283815327856224,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.6688102893890675,
+       "median": 0.6688102893890675,
+       "total": 0.6688102893890675,
+       "std": 0.0,
+       "min": 0.6688102893890675,
+       "max": 0.6688102893890675,
+       "p10": 0.6688102893890675,
+       "p90": 0.6688102893890675,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "NZDUSD 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCAD 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 15452.769088364439,
+       "median": 15452.769088364439,
+       "total": 15452.769088364439,
+       "std": 0.0,
+       "min": 15452.769088364439,
+       "max": 15452.769088364439,
+       "p10": 15452.769088364439,
+       "p90": 15452.769088364439,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 78.76115064375632,
+       "median": 78.76115064375632,
+       "total": 78.76115064375632,
+       "std": 0.0,
+       "min": 78.76115064375632,
+       "max": 78.76115064375632,
+       "p10": 78.76115064375632,
+       "p90": 78.76115064375632,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.48050418360306235,
+       "median": 0.48050418360306235,
+       "total": 0.48050418360306235,
+       "std": 0.0,
+       "min": 0.48050418360306235,
+       "max": 0.48050418360306235,
+       "p10": 0.48050418360306235,
+       "p90": 0.48050418360306235,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.00753250190924633,
+       "median": 0.00753250190924633,
+       "total": 0.00753250190924633,
+       "std": 0.0,
+       "min": 0.00753250190924633,
+       "max": 0.00753250190924633,
+       "p10": 0.00753250190924633,
+       "p90": 0.00753250190924633,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.4996796925048046,
+       "median": 0.4996796925048046,
+       "total": 0.4996796925048046,
+       "std": 0.0,
+       "min": 0.4996796925048046,
+       "max": 0.4996796925048046,
+       "p10": 0.4996796925048046,
+       "p90": 0.4996796925048046,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCAD 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 32646.437194159604,
+       "median": 32646.437194159604,
+       "total": 32646.437194159604,
+       "std": 0.0,
+       "min": 32646.437194159604,
+       "max": 32646.437194159604,
+       "p10": 32646.437194159604,
+       "p90": 32646.437194159604,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 298.95264747454416,
+       "median": 298.95264747454416,
+       "total": 298.95264747454416,
+       "std": 0.0,
+       "min": 298.95264747454416,
+       "max": 298.95264747454416,
+       "p10": 298.95264747454416,
+       "p90": 298.95264747454416,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6395180548398726,
+       "median": 0.6395180548398726,
+       "total": 0.6395180548398726,
+       "std": 0.0,
+       "min": 0.6395180548398726,
+       "max": 0.6395180548398726,
+       "p10": 0.6395180548398726,
+       "p90": 0.6395180548398726,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.01284654571262174,
+       "median": 0.01284654571262174,
+       "total": 0.01284654571262174,
+       "std": 0.0,
+       "min": 0.01284654571262174,
+       "max": 0.01284654571262174,
+       "p10": 0.01284654571262174,
+       "p90": 0.01284654571262174,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.16645326504481434,
+       "median": 0.16645326504481434,
+       "total": 0.16645326504481434,
+       "std": 0.0,
+       "min": 0.16645326504481434,
+       "max": 0.16645326504481434,
+       "p10": 0.16645326504481434,
+       "p90": 0.16645326504481434,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCAD 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCAD 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCAD 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -16445.603153581847,
+       "median": -16445.603153581847,
+       "total": -16445.603153581847,
+       "std": 0.0,
+       "min": -16445.603153581847,
+       "max": -16445.603153581847,
+       "p10": -16445.603153581847,
+       "p90": -16445.603153581847,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -141.5137196657601,
+       "median": -141.5137196657601,
+       "total": -141.5137196657601,
+       "std": 0.0,
+       "min": -141.5137196657601,
+       "max": -141.5137196657601,
+       "p10": -141.5137196657601,
+       "p90": -141.5137196657601,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.540172982115824,
+       "median": -0.540172982115824,
+       "total": -0.540172982115824,
+       "std": 0.0,
+       "min": -0.540172982115824,
+       "max": -0.540172982115824,
+       "p10": -0.540172982115824,
+       "p90": -0.540172982115824,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.022467691504334215,
+       "median": 0.022467691504334215,
+       "total": 0.022467691504334215,
+       "std": 0.0,
+       "min": 0.022467691504334215,
+       "max": 0.022467691504334215,
+       "p10": 0.022467691504334215,
+       "p90": 0.022467691504334215,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.646516983304548,
+       "median": 1.646516983304548,
+       "total": 1.646516983304548,
+       "std": 0.0,
+       "min": 1.646516983304548,
+       "max": 1.646516983304548,
+       "p10": 1.646516983304548,
+       "p90": 1.646516983304548,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCHF 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 36619.83280414576,
+       "median": 36619.83280414576,
+       "total": 36619.83280414576,
+       "std": 0.0,
+       "min": 36619.83280414576,
+       "max": 36619.83280414576,
+       "p10": 36619.83280414576,
+       "p90": 36619.83280414576,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 408.1974163890815,
+       "median": 408.1974163890815,
+       "total": 408.1974163890815,
+       "std": 0.0,
+       "min": 408.1974163890815,
+       "max": 408.1974163890815,
+       "p10": 408.1974163890815,
+       "p90": 408.1974163890815,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.5713089054536507,
+       "median": 0.5713089054536507,
+       "total": 0.5713089054536507,
+       "std": 0.0,
+       "min": 0.5713089054536507,
+       "max": 0.5713089054536507,
+       "p10": 0.5713089054536507,
+       "p90": 0.5713089054536507,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.01837871567279716,
+       "median": 0.01837871567279716,
+       "total": 0.01837871567279716,
+       "std": 0.0,
+       "min": 0.01837871567279716,
+       "max": 0.01837871567279716,
+       "p10": 0.01837871567279716,
+       "p90": 0.01837871567279716,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.527543745949449,
+       "median": 2.527543745949449,
+       "total": 2.527543745949449,
+       "std": 0.0,
+       "min": 2.527543745949449,
+       "max": 2.527543745949449,
+       "p10": 2.527543745949449,
+       "p90": 2.527543745949449,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCHF 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 2072.715534102288,
+       "median": 2072.715534102288,
+       "total": 2072.715534102288,
+       "std": 0.0,
+       "min": 2072.715534102288,
+       "max": 2072.715534102288,
+       "p10": 2072.715534102288,
+       "p90": 2072.715534102288,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 21.694653019221192,
+       "median": 21.694653019221192,
+       "total": 21.694653019221192,
+       "std": 0.0,
+       "min": 21.694653019221192,
+       "max": 21.694653019221192,
+       "p10": 21.694653019221192,
+       "p90": 21.694653019221192,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.08103783005297305,
+       "median": 0.08103783005297305,
+       "total": 0.08103783005297305,
+       "std": 0.0,
+       "min": 0.08103783005297305,
+       "max": 0.08103783005297305,
+       "p10": 0.08103783005297305,
+       "p90": 0.08103783005297305,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.008361593744522442,
+       "median": 0.008361593744522442,
+       "total": 0.008361593744522442,
+       "std": 0.0,
+       "min": 0.008361593744522442,
+       "max": 0.008361593744522442,
+       "p10": 0.008361593744522442,
+       "p90": 0.008361593744522442,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.3324791800128124,
+       "median": 1.3324791800128124,
+       "total": 1.3324791800128124,
+       "std": 0.0,
+       "min": 1.3324791800128124,
+       "max": 1.3324791800128124,
+       "p10": 1.3324791800128124,
+       "p90": 1.3324791800128124,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCHF 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCHF 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -6739.492551893694,
+       "median": -6739.492551893694,
+       "total": -6739.492551893694,
+       "std": 0.0,
+       "min": -6739.492551893694,
+       "max": -6739.492551893694,
+       "p10": -6739.492551893694,
+       "p90": -6739.492551893694,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -116.31815341873742,
+       "median": -116.31815341873742,
+       "total": -116.31815341873742,
+       "std": 0.0,
+       "min": -116.31815341873742,
+       "max": -116.31815341873742,
+       "p10": -116.31815341873742,
+       "p90": -116.31815341873742,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.18342459251062548,
+       "median": -0.18342459251062548,
+       "total": -0.18342459251062548,
+       "std": 0.0,
+       "min": -0.18342459251062548,
+       "max": -0.18342459251062548,
+       "p10": -0.18342459251062548,
+       "p90": -0.18342459251062548,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.014943458805113401,
+       "median": 0.014943458805113401,
+       "total": 0.014943458805113401,
+       "std": 0.0,
+       "min": 0.014943458805113401,
+       "max": 0.014943458805113401,
+       "p10": 0.014943458805113401,
+       "p90": 0.014943458805113401,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.0115830115830113,
+       "median": 3.0115830115830113,
+       "total": 3.0115830115830113,
+       "std": 0.0,
+       "min": 3.0115830115830113,
+       "max": 3.0115830115830113,
+       "p10": 3.0115830115830113,
+       "p90": 3.0115830115830113,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDCHF 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -17405.431399336783,
+       "median": -17405.431399336783,
+       "total": -17405.431399336783,
+       "std": 0.0,
+       "min": -17405.431399336783,
+       "max": -17405.431399336783,
+       "p10": -17405.431399336783,
+       "p90": -17405.431399336783,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -188.55387996317845,
+       "median": -188.55387996317845,
+       "total": -188.55387996317845,
+       "std": 0.0,
+       "min": -188.55387996317845,
+       "max": -188.55387996317845,
+       "p10": -188.55387996317845,
+       "p90": -188.55387996317845,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.3552624188203542,
+       "median": -0.3552624188203542,
+       "total": -0.3552624188203542,
+       "std": 0.0,
+       "min": -0.3552624188203542,
+       "max": -0.3552624188203542,
+       "p10": -0.3552624188203542,
+       "p90": -0.3552624188203542,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0312571430864905,
+       "median": 0.0312571430864905,
+       "total": 0.0312571430864905,
+       "std": 0.0,
+       "min": 0.0312571430864905,
+       "max": 0.0312571430864905,
+       "p10": 0.0312571430864905,
+       "p90": 0.0312571430864905,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 3.3614390106801575,
+       "median": 3.3614390106801575,
+       "total": 3.3614390106801575,
+       "std": 0.0,
+       "min": 3.3614390106801575,
+       "max": 3.3614390106801575,
+       "p10": 3.3614390106801575,
+       "p90": 3.3614390106801575,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDJPY 1996-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 53401.661255741725,
+       "median": 53401.661255741725,
+       "total": 53401.661255741725,
+       "std": 0.0,
+       "min": 53401.661255741725,
+       "max": 53401.661255741725,
+       "p10": 53401.661255741725,
+       "p90": 53401.661255741725,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 200.9416058519433,
+       "median": 200.9416058519433,
+       "total": 200.9416058519433,
+       "std": 0.0,
+       "min": 200.9416058519433,
+       "max": 200.9416058519433,
+       "p10": 200.9416058519433,
+       "p90": 200.9416058519433,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.6197314002538201,
+       "median": 0.6197314002538201,
+       "total": 0.6197314002538201,
+       "std": 0.0,
+       "min": 0.6197314002538201,
+       "max": 0.6197314002538201,
+       "p10": 0.6197314002538201,
+       "p90": 0.6197314002538201,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.029149203816553663,
+       "median": 0.029149203816553663,
+       "total": 0.029149203816553663,
+       "std": 0.0,
+       "min": 0.029149203816553663,
+       "max": 0.029149203816553663,
+       "p10": 0.029149203816553663,
+       "p90": 0.029149203816553663,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 4.163997437540038,
+       "median": 4.163997437540038,
+       "total": 4.163997437540038,
+       "std": 0.0,
+       "min": 4.163997437540038,
+       "max": 4.163997437540038,
+       "p10": 4.163997437540038,
+       "p90": 4.163997437540038,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDJPY 2002-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 5954.719237723388,
+       "median": 5954.719237723388,
+       "total": 5954.719237723388,
+       "std": 0.0,
+       "min": 5954.719237723388,
+       "max": 5954.719237723388,
+       "p10": 5954.719237723388,
+       "p90": 5954.719237723388,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -33.916185784494836,
+       "median": -33.916185784494836,
+       "total": -33.916185784494836,
+       "std": 0.0,
+       "min": -33.916185784494836,
+       "max": -33.916185784494836,
+       "p10": -33.916185784494836,
+       "p90": -33.916185784494836,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.18960119649967147,
+       "median": 0.18960119649967147,
+       "total": 0.18960119649967147,
+       "std": 0.0,
+       "min": 0.18960119649967147,
+       "max": 0.18960119649967147,
+       "p10": 0.18960119649967147,
+       "p90": 0.18960119649967147,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.009403138125736704,
+       "median": 0.009403138125736704,
+       "total": 0.009403138125736704,
+       "std": 0.0,
+       "min": 0.009403138125736704,
+       "max": 0.009403138125736704,
+       "p10": 0.009403138125736704,
+       "p90": 0.009403138125736704,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.16527866752082,
+       "median": 2.16527866752082,
+       "total": 2.16527866752082,
+       "std": 0.0,
+       "min": 2.16527866752082,
+       "max": 2.16527866752082,
+       "p10": 2.16527866752082,
+       "p90": 2.16527866752082,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDJPY 2008-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 0.0,
+       "median": 0.0,
+       "total": 0.0,
+       "std": 0.0,
+       "min": 0.0,
+       "max": 0.0,
+       "p10": 0.0,
+       "p90": 0.0,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDJPY 2014-01": {
+      "pnl": {
+       "n": 1,
+       "mean": -8465.868860332645,
+       "median": -8465.868860332645,
+       "total": -8465.868860332645,
+       "std": 0.0,
+       "min": -8465.868860332645,
+       "max": -8465.868860332645,
+       "p10": -8465.868860332645,
+       "p90": -8465.868860332645,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": -83.36344705988083,
+       "median": -83.36344705988083,
+       "total": -83.36344705988083,
+       "std": 0.0,
+       "min": -83.36344705988083,
+       "max": -83.36344705988083,
+       "p10": -83.36344705988083,
+       "p90": -83.36344705988083,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": -0.3277162787465078,
+       "median": -0.3277162787465078,
+       "total": -0.3277162787465078,
+       "std": 0.0,
+       "min": -0.3277162787465078,
+       "max": -0.3277162787465078,
+       "p10": -0.3277162787465078,
+       "p90": -0.3277162787465078,
+       "positive_ratio": 0.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.012974307448674014,
+       "median": 0.012974307448674014,
+       "total": 0.012974307448674014,
+       "std": 0.0,
+       "min": 0.012974307448674014,
+       "max": 0.012974307448674014,
+       "p10": 0.012974307448674014,
+       "p90": 0.012974307448674014,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 2.0064308681672025,
+       "median": 2.0064308681672025,
+       "total": 2.0064308681672025,
+       "std": 0.0,
+       "min": 2.0064308681672025,
+       "max": 2.0064308681672025,
+       "p10": 2.0064308681672025,
+       "p90": 2.0064308681672025,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     },
+     "USDJPY 2020-01": {
+      "pnl": {
+       "n": 1,
+       "mean": 21788.04956220498,
+       "median": 21788.04956220498,
+       "total": 21788.04956220498,
+       "std": 0.0,
+       "min": 21788.04956220498,
+       "max": 21788.04956220498,
+       "p10": 21788.04956220498,
+       "p90": 21788.04956220498,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "net_pips_per_year": {
+       "n": 1,
+       "mean": 109.33454146686408,
+       "median": 109.33454146686408,
+       "total": 109.33454146686408,
+       "std": 0.0,
+       "min": 109.33454146686408,
+       "max": 109.33454146686408,
+       "p10": 109.33454146686408,
+       "p90": 109.33454146686408,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "sharpe": {
+       "n": 1,
+       "mean": 0.36173457269559445,
+       "median": 0.36173457269559445,
+       "total": 0.36173457269559445,
+       "std": 0.0,
+       "min": 0.36173457269559445,
+       "max": 0.36173457269559445,
+       "p10": 0.36173457269559445,
+       "p90": 0.36173457269559445,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "max_dd": {
+       "n": 1,
+       "mean": 0.015041256054191312,
+       "median": 0.015041256054191312,
+       "total": 0.015041256054191312,
+       "std": 0.0,
+       "min": 0.015041256054191312,
+       "max": 0.015041256054191312,
+       "p10": 0.015041256054191312,
+       "p90": 0.015041256054191312,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "trades_per_year": {
+       "n": 1,
+       "mean": 1.6076447442383361,
+       "median": 1.6076447442383361,
+       "total": 1.6076447442383361,
+       "std": 0.0,
+       "min": 1.6076447442383361,
+       "max": 1.6076447442383361,
+       "p10": 1.6076447442383361,
+       "p90": 1.6076447442383361,
+       "positive_ratio": 1.0,
+       "t": 0.0
+      },
+      "ruin_ratio": 0.0
+     }
+    },
+    "all": {
+     "pnl": {
+      "n": 50,
+      "mean": 10756.351269637558,
+      "median": 2387.083344865183,
+      "total": 537817.5634818779,
+      "std": 19070.552910317867,
+      "min": -17405.431399336783,
+      "max": 58885.843819648726,
+      "p10": -6912.130182737589,
+      "p90": 37223.91395833294,
+      "positive_ratio": 0.56,
+      "t": 3.9882896732743305
+     },
+     "net_pips_per_year": {
+      "n": 50,
+      "mean": 50.82540216543273,
+      "median": 0.0,
+      "total": 2541.270108271636,
+      "std": 157.65130320765297,
+      "min": -289.4570034729169,
+      "max": 408.1974163890815,
+      "p10": -126.62366381972208,
+      "p90": 308.97034255385876,
+      "positive_ratio": 0.48,
+      "t": 2.2796504561952973
+     },
+     "sharpe": {
+      "n": 50,
+      "mean": 0.17579689807823282,
+      "median": 0.07068327765131574,
+      "total": 8.789844903911641,
+      "std": 0.3447182638830013,
+      "min": -0.540172982115824,
+      "max": 0.8577332828071785,
+      "p10": -0.21046837754871642,
+      "p90": 0.6409958175968347,
+      "positive_ratio": 0.56,
+      "t": 3.6060514271117676
+     },
+     "max_dd": {
+      "n": 50,
+      "mean": 0.012291506629921109,
+      "median": 0.013958883126893707,
+      "total": 0.6145753314960555,
+      "std": 0.009860197103076045,
+      "min": 0.0,
+      "max": 0.0312571430864905,
+      "p10": 0.0,
+      "p90": 0.025607701843638874,
+      "positive_ratio": 0.74,
+      "t": 8.814638894292692
+     },
+     "trades_per_year": {
+      "n": 50,
+      "mean": 1.4531256295561559,
+      "median": 1.1777629177186042,
+      "total": 72.6562814778078,
+      "std": 1.3772292743496146,
+      "min": 0.0,
+      "max": 4.341682723185613,
+      "p10": 0.0,
+      "p90": 3.3627383283013046,
+      "positive_ratio": 0.74,
+      "t": 7.460740239205012
+     },
+     "ruin_ratio": 0.0
+    },
+    "patterns": [
+     {
+      "market": "AUDJPY 1996-01",
+      "seed": 1,
+      "pnl": -2369.142757654772,
+      "sharpe": -0.06135741188754729
+     },
+     {
+      "market": "AUDJPY 2002-01",
+      "seed": 1,
+      "pnl": 47657.74345861364,
+      "sharpe": 0.6381990286449103
+     },
+     {
+      "market": "AUDJPY 2008-01",
+      "seed": 1,
+      "pnl": 5890.655129986932,
+      "sharpe": 0.09254944303547463
+     },
+     {
+      "market": "AUDJPY 2014-01",
+      "seed": 1,
+      "pnl": -12541.618381165783,
+      "sharpe": -0.33860607460401376
+     },
+     {
+      "market": "AUDJPY 2020-01",
+      "seed": 1,
+      "pnl": 38195.91558889125,
+      "sharpe": 0.6286039381143107
+     },
+     {
+      "market": "AUDUSD 1996-01",
+      "seed": 1,
+      "pnl": -2381.911631478579,
+      "sharpe": -0.2747964073669929
+     },
+     {
+      "market": "AUDUSD 2002-01",
+      "seed": 1,
+      "pnl": 58401.31301145628,
+      "sharpe": 0.8496740343394104
+     },
+     {
+      "market": "AUDUSD 2008-01",
+      "seed": 1,
+      "pnl": 15835.167537782574,
+      "sharpe": 0.29459573987937787
+     },
+     {
+      "market": "AUDUSD 2014-01",
+      "seed": 1,
+      "pnl": -777.8493311357452,
+      "sharpe": -0.06483044037456774
+     },
+     {
+      "market": "AUDUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 1996-01",
+      "seed": 1,
+      "pnl": 2791.221579531906,
+      "sharpe": 0.051845408037110206
+     },
+     {
+      "market": "EURJPY 2002-01",
+      "seed": 1,
+      "pnl": 15629.936343637994,
+      "sharpe": 0.2660030236806038
+     },
+     {
+      "market": "EURJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 2020-01",
+      "seed": 1,
+      "pnl": 9892.260159260128,
+      "sharpe": 0.20926746100840124
+     },
+     {
+      "market": "EURUSD 1996-01",
+      "seed": 1,
+      "pnl": 26691.284457654576,
+      "sharpe": 0.7018700795490844
+     },
+     {
+      "market": "EURUSD 2002-01",
+      "seed": 1,
+      "pnl": 17176.737990900292,
+      "sharpe": 0.5874792512703578
+     },
+     {
+      "market": "EURUSD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURUSD 2014-01",
+      "seed": 1,
+      "pnl": 14386.082509256434,
+      "sharpe": 0.5238809594336028
+     },
+     {
+      "market": "EURUSD 2020-01",
+      "seed": 1,
+      "pnl": 3249.562730837497,
+      "sharpe": 0.06382014927029593
+     },
+     {
+      "market": "GBPJPY 1996-01",
+      "seed": 1,
+      "pnl": 32581.89706052339,
+      "sharpe": 0.6910129332006479
+     },
+     {
+      "market": "GBPJPY 2002-01",
+      "seed": 1,
+      "pnl": 35254.91546233231,
+      "sharpe": 0.4411587753502511
+     },
+     {
+      "market": "GBPJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPJPY 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPJPY 2020-01",
+      "seed": 1,
+      "pnl": 43892.170283188694,
+      "sharpe": 0.6715090327482243
+     },
+     {
+      "market": "GBPUSD 1996-01",
+      "seed": 1,
+      "pnl": -11308.886169443722,
+      "sharpe": -0.3255387885242595
+     },
+     {
+      "market": "GBPUSD 2002-01",
+      "seed": 1,
+      "pnl": 15530.362715912168,
+      "sharpe": 0.24792680423085794
+     },
+     {
+      "market": "GBPUSD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPUSD 2014-01",
+      "seed": 1,
+      "pnl": 11964.147225196939,
+      "sharpe": 0.5277283316906808
+     },
+     {
+      "market": "GBPUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "NZDUSD 1996-01",
+      "seed": 1,
+      "pnl": -8924.099675956299,
+      "sharpe": -0.2684028349790124
+     },
+     {
+      "market": "NZDUSD 2002-01",
+      "seed": 1,
+      "pnl": 56530.889135475736,
+      "sharpe": 0.8132931704660383
+     },
+     {
+      "market": "NZDUSD 2008-01",
+      "seed": 1,
+      "pnl": 11827.140586160473,
+      "sharpe": 0.221292692026684
+     },
+     {
+      "market": "NZDUSD 2014-01",
+      "seed": 1,
+      "pnl": 861.3201684828382,
+      "sharpe": 0.04684457681791847
+     },
+     {
+      "market": "NZDUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 1996-01",
+      "seed": 1,
+      "pnl": 16410.475989478407,
+      "sharpe": 0.5078608459839064
+     },
+     {
+      "market": "USDCAD 2002-01",
+      "seed": 1,
+      "pnl": 32646.437194159604,
+      "sharpe": 0.6395180548398726
+     },
+     {
+      "market": "USDCAD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 2020-01",
+      "seed": 1,
+      "pnl": -17554.00954200141,
+      "sharpe": -0.5694792940157479
+     },
+     {
+      "market": "USDCHF 1996-01",
+      "seed": 1,
+      "pnl": 37337.38819614367,
+      "sharpe": 0.5802011997516197
+     },
+     {
+      "market": "USDCHF 2002-01",
+      "seed": 1,
+      "pnl": -2661.5267947855173,
+      "sharpe": -0.09553299773753472
+     },
+     {
+      "market": "USDCHF 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCHF 2014-01",
+      "seed": 1,
+      "pnl": -7474.577183319139,
+      "sharpe": -0.1704312022534772
+     },
+     {
+      "market": "USDCHF 2020-01",
+      "seed": 1,
+      "pnl": -18175.30926707585,
+      "sharpe": -0.36812758506720317
+     },
+     {
+      "market": "USDJPY 1996-01",
+      "seed": 1,
+      "pnl": 52868.31406908017,
+      "sharpe": 0.6091045149654396
+     },
+     {
+      "market": "USDJPY 2002-01",
+      "seed": 1,
+      "pnl": 3678.5474333565217,
+      "sharpe": 0.11708429054226681
+     },
+     {
+      "market": "USDJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDJPY 2014-01",
+      "seed": 1,
+      "pnl": -6897.923060754896,
+      "sharpe": -0.2611200174155195
+     },
+     {
+      "market": "USDJPY 2020-01",
+      "seed": 1,
+      "pnl": 14105.144814103376,
+      "sharpe": 0.2313493507462575
+     },
+     {
+      "market": "AUDJPY 1996-01",
+      "seed": 1,
+      "pnl": 2056.190448743757,
+      "sharpe": 0.06032872524965843
+     },
+     {
+      "market": "AUDJPY 2002-01",
+      "seed": 1,
+      "pnl": 47452.35864950786,
+      "sharpe": 0.6391612424016417
+     },
+     {
+      "market": "AUDJPY 2008-01",
+      "seed": 1,
+      "pnl": 3443.1725125242956,
+      "sharpe": 0.05673409003195159
+     },
+     {
+      "market": "AUDJPY 2014-01",
+      "seed": 1,
+      "pnl": -12359.032489296165,
+      "sharpe": -0.3481098542991998
+     },
+     {
+      "market": "AUDJPY 2020-01",
+      "seed": 1,
+      "pnl": 36584.74626692163,
+      "sharpe": 0.6040205363108204
+     },
+     {
+      "market": "AUDUSD 1996-01",
+      "seed": 1,
+      "pnl": -949.7835763662588,
+      "sharpe": -0.12072103155432402
+     },
+     {
+      "market": "AUDUSD 2002-01",
+      "seed": 1,
+      "pnl": 58885.843819648726,
+      "sharpe": 0.8577332828071785
+     },
+     {
+      "market": "AUDUSD 2008-01",
+      "seed": 1,
+      "pnl": 14267.381500622607,
+      "sharpe": 0.26976080393037855
+     },
+     {
+      "market": "AUDUSD 2014-01",
+      "seed": 1,
+      "pnl": -2277.785101976944,
+      "sharpe": -0.1974408329711841
+     },
+     {
+      "market": "AUDUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 1996-01",
+      "seed": 1,
+      "pnl": 1072.171077285544,
+      "sharpe": 0.023298415552756264
+     },
+     {
+      "market": "EURJPY 2002-01",
+      "seed": 1,
+      "pnl": 12932.103700137348,
+      "sharpe": 0.2227518645241013
+     },
+     {
+      "market": "EURJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURJPY 2020-01",
+      "seed": 1,
+      "pnl": 7871.622991711949,
+      "sharpe": 0.16916682218838308
+     },
+     {
+      "market": "EURUSD 1996-01",
+      "seed": 1,
+      "pnl": 25115.048445676104,
+      "sharpe": 0.6626025229843805
+     },
+     {
+      "market": "EURUSD 2002-01",
+      "seed": 1,
+      "pnl": 14810.18794956198,
+      "sharpe": 0.511580682464029
+     },
+     {
+      "market": "EURUSD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "EURUSD 2014-01",
+      "seed": 1,
+      "pnl": 14364.444728976232,
+      "sharpe": 0.5231326522851227
+     },
+     {
+      "market": "EURUSD 2020-01",
+      "seed": 1,
+      "pnl": 8673.621790791629,
+      "sharpe": 0.1678472860034257
+     },
+     {
+      "market": "GBPJPY 1996-01",
+      "seed": 1,
+      "pnl": 31068.58609353716,
+      "sharpe": 0.6614657606773717
+     },
+     {
+      "market": "GBPJPY 2002-01",
+      "seed": 1,
+      "pnl": 36616.823484863155,
+      "sharpe": 0.4598911399165368
+     },
+     {
+      "market": "GBPJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPJPY 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPJPY 2020-01",
+      "seed": 1,
+      "pnl": 42660.64434601751,
+      "sharpe": 0.6542956824094934
+     },
+     {
+      "market": "GBPUSD 1996-01",
+      "seed": 1,
+      "pnl": -15884.759062200552,
+      "sharpe": -0.47317188719163833
+     },
+     {
+      "market": "GBPUSD 2002-01",
+      "seed": 1,
+      "pnl": 14131.675694375997,
+      "sharpe": 0.22686952396829377
+     },
+     {
+      "market": "GBPUSD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "GBPUSD 2014-01",
+      "seed": 1,
+      "pnl": 13281.520407650853,
+      "sharpe": 0.587765738507824
+     },
+     {
+      "market": "GBPUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "NZDUSD 1996-01",
+      "seed": 1,
+      "pnl": -3877.944016383495,
+      "sharpe": -0.11665663693518867
+     },
+     {
+      "market": "NZDUSD 2002-01",
+      "seed": 1,
+      "pnl": 56925.07169230166,
+      "sharpe": 0.8209738069557369
+     },
+     {
+      "market": "NZDUSD 2008-01",
+      "seed": 1,
+      "pnl": 9372.412260320038,
+      "sharpe": 0.1798281242761481
+     },
+     {
+      "market": "NZDUSD 2014-01",
+      "seed": 1,
+      "pnl": 2701.4511556280777,
+      "sharpe": 0.14987657221261122
+     },
+     {
+      "market": "NZDUSD 2020-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 1996-01",
+      "seed": 1,
+      "pnl": 15452.769088364439,
+      "sharpe": 0.48050418360306235
+     },
+     {
+      "market": "USDCAD 2002-01",
+      "seed": 1,
+      "pnl": 32646.437194159604,
+      "sharpe": 0.6395180548398726
+     },
+     {
+      "market": "USDCAD 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 2014-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCAD 2020-01",
+      "seed": 1,
+      "pnl": -16445.603153581847,
+      "sharpe": -0.540172982115824
+     },
+     {
+      "market": "USDCHF 1996-01",
+      "seed": 1,
+      "pnl": 36619.83280414576,
+      "sharpe": 0.5713089054536507
+     },
+     {
+      "market": "USDCHF 2002-01",
+      "seed": 1,
+      "pnl": 2072.715534102288,
+      "sharpe": 0.08103783005297305
+     },
+     {
+      "market": "USDCHF 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDCHF 2014-01",
+      "seed": 1,
+      "pnl": -6739.492551893694,
+      "sharpe": -0.18342459251062548
+     },
+     {
+      "market": "USDCHF 2020-01",
+      "seed": 1,
+      "pnl": -17405.431399336783,
+      "sharpe": -0.3552624188203542
+     },
+     {
+      "market": "USDJPY 1996-01",
+      "seed": 1,
+      "pnl": 53401.661255741725,
+      "sharpe": 0.6197314002538201
+     },
+     {
+      "market": "USDJPY 2002-01",
+      "seed": 1,
+      "pnl": 5954.719237723388,
+      "sharpe": 0.18960119649967147
+     },
+     {
+      "market": "USDJPY 2008-01",
+      "seed": 1,
+      "pnl": 0.0,
+      "sharpe": 0.0
+     },
+     {
+      "market": "USDJPY 2014-01",
+      "seed": 1,
+      "pnl": -8465.868860332645,
+      "sharpe": -0.3277162787465078
+     },
+     {
+      "market": "USDJPY 2020-01",
+      "seed": 1,
+      "pnl": 21788.04956220498,
+      "sharpe": 0.36173457269559445
+     }
+    ]
+   }
+  }
+ ]
+}
