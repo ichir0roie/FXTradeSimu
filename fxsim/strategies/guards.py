@@ -13,6 +13,11 @@ E012 の 4 枚の壁のうち、避け方が分かっている 1〜3 と、過�
                      ストップ狩りと逆指値の滑り(malicious で 2.5 倍)を避け、窓・急変の大損だけを防ぐ
     止める仕組み     DrawdownBreaker: 有効証拠金が山から max_drawdown 下げたら新規を止める
                      (cooldown 本で再開。0 なら止めたまま)
+    スプレッド       spread_ok: 今のスプレッドが直近 spread_window 本の足の平均スプレッドの中央値の max_spread_mult 倍を
+                     超えていたら、新規も信号の手仕舞いも出さない(次の足でやり直す。損切りは出す)。ロールオーバー・指標・
+                     薄商いで開いた幅を払わない(E017: OANDA のロールオーバーの 1 時間は USDJPY で平均 7.6 pip)
+    狩り・ひげ       stop_price = "mid" なら、終値の損切りを mid の終値で判定する。スプレッドが開いて bid だけが
+                     下がった足(ロールオーバー・指標)では切らない。ひげ(足の中の高安)は終値の判定なのでもともと見ない
     時間             ロールオーバー(22:00 UTC)の前後 avoid_rollover_hours 時間は新規を出さない(スプレッドが広がる)。
                      flat_before_weekend なら、金曜の最後の判断で手仕舞う(週末の窓を持ち越さない)
     口座の床         EquityFloor: 月初の有効証拠金 x protect を床にする(資産の 9 割を守る)。新規は、口座の全建玉が
@@ -46,6 +51,9 @@ class GuardConfig:
     dd_cooldown_bars: int = 0            # 止めてからこの本数で再開し、山を今の有効証拠金に付け直す(0 = 止めたまま)
     avoid_rollover_hours: float = 1.0    # ロールオーバーの前後この時間は新規を出さない(日足以上の戦略では効かない)
     flat_before_weekend: bool = False    # 金曜の最後の判断で手仕舞う
+    max_spread_mult: float = 0.0         # 今のスプレッド > 典型 x これ なら新規・信号の手仕舞いを出さない(0 = 見ない)
+    spread_window: int = 20              # 典型のスプレッド = 直近この本数の足の平均スプレッドの中央値
+    stop_price: str = "side"             # 終値の損切りの判定: side = 買いは bid・売りは ask、mid = mid の終値
     protect: float = 0.9                 # 口座の床 = 月初の有効証拠金 x これ(0 = 床を置かない)
     gap_mult: float = 1.5                # 逆指値が窓で滑る分の見込み(最悪の損失 = 逆指値までの損失 x これ)
 
@@ -56,7 +64,10 @@ class GuardConfig:
         unknown = set(d) - known
         if unknown:
             raise KeyError(f"unknown guard settings {sorted(unknown)} (known: {sorted(known)})")
-        return cls(**d)
+        g = cls(**d)
+        if g.stop_price not in ("side", "mid"):
+            raise ValueError("stop_price must be side or mid")
+        return g
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -95,6 +106,22 @@ def round_trip_cost(ctx, side: int, g: GuardConfig, hold_days: float | None = No
     commission = 2 * sym.commission_per_lot / sym.contract_size
     swap = (sym.swap_long_per_lot_day if side > 0 else sym.swap_short_per_lot_day) / sym.contract_size
     return spread + slip + commission + max(0.0, -swap) * days
+
+
+def typical_spread(spread_mean: np.ndarray, window: int) -> np.ndarray:
+    """足 i の時点の典型のスプレッド: 足 i までの直近 window 本の足の平均スプレッドの中央値(因果的)。"""
+    s = np.asarray(spread_mean, dtype=float)
+    out = np.full(len(s), np.nan)
+    w = max(1, int(window))
+    for i in range(len(s)):
+        out[i] = float(np.median(s[max(0, i - w + 1):i + 1]))
+    return out
+
+
+def spread_ok(spread_now: float, typical: float, g: GuardConfig) -> bool:
+    if g.max_spread_mult <= 0 or not np.isfinite(typical) or typical <= 0:
+        return True
+    return spread_now <= g.max_spread_mult * typical
 
 
 def cost_ok(ctx, side: int, expected_move: float, g: GuardConfig, hold_days: float | None = None) -> bool:
@@ -233,4 +260,4 @@ def last_decision_of_week(bar_t: np.ndarray, i: int) -> bool:
 
 __all__ = ["DrawdownBreaker", "EquityFloor", "GuardConfig", "TurnoverBudget", "cost_ok", "floor_lots",
            "last_decision_of_week", "month_key", "near_rollover", "open_worst_loss", "round_trip_cost", "size_lots",
-           "worst_loss"]
+           "spread_ok", "typical_spread", "worst_loss"]

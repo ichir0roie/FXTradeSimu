@@ -7,8 +7,10 @@
 売買の決まり(on_bar、新しい足の最初のティック):
     0. 口座の床: 月初の有効証拠金 x protect を割っていたら、この戦略の建玉を全部手仕舞い、その月は新規を出さない
        (guards.EquityFloor。テスターは足の確定でだけ見る。常駐は fxsim trade が口座全体で見る)
-    1. 終値の損切り: 確定した足の終値(買いは bid、売りは ask)が損切りの水準を越えていたら決済する(close_stop)。
-       trail なら、水準を有利な向きにだけ動かす
+    1. 終値の損切り: 確定した足の終値(買いは bid、売りは ask。stop_price = mid なら mid)が損切りの水準を越えていたら
+       決済する(close_stop)。trail なら、水準を有利な向きにだけ動かす
+    スプレッドのゲート(max_spread_mult > 0): 今のスプレッドが典型の何倍かを超えていたら、2 の信号の手仕舞いと 3 の新規を
+       出さない(次の足でやり直す)。損切り・週末・床の手仕舞いは出す
     2. 手仕舞い: 向きが target と違い、min_hold_bars を過ぎていたら決済する。金曜の最後の足で手仕舞う設定もある
     3. 新規: 建玉が無く target ≠ 0 なら、取引時間・ロールオーバーの前後・ドローダウンの止め・回転の上限・
        コストゲートを通ったときだけ、
@@ -39,6 +41,8 @@ from ..guards import (
     near_rollover,
     open_worst_loss,
     size_lots,
+    spread_ok,
+    typical_spread,
 )
 
 
@@ -79,7 +83,9 @@ class MainStrategy(Strategy):
         # チケット -> 建てたときの信号の向き(方向でたらめ版では実際の向きと違う)
         self.signal_side: dict[int, int] = {}
         self.blocked: dict[str, int] = {"session": 0, "drawdown": 0, "turnover": 0, "cost": 0, "size": 0,
-                                    "floor": 0}
+                                    "floor": 0, "spread": 0, "spread_exit": 0}
+        self.typical = (typical_spread(bars.spread_mean, self.g.spread_window) if self.g.max_spread_mult > 0
+                        else np.full(n, np.nan))
 
     def on_bar(self, i, ctx):
         g, b = self.g, self.bars
@@ -97,7 +103,10 @@ class MainStrategy(Strategy):
             lvl = self.stops.get(p.ticket)
             if lvl is None:
                 continue
-            close = b.bid_close[i] if p.side > 0 else b.ask_close[i]
+            if g.stop_price == "mid":
+                close = b.close[i]
+            else:
+                close = b.bid_close[i] if p.side > 0 else b.ask_close[i]
             if (close - lvl) * p.side <= 0:
                 ctx.position_close(p.ticket, reason="close_stop")
                 self.stops.pop(p.ticket, None)
@@ -106,9 +115,13 @@ class MainStrategy(Strategy):
         positions = ctx.positions(self.magic)
         want = int(self.target[i])
         weekend = g.flat_before_weekend and last_decision_of_week(b.t, i)
-        # 2. 手仕舞い(信号の向きで判定する)
+        wide = not spread_ok(ctx.ask - ctx.bid, float(self.typical[i]), g)
+        # 2. 手仕舞い(信号の向きで判定する)。スプレッドが開いていれば信号の手仕舞いは次の足に回す
         for p in positions:
             sig = self.signal_side.get(p.ticket, p.side)
+            if sig != want and p.bars_held >= g.min_hold_bars and wide and not weekend:
+                self.blocked["spread_exit"] += 1
+                continue
             if (sig != want and p.bars_held >= g.min_hold_bars) or weekend:
                 ctx.position_close(p.ticket, reason="weekend" if weekend else "signal")
                 self.stops.pop(p.ticket, None)
@@ -120,6 +133,9 @@ class MainStrategy(Strategy):
             want = signal if self.null_u[i] < 0.5 else -signal
         if near_rollover(ctx.time, g.avoid_rollover_hours) and b.timeframe < 1440:
             self.blocked["session"] += 1
+            return
+        if wide:
+            self.blocked["spread"] += 1
             return
         if not self.breaker.allows(ctx, i):
             self.blocked["drawdown"] += 1
