@@ -23,6 +23,7 @@
     trade run CONFIG             MT5 の口座で動作ケースの戦略を常駐して動かす(configs/trading/*.yaml、docs/TRADING.md)
     trade check CONFIG           MT5 につなぎ、口座・銘柄・建玉と、いまの足での判断を見る(注文は出さない)
     trade status CONFIG          常駐の状態と直近の記録(data/trading/<name>/)
+    trade-replay CONFIG...       常駐を相場の DB の 1 分足の再生の上で 24 時間動かし、動作を確かめる(故障も入れる)
 """
 from __future__ import annotations
 
@@ -412,6 +413,19 @@ def cmd_trade(args) -> None:
     svc.run(once=args.once)
 
 
+def cmd_trade_replay(args) -> None:
+    from pathlib import Path
+
+    from .trading.replay import ReplayOptions, run_replay
+
+    manual = [json.loads(m) for m in args.manual]
+    opts = ReplayOptions(start=args.start, end=args.end, faults=args.faults, seed=args.seed,
+                         separate_accounts=args.separate_accounts, balance=args.balance, source=args.source,
+                         out_dir=Path(args.out) if args.out else None, manual=manual)
+    r = run_replay(args.configs, opts, market_db=args.market_db)
+    print((Path(r["out_dir"]) / "report.md").read_text(encoding="utf-8"))
+
+
 # ---- 引数 -------------------------------------------------------------------
 
 def _db(p: argparse.ArgumentParser) -> None:
@@ -560,6 +574,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--once", action="store_true", help="新しい足を 1 本処理したら終わる")
     p.add_argument("--tail", type=int, default=20, help="status: 表示する記録の行数")
     p.add_argument("--log-level", default="info")
+
+    p = add("trade-replay", cmd_trade_replay, help="常駐を 1 分足の再生の上で動かして確かめる(docs/TRADING.md)")
+    p.add_argument("configs", nargs="+", help="configs/trading/*.yaml(既定は同じ口座で一緒に動かす)")
+    p.add_argument("--start", help="UTC(例 2026-08-17)。省略で 1 分足から作れる最初の足の後の月曜")
+    p.add_argument("--end", help="UTC。省略で 1 分足の最後")
+    p.add_argument("--faults", choices=["default", "none"], default="default")
+    p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--separate-accounts", action="store_true", help="常駐ごとに別の口座にする")
+    p.add_argument("--balance", type=float, default=3_000_000.0, help="口座の初めの残高(円)")
+    p.add_argument("--source", help="相場の DB の出どころ(省略で最初のもの)")
+    p.add_argument("--out", help="記録の置き場所(既定 data/trading/replay/<時刻>/)")
+    p.add_argument("--manual", action="append", default=[],
+                   help='手動の建玉 JSON(例 \'{"at": "2026-09-01T03:00", "side": 1, "volume": 0.1, "sl_dist": 1.0}\')')
+    _market_db(p)
     return ap
 
 

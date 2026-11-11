@@ -166,6 +166,29 @@ python -m fxsim trade status configs/trading/demo-usdjpy-b001.yaml   # 状態と
 切れたらつなぎ直し(5 秒から倍々、最大 5 分)、想定していない失敗でも止まらずに次の足で判断し直す。
 SIGTERM / SIGINT で止まる。1 時間ごとに有効証拠金と建玉の数をログに出す。
 
+### 1 分足の再生で 24 時間運用を確かめる(trade-replay)
+
+実口座で何週間も待たずに、常駐が 24 時間動き続けられるかを、相場の DB(`fetch-mt5` で溜めた 1 分足)の再生の上で確かめる
+(`fxsim/trading/replay.py`)。常駐のコード(Service・LiveTrader・MT5Client)はそのまま動かし、MetaTrader5 のモジュールと
+時計だけを差し替える。3 か月を 2 本の常駐で回して実時間 8 分ほど。
+
+```bash
+python -m fxsim fetch-mt5 configs/market_data/oanda-demo.yaml --timeframes M1 H1 D1   # 再生の前に溜める
+python -m fxsim trade-replay configs/trading/demo-usdjpy-b045.yaml configs/trading/demo-usdjpy-b001.yaml
+python -m fxsim trade-replay ... --faults none --start 2026-09-01 --end 2026-10-01 --seed 2
+```
+
+- 偽の端末は、1 分足 1 本を 4 つのティックにして再生する。上の時間足はサーバー時刻で 1 分足を区切って作り、それより前は
+  DB に溜めた同じ時間足を端末の履歴として返す(B045 は日足 200 本、B001 は 1 時間足 3,000 本が要るので、H1・D1 も溜めておく)
+- 銘柄と口座の決まりは OANDA Japan のデモの端末から読んだ値(成行は即約定、IOC、ストップレベル 5 ポイント、
+  スワップ +10.16 / −25.06 ポイント、レバレッジ 25 倍、ストップアウト 100%)。サーバー側の逆指値・スワップ・ストップアウトも動く
+- 同じ設定の常駐は既定で同じ口座(床を共有する)。`--separate-accounts` で分ける。`--manual` で手動の建玉を足せる
+- `--faults default` は、端末が落ちる・橋が切れる・常駐の再起動・注文の送信中の切断・一時的な拒否・ログインの直後の履歴待ち・
+  PC のスリープを、シードで決まる時刻に入れる
+- 記録は `data/trading/replay/<時刻>/`(`report.md`・`result.json`・`replay.log`・常駐ごとの journal と state)。
+  report は、判断した足 / 確定した足・判断しなかった足・判断の遅れ・シミュレーションと実口座の食い違い・注文の結果・
+  判断の CPU・端末の関数の呼び出しの回数
+
 ### systemd(ユーザー単位)で常駐させる
 
 橋と常駐を別のユニットにする。橋が先に立ち上がり、端末は常駐がつないだときに起動する。

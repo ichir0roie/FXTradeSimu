@@ -72,6 +72,7 @@ fxsim/
     signals.py           MT5 の足でバックテストを回し、最後の確定足の注文とシミュレーションの建玉を写し取る
     trader.py            実口座の建玉との突き合わせ(plan)と注文、状態と記録(data/trading/<name>/)
     service.py           常駐のループ(つなぎ直し・シグナル)
+    replay.py            常駐を相場の DB の 1 分足の再生の上で動かす(trade-replay)。偽の端末と仮想の時計、故障の注入
   cli.py               python -m fxsim ...
 web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-charts
   lib/types.ts           API の型(サーバーと画面で共有)
