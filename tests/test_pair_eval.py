@@ -223,3 +223,27 @@ def test_daily_open_pays_the_rollover_spread_unless_the_fill_is_delayed(tmp_path
         assert np.median(pts[:, 0]) == pytest.approx(want)               # 始値の点
         assert np.median(pts[:, 1]) == pytest.approx((5.0 + 23 * 0.5) / 24, abs=0.05)   # 足の中は 1 日の平均
     load_ohlc.cache_clear()
+
+
+def test_real_pairs_keeps_only_bars_shared_by_every_pair(tmp_path, monkeypatch):
+    path = tmp_path / "market.sqlite"
+    monkeypatch.setattr(paths, "MARKET_DB", path)
+    load_ohlc.cache_clear()
+    con = prices.open_market_db(path)
+    n = 40
+    _write(con, "USDJPY", 1440, 150.0 + np.arange(n) * 0.1, start=T0 - 20 * 86_400)
+    eur = 1.10 + np.arange(n) * 0.001
+    _write(con, "EURUSD", 1440, eur, start=T0 - 20 * 86_400)
+    con.execute("DELETE FROM rates_d1 WHERE symbol='EURUSD' AND time=?", (T0 - 20 * 86_400 + 5 * 86_400,))
+    con.commit()
+    con.close()
+    md = MARKETS.create("real_pairs", {"pairs": ["USDJPY", "EURUSD"]}).generate(years=1.0, seed=1)
+    legs = md.meta["legs"]
+    assert set(legs) == {"usdjpy", "eurusd"}
+    b1, b2 = legs["usdjpy"].bars(1440), legs["eurusd"].bars(1440)
+    assert len(b1) == len(b2) == n - 1 and np.array_equal(b1.t, b2.t)
+    assert legs["eurusd"].pip != legs["usdjpy"].pip and b2.pair == "eurusd" and b2.points_per_bar == 4
+    bt = build_backtester(md, STRATEGIES.create("basket_direction_null", {}), BrokerConfig.preset("oanda"),
+                          EngineConfig(), seed=1)
+    assert bt.legs["eurusd"].pip == pytest.approx(legs["eurusd"].pip)
+    load_ohlc.cache_clear()

@@ -174,7 +174,9 @@ class PortfolioContext:
 class PortfolioBacktester:
     def __init__(self, bars_by_pair: dict[str, Bars], strategy, broker: BrokerConfig | None = None,
                  config: EngineConfig | None = None, pip: float = 0.01, seed: int = 0,
-                 schedule: TradingSchedule | None = None, rates_path: str = MULTI_RATES):
+                 schedule: TradingSchedule | None = None, rates_path: str = MULTI_RATES,
+                 pips: dict[str, float] | None = None):
+        # pips: ペアごとの pip(real_pairs は円に換算した pip がペアで違う)。省くと全ペア pip
         self.pairs = list(bars_by_pair)
         first = bars_by_pair[self.pairs[0]]
         for p, b in bars_by_pair.items():
@@ -193,7 +195,8 @@ class PortfolioBacktester:
         for j, pair in enumerate(self.pairs):
             b = bars_by_pair[pair]
             diff = rates.pair_differential(pair, b.t) if rates is not None else None
-            leg = Leg(pair, self.acct, book, b, _Idle(), self.broker, self.cfg, pip=pip, seed=seed + 1_000_003 * j,
+            leg = Leg(pair, self.acct, book, b, _Idle(), self.broker, self.cfg, pip=(pips or {}).get(pair, pip),
+                      seed=seed + 1_000_003 * j,
                       schedule=schedule, rate_diff=diff)
             book.append(leg)
             self.legs[pair] = leg
@@ -339,6 +342,7 @@ def build_backtester(md: MarketData, strategy, broker: BrokerConfig, config: Eng
         if not legs:
             raise ValueError("multi-pair strategy needs a basket market (basket_*)")
         return PortfolioBacktester({p: leg.bars(tf) for p, leg in legs.items()}, strategy, broker, config,
-                                   pip=md.pip, seed=seed, schedule=schedule)
+                                   pip=md.pip, seed=seed, schedule=schedule,
+                                   pips={p: leg.pip for p, leg in legs.items()})
     return Backtester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule,
                       rate_diff=diff)
