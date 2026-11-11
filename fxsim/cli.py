@@ -13,6 +13,7 @@
     cases run [ID...] [--all]    テストケースを機械的に実行して記録(定義とコードが同じなら飛ばす)
     cases show ID                テストケースの最新結果
     verify BEHAVIOR... | --all   動作ケースを標準パターンで長期検証し、合否を判定して記録
+    pair-eval BEHAVIOR... | --all  実データだけ(主要ペア x 期間)で、方向でたらめ版と対にして評価する(E016)
     summary [RUN...] [--all]     実験の概要を docs/results/<run_key>/ に書き出す(既定の DB への実験は終わったら自動)
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
@@ -253,6 +254,55 @@ def cmd_verify(args) -> None:
         for bid, strat, v in verdicts:
             ok = {c["key"]: "✓" if c["ok"] else "✗" for c in v["checks"]}
             print(f"| {bid} | {strat} | {v['verdict']} | " + " | ".join(ok.get(k, "-") for k in keys) + " |")
+
+
+def cmd_pair_eval(args) -> None:
+    """実データ(ペア x 期間)だけでの評価(fxsim/pair_eval.py、E016)。"""
+    from .cases import run_cases
+    from .cases.loader import load_cases
+    from .cases.runner import summarize_run
+    from .pair_eval import compute_pair_verdict, format_pair_verdict, pair_eval_case
+    from .storage import writer
+
+    con = init_db(args.db)
+    book = load_cases()
+    ids = sorted(book.behaviors) if args.all else args.behaviors
+    if not ids:
+        sys.exit("動作ケースの ID を指定するか --all を付けてください")
+    results = []
+    for bid in ids:
+        if bid not in book.behaviors:
+            sys.exit(f"unknown behavior {bid}. known: {sorted(book.behaviors)}")
+        b = book.behaviors[bid]
+        t = pair_eval_case(b, pairs=args.pairs)
+        if args.workers:
+            t.workers = args.workers
+        if not args.rejudge:
+            run_cases(con, args.db, [t.id], force=args.force, extra=[t])
+        row = queries.latest_case_run_row(con, t.id)
+        if row is None or row["run_id"] is None:
+            print(f"{t.id}: 結果がありません")
+            continue
+        v = compute_pair_verdict(con, row["run_id"], bid)
+        summary = summarize_run(con, row["run_id"])
+        summary["pair_verdict"] = v
+        writer.update_case_summary(con, row["id"], summary)
+        print()
+        print(format_pair_verdict(v))
+        results.append((b, v))
+    if len(results) > 1:
+        keys = [c["key"] for c in results[0][1]["checks"]]
+        print("\n## まとめ\n\n| 動作ケース | 戦略 | 足 | 判定 | " + " | ".join(keys)
+              + " | 損益の中央値 | t | 帰無との差の t | 取引 / 年 | 素の損益 / 取引 | 費用 / 取引 |\n|---|---|---:|---|"
+              + "---|" * len(keys) + "---:|---:|---:|---:|---:|---:|")
+        for b, v in results:
+            ok = {c["key"]: "o" if c["ok"] else "x" for c in v["checks"]}
+            pnl, paired = v["pnl"], v["paired"]
+            print(f"| {b.id} | {b.strategy} | {b.strategy_params().get('timeframe')} | {v['verdict']} | "
+                  + " | ".join(ok[k] for k in keys)
+                  + f" | {pnl.get('median', 0):+,.0f} | {pnl.get('t', 0):+.2f} | {paired.get('t', 0):+.2f}"
+                  f" | {v['trades_per_year']:.0f} | {v['gross_pips_per_trade']:+.2f}"
+                  f" | {v['cost_pips_per_trade']:.2f} |")
 
 
 def _rejudge(con, db, bid: str) -> dict | None:
@@ -513,6 +563,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("ids", nargs="*")
     p.add_argument("--all", action="store_true")
     p.add_argument("--force", action="store_true")
+    _db(p)
+
+    p = add("pair-eval", cmd_pair_eval)
+    p.add_argument("behaviors", nargs="*", help="動作ケースの ID(cases/behaviors)。複数可")
+    p.add_argument("--all", action="store_true", help="全部の動作ケース(定義とコードが前回と同じなら飛ばす)")
+    p.add_argument("--pairs", nargs="+", help="ペアを絞る(既定は主要 10 ペア)")
+    p.add_argument("--workers", type=int, default=0)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--rejudge", action="store_true", help="回し直さずに、記録済みの結果で判定だけやり直す")
     _db(p)
 
     p = add("verify", cmd_verify)

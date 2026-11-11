@@ -28,6 +28,42 @@ class ConstantSpread(Component):
         ctx.spread = np.full(ctx.n, self.p.pips * ctx.base.pip)
 
 
+class RecordedSpread(Component):
+    """実データ(MT5 の足)に記録されたスプレッドを使う(real_pair)。
+
+    MT5 の足のスプレッドは足の中の最小なので、広がった瞬間を取りこぼす。とくにロールオーバー(夏 21 時・冬 22 時 UTC)の
+    直前の足は狭いまま記録され、その足の終値で約定すると広がったスプレッドを払わずに済んでしまう(E015)。
+    そこで足の境目の点(始値の点は前の足、終値の点は次の足)に、隣の足の記録との最大を使う。足の中の点(高値・安値)は
+    その足の記録のまま(広がるのは境目の前後の数分なので、足全体を広げると損切りが刺さりすぎる)。
+    記録が無い・下限より狭い点は floor_pips。1 本 1 点の相場(_bar_points が無い)では前後の足の最大。
+    """
+
+    key = "spread"
+    stage = Stage.SPREAD
+
+    @dataclass
+    class Params:
+        floor_pips: float = 0.1      # 記録が無い・これより狭い点の下限(pip)
+
+    def apply(self, ctx: GenContext) -> None:
+        rec = ctx.meta.get("_recorded_spread")
+        floor = self.p.floor_pips * ctx.base.pip
+        if rec is None:
+            ctx.spread = np.full(ctx.n, floor)
+            return
+        k = int(ctx.meta.get("_bar_points", 1))
+        per_bar = np.nan_to_num(np.asarray(rec, dtype=float)[::k], nan=0.0)
+        prev = np.r_[per_bar[:1], per_bar[:-1]]
+        nxt = np.r_[per_bar[1:], per_bar[-1:]]
+        pts = np.repeat(per_bar[:, None], k, axis=1)
+        if k == 1:
+            pts[:, 0] = np.maximum(per_bar, np.maximum(prev, nxt))
+        else:
+            pts[:, 0] = np.maximum(per_bar, prev)          # 始値の点
+            pts[:, -1] = np.maximum(per_bar, nxt)          # 終値の点
+        ctx.spread = np.maximum(pts.ravel(), floor)[:ctx.n]
+
+
 class DynamicSpread(Component):
     """時間帯・ボラ・指標・ストップ狩りでスプレッドが広がる。
 

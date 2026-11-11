@@ -90,9 +90,11 @@ _PRIO = {"so": 0, "sl": 1, "hunt": 1, "tp": 2, "order": 3}
 class _Ticks:
     """足 i の中の気配の並び(先頭は 1 つ前の点)。"""
 
-    def __init__(self, mid, bid, ask, gap: float, sig2: float, bridge: bool, step_ns: int):
+    def __init__(self, mid, bid, ask, gap: float, sig2: float, bridge: bool, step_ns: int,
+                 opens: np.ndarray | None = None):
         self.mid, self.bid, self.ask = mid, bid, ask
         self.gap, self.sig2, self.bridge, self.step_ns = gap, sig2, bridge, step_ns
+        self.opens = opens          # 実データの OHLC の点(real_pair)なら、点ごとに「足の始値の点か」
 
     def __len__(self) -> int:
         return len(self.mid)
@@ -128,14 +130,17 @@ class Mt5Tester(Backtester):
         if path is not None and len(path[0]) >= 2:
             mid, spread = path
             half = (spread + 2 * self._widen(spread)) / 2
-            if len(mid) > 10:
+            opens = self.bars.open_steps(i)
+            if opens is not None:          # 実データの OHLC の点: 足の中は連続、飛びは始値の点だけ
+                gap, sig2 = 0.0, 0.0
+            elif len(mid) > 10:
                 med = max(float(np.median(np.abs(np.diff(mid)))), 1e-12)
                 gap, sig2 = self.broker.gap_k * med, (med / 0.6745) ** 2
             else:
                 gap, sig2 = 0.0, 0.0
             step = self.bars.timeframe * NS_MIN // max(1, len(mid) - 1)
             return _Ticks(mid, mid - half, mid + half, gap, sig2,
-                          model == "every_tick" and self.broker.touch == "bridge" and sig2 > 0, step)
+                          model == "every_tick" and self.broker.touch == "bridge" and sig2 > 0, step, opens)
         prev = self.c[i - 1] if i > 0 else self.o[i]
         o, c = self.o[i], self.c[i]
         h, lo = float(self.bars.high[i]), float(self.bars.low[i])
@@ -587,7 +592,11 @@ class Mt5Tester(Backtester):
         経路の無い足(4 点)は、始値の点(j = 1)で越えたときだけ飛び(窓)とみなす。
         """
         tk = self.ticks
-        jumped = cross and (q[j - 1] <= lvl or (tk.gap > 0 and q[j - 1] - q[j] > tk.gap) or (tk.gap == 0 and j == 1))
+        if tk.opens is not None:
+            jumped = cross and (q[j - 1] <= lvl or bool(tk.opens[j]))
+        else:
+            jumped = cross and (q[j - 1] <= lvl or (tk.gap > 0 and q[j - 1] - q[j] > tk.gap)
+                                or (tk.gap == 0 and j == 1))
         if self.opt.order_price_fills:          # MT5 のテスターの OHLC 系: 窓でも注文の価格
             jumped = False
         slip = 0.0

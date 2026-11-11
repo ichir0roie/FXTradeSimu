@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from ...calendar import NS_DAY, NS_MIN, trading_times
-from ...data.real import RealSeries, load_ohlc
+from ...data.real import DB_PREFIX, RealSeries, load_ohlc
 from ..base import BaseParams, Component, GenContext, Stage
 
 DEFAULT_DATASET = "data/real/usdjpy_d1_fred.csv"
@@ -86,6 +86,94 @@ class RealReplay(Component):
         ctx.vol = np.maximum(r, 1e-12)
         ctx.meta["real_source"] = s.source
         ctx.meta["real_has_ohlc"] = s.has_ohlc
+
+
+def _db_symbol(path: str) -> str | None:
+    """db:[<出どころ>/]<銘柄>/<時間足> の銘柄。DB でなければ None。"""
+    if not str(path).startswith(DB_PREFIX):
+        return None
+    return str(path)[len(DB_PREFIX):].split("/")[-2].upper()
+
+
+def _last_close(symbol: str, t_ns: int) -> float | None:
+    """相場の DB の日足(無ければ 1 時間足)で、時刻 t 以前の最後の終値(無ければ最初の終値)。"""
+    for tf in ("D1", "H1"):
+        try:
+            s = load_ohlc(f"{DB_PREFIX}{symbol}/{tf}")
+        except ValueError:
+            continue
+        k = int(np.searchsorted(s.times, t_ns, "right")) - 1
+        return float(s.close[max(k, 0)])
+    return None
+
+
+def jpy_per_unit(ccy: str, t_ns: int) -> float:
+    """通貨 ccy の 1 単位の円の値(相場の DB の USDJPY と USD<ccy> / <ccy>USD から)。"""
+    ccy = ccy.upper()
+    if ccy == "JPY":
+        return 1.0
+    usdjpy = _last_close("USDJPY", t_ns)
+    if usdjpy is None:
+        raise ValueError("converting to JPY needs USDJPY in the market DB (fetch-mt5)")
+    if ccy == "USD":
+        return usdjpy
+    direct = _last_close(f"{ccy}JPY", t_ns)
+    if direct is not None:
+        return direct
+    inv = _last_close(f"USD{ccy}", t_ns)
+    if inv is not None:
+        return usdjpy / inv
+    via = _last_close(f"{ccy}USD", t_ns)
+    if via is not None:
+        return usdjpy * via
+    raise ValueError(f"no rate in the market DB to convert {ccy} to JPY")
+
+
+class PairReplay(RealReplay):
+    """相場の DB(MT5 の足)の 1 ペアをそのまま再生し、円の口座で回せるようにする(real_pair、R012)。
+
+    - 決済通貨が円でないペア(EURUSD など)は、期間の最初の時点の「決済通貨 1 単位の円の値」K を価格に掛ける。
+      値動きの比率はそのままで、損益・証拠金・量・pip(= 元の pip x K)が円にそろう(円への換算は期間の中で固定)
+    - 足の中の順番は MT5 のテスター(1 分足 OHLC)と同じ: 陽線は 始値 → 安値 → 高値 → 終値、
+      陰線は 始値 → 高値 → 安値 → 終値。足の中は連続して動いたとみなす(Bars.points_per_bar)
+      (RealReplay は常に高値が先で、損切りと利確が同じ足に入ったときの順番が偏る)
+    - 足ごとの記録のスプレッドを meta に置く(RecordedSpread が使う)
+    - スワップはペアの金利差(8 通貨の短期金利の月次)。meta["swap_pair"] で backtest と戦略に伝える
+    """
+
+    @dataclass
+    class Params(_SourceParams):
+        to_jpy: bool = True          # 決済通貨を円に換算する(価格に K を掛ける)
+
+    def prepare_times(self, base: BaseParams, years, days, rng):
+        s = _series(self.p, years, days)
+        symbol = _db_symbol(self.p.path)
+        if symbol is None or len(symbol) != 6:
+            raise ValueError(f"real_pair needs a db:<symbol>/<timeframe> source, got {self.p.path!r}")
+        native_pip = 0.01 if symbol.endswith("JPY") else 0.0001
+        k = jpy_per_unit(symbol[3:], int(s.times[0])) if self.p.to_jpy else 1.0
+        self._s, self._symbol, self._k = s, symbol, k
+        sec = 1_000_000_000
+        start = s.times - s.step_minutes * NS_MIN
+        up = s.close >= s.open
+        first = np.where(up, s.low, s.high)
+        second = np.where(up, s.high, s.low)
+        times = np.stack([start + sec, start + 2 * sec, start + 3 * sec, s.times - sec], axis=1).ravel()
+        self._price = np.stack([s.open, first, second, s.close], axis=1).ravel() * k
+        spread = s.spread if s.spread is not None else np.full(len(s), np.nan)
+        self._spread = np.repeat(spread * k, 4)
+        b = replace(base, p0=float(s.close[0] * k), pip=native_pip * k, step_minutes=s.step_minutes,
+                    annual_vol=_realized_vol(s.close, s.step_minutes),
+                    start=str(np.datetime64(int(s.times[0]), "ns"))[:10])
+        return times, b
+
+    def apply(self, ctx: GenContext) -> None:
+        super().apply(ctx)
+        ctx.meta["_recorded_spread"] = self._spread
+        ctx.meta["_bar_points"] = 4
+        ctx.meta["ohlc_points"] = 4           # 点は実データの OHLC(backtest は足の中を連続とみなす)
+        ctx.meta["swap_pair"] = self._symbol.lower()
+        ctx.meta["quote_to_jpy"] = self._k
 
 
 class RealSkeleton(Component):

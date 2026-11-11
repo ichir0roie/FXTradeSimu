@@ -41,7 +41,7 @@ def to_experiment(t: TestCase, b: BehaviorCase) -> ExperimentConfig:
         markets.append({"model": p.market, "label": p.display_label, "params": params, "seeds": p.seeds})
     first_seeds = sorted({p.seeds[0] for p in t.patterns})
     strategies = [{"name": b.strategy, "label": b.id, "params": b.strategy_params(), "schedule": b.schedule}]
-    if t.verify:
+    if t.verify or t.null:
         tf = b.strategy_params().get("timeframe")
         null_params = {"inner": b.strategy, "inner_params": dict(b.params)}
         if tf:

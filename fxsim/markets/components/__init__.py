@@ -3,11 +3,11 @@ from .extreme import ExtremeEvents, FlashCrashOverlay, HolidayLiquidity
 from .malice import CrowdSqueeze, FalseBreakout, StopHunt
 from .regime import RangeMeanReversion, RegimeSwitching
 from .shocks import FatTails, NewsShocks, WeekendGap
-from .spread import ConstantSpread, DynamicSpread
+from .spread import ConstantSpread, DynamicSpread, RecordedSpread
 from .volatility import SessionSeasonality, StochasticVolatility
 
 __all__ = [
-    "ConstantSpread", "CrowdSqueeze", "DynamicSpread", "ExtremeEvents", "FalseBreakout", "FatTails",
+    "ConstantSpread", "RecordedSpread", "CrowdSqueeze", "DynamicSpread", "ExtremeEvents", "FalseBreakout", "FatTails",
     "FlashCrashOverlay", "HolidayLiquidity", "NewsShocks",
     "RangeMeanReversion", "RegimeSwitching", "SessionSeasonality", "StochasticVolatility", "StopHunt",
     "WeekendGap",

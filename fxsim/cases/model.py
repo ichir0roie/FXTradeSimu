@@ -116,6 +116,7 @@ class TestCase:
     detail_seeds: list[int] | None = None
     workers: int = 0
     verify: bool = False      # True: 方向でたらめ版(direction_null)を対で回し、合否を判定して記録する
+    null: bool = False        # True: 方向でたらめ版を対で回すだけ(判定は呼んだ側。fxsim pair-eval)
     path: str = ""
 
     def __post_init__(self):
@@ -145,6 +146,9 @@ class TestCase:
         return f"{self.period['start']}〜{self.period['end']}"
 
     def definition(self) -> dict:
-        return {"id": self.id, "name": self.name, "behavior": self.behavior, "period": self.period,
-                "patterns": [p.__dict__ for p in self.patterns], "detail_seeds": self.detail_seeds,
-                "verify": self.verify}
+        d = {"id": self.id, "name": self.name, "behavior": self.behavior, "period": self.period,
+             "patterns": [p.__dict__ for p in self.patterns], "detail_seeds": self.detail_seeds,
+             "verify": self.verify}
+        if self.null:
+            d["null"] = True
+        return d

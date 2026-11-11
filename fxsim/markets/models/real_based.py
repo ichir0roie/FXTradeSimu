@@ -23,6 +23,11 @@ v5(R009): 足の中の振れ幅の事前分布の中心を、直前 21 本と 25
 直前 21 本だけでは静かな時期の後に振れ幅が小さすぎ、終値への補正が日中のトレンドになっていた
 (偽薬で 1 時間足のブレイクアウトが素で +1.2 pip / 取引、t 6)。v4 は {"anchor": {"prior_long_weight": 0}}。
 データの差し替えは params の source(例: {"source": {"path": "data/real/xxx.csv"}})。
+
+R012 real_pair             相場の DB(MT5 の足)の 1 ペアをそのまま再生する(例: {"source": {"path": "db:EURUSD/H1"}})。
+                           円以外が決済通貨のペアは期間の最初の円換算で価格を一定倍して、損益を円にそろえる。
+                           スプレッドは足ごとの記録(前後の足の最大)、足の中の順番は MT5 のテスターと同じ、
+                           スワップはペアの金利差。主要ペアの実データでの全戦略の評価(E016)に使う
 """
 from .. import MARKETS
 from ..base import MarketModel
@@ -33,11 +38,12 @@ from ..components import (
     FlashCrashOverlay,
     HolidayLiquidity,
     NewsShocks,
+    RecordedSpread,
     SessionSeasonality,
     StochasticVolatility,
     StopHunt,
 )
-from ..components.real import AnchorBridge, RealReplay, RealSkeleton
+from ..components.real import AnchorBridge, PairReplay, RealReplay, RealSkeleton
 
 
 def _intraday():
@@ -81,3 +87,10 @@ def build_bootstrap(params: dict) -> MarketModel:
                   tags=("real", "random", "placebo"))
 def build_placebo(params: dict) -> MarketModel:
     return MarketModel("real_bridge_placebo", "5", _bridge(RealSkeleton(mode="placebo"))).with_params(params)
+
+
+@MARKETS.register("real_pair", version="1",
+                  description="相場の DB(MT5 の足)の 1 ペアをそのまま再生(円に換算、記録のスプレッド、ペアの金利差)",
+                  tags=("real",))
+def build_real_pair(params: dict) -> MarketModel:
+    return MarketModel("real_pair", "1", [PairReplay(), RecordedSpread()]).with_params(params)

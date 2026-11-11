@@ -318,16 +318,23 @@ def build_backtester(md: MarketData, strategy, broker: BrokerConfig, config: Eng
     """相場と戦略から、バックテストを組み立てる。複数ペアの戦略は相場の legs(basket_*)の全ペアで回す。
     MT5 前提の戦略(engine = "mt5"、strategies/main/)は MT5 のテスター(backtest/mt5)で回す。"""
     tf = strategy.timeframe
+    # 相場がペアを名乗るとき(real_pair)は、スワップにそのペアの金利差を使う(省くと USD − JPY の政策金利)
+    pair = md.meta.get("swap_pair")
+    diff = None
+    if pair and not strategy.multi and broker.swap_mode == "rates":
+        diff = load_rates(MULTI_RATES).pair_differential(pair, md.bars(tf).t)
     if getattr(strategy, "engine", "classic") == "mt5":
         from .mt5 import Mt5Tester
 
         if strategy.multi:
             raise ValueError("multi-pair MT5 strategies are not supported yet")
-        return Mt5Tester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule)
+        return Mt5Tester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule,
+                         rate_diff=diff, symbol=pair.upper() if pair else "USDJPY")
     if strategy.multi:
         legs = md.meta.get("legs")
         if not legs:
             raise ValueError("multi-pair strategy needs a basket market (basket_*)")
         return PortfolioBacktester({p: leg.bars(tf) for p, leg in legs.items()}, strategy, broker, config,
                                    pip=md.pip, seed=seed, schedule=schedule)
-    return Backtester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule)
+    return Backtester(md.bars(tf), strategy, broker, config, pip=md.pip, seed=seed, schedule=schedule,
+                      rate_diff=diff)

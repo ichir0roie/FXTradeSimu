@@ -84,6 +84,13 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 `cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
 いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
 
+### 実データだけでの評価(主要 10 ペア x 期間)
+```bash
+python -m fxsim pair-eval <動作ケース>...    # または --all。相場の DB の 10 ペアを期間に切り、方向でたらめ版と対で回す(E016)
+```
+- 合成の相場を使わない評価。判定(R1〜R5)は `fxsim/pair_eval.py` の先頭。相場は `real_pair`(R012)
+- 1 本の歴史(USDJPY)で合格しても、ペアを変えると消えることがある(B045)。verify と両方で見る
+
 ### ひとつのモデルの長期検証(合否)
 ```bash
 python -m fxsim verify <動作ケース>...      # 既定は 30 年・1-10・ブロック 250 日。動作ケースの verify で上書き

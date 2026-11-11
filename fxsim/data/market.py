@@ -26,5 +26,8 @@ class MarketData:
     def bars(self, minutes: int) -> Bars:
         """minutes 分足。同じ足は 2 回目からキャッシュを返す。"""
         if minutes not in self._bars:
-            self._bars[minutes] = make_bars(self.times, self.mid, self.spread, minutes, self.step_minutes)
+            b = make_bars(self.times, self.mid, self.spread, minutes, self.step_minutes)
+            b.pair = self.meta.get("swap_pair")
+            b.points_per_bar = int(self.meta.get("ohlc_points", 0))
+            self._bars[minutes] = b
         return self._bars[minutes]

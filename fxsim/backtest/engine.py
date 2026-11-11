@@ -467,8 +467,12 @@ class Backtester:
             q, mid = quotes
             q = q * sd
             # 越えた 1 歩が飛びのときだけ、飛んだ先で約定する。ふつうの 1 歩なら点の間も連続して動いている。
-            # 足の中の点が少ない(日足の再生など)と「ふつうの 1 歩」が測れないので、越えた点で約定する(悲観的)
-            if len(mid) > 10:
+            # 足の中の点が少ない(日足の再生など)と「ふつうの 1 歩」が測れないので、越えた点で約定する(悲観的)。
+            # 点が実データの足の OHLC(real_pair)なら、高値・安値が足の端なので足の中は連続。飛びは始値の点だけ
+            opens = self.bars.open_steps(i)
+            if opens is not None:
+                gap, sig2 = np.inf, 0.0
+            elif len(mid) > 10:
                 med = max(float(np.median(np.abs(np.diff(mid)))), 1e-12)
                 gap = self.broker.gap_k * med
                 sig2 = (med / 0.6745) ** 2                     # 1 歩の分散(中央値からの頑健な見積もり)
@@ -490,7 +494,8 @@ class Backtester:
                 # 1 つ前の点ですでに越えていた(set_sl で今の値段の向こう側に置いた、など)なら、その時の値段で約定する。
                 # 損切りの価格で約定させると、売りを今より安く買い戻せてしまう(方向でたらめ版の parabolic_sar で
                 # 30 年 +3,000 万円になっていた)
-                jumped = cross_s and (q[js - 1] <= stop or q[js - 1] - q[js] > gap)
+                jumped = cross_s and (q[js - 1] <= stop or q[js - 1] - q[js] > gap
+                                      or (opens is not None and bool(opens[js])))
                 fill = (min(q[js], stop) if jumped else stop) - slip
                 reason = "losscut" if lc is not None and stop == lc and (sl is None or lc > sl) else "sl"
                 if reason == "losscut":
@@ -498,7 +503,8 @@ class Backtester:
                 at = float(mid[js]) if jumped else float(stop * sd + (mid[js] - q[js] * sd))   # 損切り価格に届いた瞬間
                 self._close(i, fill * sd, at, reason, slip)
             else:
-                jumped = cross_t and (q[jt - 1] >= tp or q[jt] - q[jt - 1] > gap)
+                jumped = cross_t and (q[jt - 1] >= tp or q[jt] - q[jt - 1] > gap
+                                      or (opens is not None and bool(opens[jt])))
                 fill = q[jt] if (self.broker.positive_slippage and jumped and q[jt] > tp) else tp
                 # 素の損益の mid: 飛びなら越えた点の mid、ふつうの 1 歩なら利確価格に届いた瞬間の mid
                 at = float(mid[jt]) if jumped else float(tp * sd + (mid[jt] - q[jt] * sd))
