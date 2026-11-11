@@ -29,5 +29,8 @@ class MarketData:
             b = make_bars(self.times, self.mid, self.spread, minutes, self.step_minutes)
             b.pair = self.meta.get("swap_pair")
             b.points_per_bar = int(self.meta.get("ohlc_points", 0))
+            rd = self.meta.get("rate_diff_points")
+            if rd is not None:
+                b.rate_diff = np.asarray(rd, dtype=float)[b.start_idx]
             self._bars[minutes] = b
         return self._bars[minutes]

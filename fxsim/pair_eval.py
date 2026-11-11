@@ -49,6 +49,10 @@ RANGES = {
                        ("2022-11-01", "2026-11-10"))),
     "M5": Range("M5", (("2025-07-14", "2025-10-31"), ("2025-11-01", "2026-02-28"), ("2026-03-01", "2026-06-30"),
                        ("2026-07-01", "2026-11-10"))),
+    # 10 ペアを 1 つの口座で回す戦略(pair_market = "real_pairs")は、日足と同じ期間を real_pairs で
+    "real_pairs": Range("real_pairs", (("1996-01-01", "2001-12-31"), ("2002-01-01", "2007-12-31"),
+                                       ("2008-01-01", "2013-12-31"), ("2014-01-01", "2019-12-31"),
+                                       ("2020-01-01", "2026-11-10"))),
     "basket": Range("basket", (("1999-01-01", "2004-12-31"), ("2005-01-01", "2010-12-31"),
                                ("2011-01-01", "2016-12-31"), ("2017-01-01", "2021-12-31"),
                                ("2022-01-01", "2026-11-10"))),
@@ -57,7 +61,10 @@ RANGES = {
 
 def range_for(b: BehaviorCase) -> Range:
     if b.is_multi():
-        return RANGES["basket"]
+        from .strategies import STRATEGIES
+
+        s = STRATEGIES.create(b.strategy, b.strategy_params())
+        return RANGES["real_pairs"] if getattr(s, "pair_market", None) == "real_pairs" else RANGES["basket"]
     tf = int(b.strategy_params().get("timeframe") or 60)
     if tf >= 1440:
         return RANGES["D1"]
@@ -87,6 +94,12 @@ def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None, broker: str 
         for start, end in r.windows:
             patterns.append({"market": "basket_real", "label": f"basket {start[:7]}",
                              "params": {"source": {"start": start, "end": end}}})
+    elif r.data_tf == "real_pairs":
+        for start, end in r.windows:
+            src = {"start": start, "end": end}
+            if daily_fill_hour is not None:
+                src["daily_fill_hour"] = int(daily_fill_hour)
+            patterns.append({"market": "real_pairs", "label": f"basket {start[:7]}", "params": {"source": src}})
     else:
         for pair in pairs or PAIRS:
             for start, end in r.windows:
@@ -96,7 +109,8 @@ def pair_eval_case(b: BehaviorCase, pairs: list[str] | None = None, broker: str 
                 patterns.append({"market": "real_pair", "label": pattern_label(pair, start), "params": {"source": src}})
     years = max((np.datetime64(e) - np.datetime64(s)).astype(int) / 365.25 for s, e in r.windows)
     suffix = (f"-{broker}" if broker else "") + (f"-h{daily_fill_hour}" if daily_fill_hour is not None
-                                                 and r.data_tf == "D1" else "") + ("-swap" if swap_side else "")
+                                                 and r.data_tf in ("D1", "real_pairs") else "") \
+        + ("-swap" if swap_side else "")
     return TestCase(id=f"P-{b.id}{suffix}", behavior=b.id, patterns=patterns,
                     name=f"{b.id} の実データ評価(ペア x 期間、{r.data_tf}{'、' + broker if broker else ''})",
                     period={"years": round(float(years), 2)}, detail_seeds=[], null=True,

@@ -1,0 +1,10 @@
+id: B047
+name: 本命 3 本目 main_carry_breakout(10 ペアの口座、スワップを受け取る向きだけ、20 日抜けで入り 10 日で出る、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# しきい値は E026 で選んだ(直近の実データ 2014〜2026 とランダムな相場 8 本を半々に見たシャープの点数で、81 通りの一番)。
+# 量(1 ペア 2,000 通貨、証拠金の上限 50%)は、しきい値を決めた後に、26 本の相場でロスカット・破綻が無い一番大きい量として選んだ
+params: {n_in: 20, n_out: 10, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

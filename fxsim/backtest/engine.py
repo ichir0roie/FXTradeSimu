@@ -295,8 +295,12 @@ class Backtester:
             mean_abs = np.add.reduceat(d, starts) / np.maximum(n_steps, 1)
             self.touch_margin = (4.0 * np.sqrt(np.pi / 2) * mean_abs).tolist()
         if b.swap_mode == "rates":
-            diff = (self._rate_diff_override if self._rate_diff_override is not None
-                    else load_rates(b.rates_path).differential(bars.t))
+            if self._rate_diff_override is not None:
+                diff = self._rate_diff_override
+            elif bars.rate_diff is not None:            # 相場が足ごとの金利差を持つ(real_pairs の並べ替え)
+                diff = bars.rate_diff
+            else:
+                diff = load_rates(b.rates_path).differential(bars.t)
             self.rate_diff = np.asarray(diff, dtype=float).tolist()
 
     def swap_side_ok(self, side: int, i: int | None = None) -> bool:

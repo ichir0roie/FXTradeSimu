@@ -9,6 +9,7 @@ from fxsim.calendar import NS_DAY, server_hour
 from fxsim.data import load_rates
 from fxsim.data.market import MarketData
 from fxsim.data.rates import MULTI_RATES
+from fxsim.markets import MARKETS
 from fxsim.strategies import STRATEGIES
 from fxsim.strategies.guards import GuardConfig, spread_ok, typical_spread
 
@@ -116,3 +117,71 @@ def test_swap_side_only_blocks_entries_that_pay_swap_in_every_engine():
     bt = build_backtester(md, s, broker, EngineConfig(), seed=1)
     bt.run()
     assert len(bt.deals) > 0
+
+
+def _fake_pairs(tmp_path, monkeypatch, n=400):
+    from fxsim import paths
+    from fxsim.data import load_ohlc
+    from fxsim.markets.models import real_pairs
+    from fxsim.storage import prices
+    path = tmp_path / "market.sqlite"
+    monkeypatch.setattr(paths, "MARKET_DB", path)
+    load_ohlc.cache_clear()
+    real_pairs._aligned.cache_clear()
+    con = prices.open_market_db(path)
+    t0 = np.datetime64("2010-01-04", "s").astype(np.int64)
+    rng = np.random.default_rng(3)
+    for sym, p0, digits in (("USDJPY", 100.0, 3), ("AUDJPY", 80.0, 3)):
+        c = p0 * np.exp(np.cumsum(rng.normal(0.0004, 0.006, n)))
+        o = np.r_[c[0], c[:-1]]
+        t = t0 + np.arange(n, dtype=np.int64) * 86_400
+        prices.upsert_symbol(con, "Test", sym, digits, 10.0 ** -digits, "UTC+2")
+        prices.write_rates(con, "Test", sym, 1440, {
+            "open": o, "high": np.maximum(o, c) * 1.002, "low": np.minimum(o, c) * 0.998, "close": c,
+            "tick_volume": np.full(n, 10), "spread": np.full(n, 10), "real_volume": np.zeros(n, np.int64),
+            "server_time": t + 7200, "time": t}, "UTC+2")
+    con.commit()
+    con.close()
+
+
+def test_real_pairs_bootstrap_carries_rates_with_their_dates(tmp_path, monkeypatch):
+    _fake_pairs(tmp_path, monkeypatch)
+    params = {"pairs": ["USDJPY", "AUDJPY"], "source": {"start": "2010-06-01", "end": "2010-12-31", "block_days": 20}}
+    real = MARKETS.create("real_pairs", params).generate(seed=1)
+    a = MARKETS.create("real_pairs_bootstrap", params).generate(seed=1)
+    b = MARKETS.create("real_pairs_bootstrap", params).generate(seed=2)
+    ra, rb = real.meta["legs"]["audjpy"].bars(1440), a.meta["legs"]["audjpy"].bars(1440)
+    assert len(ra) == len(rb) and np.array_equal(ra.t, rb.t)
+    assert ra.rate_diff is None and rb.rate_diff is not None
+    assert not np.allclose(rb.close, b.meta["legs"]["audjpy"].bars(1440).close)       # 乱数で別の歴史
+    assert rb.close[0] == pytest.approx(ra.close[0])                                    # 水準は置く先から始まる
+    assert np.allclose(rb.spread_mean, ra.spread_mean)                                  # スプレッドは置く先のまま
+    # 全ペアで同じ日付の並び: 金利差の日付が、USDJPY と AUDJPY で同じ並び
+    ua = a.meta["legs"]["usdjpy"].bars(1440).rate_diff
+    rates = load_rates(MULTI_RATES)
+    pool_t = MARKETS.create("real_pairs", {"pairs": ["USDJPY", "AUDJPY"]}).generate(seed=1).meta["legs"]["usdjpy"] \
+        .bars(1440).t
+    usd = rates.pair_differential("usdjpy", pool_t)
+    aud = rates.pair_differential("audjpy", pool_t)
+    for k in range(1, len(ua), 37):
+        j = np.flatnonzero(np.isclose(usd, ua[k]) & np.isclose(aud, rb.rate_diff[k]))
+        assert len(j) > 0
+
+
+def test_carry_breakout_enters_only_on_breakouts_in_the_carry_direction(tmp_path, monkeypatch):
+    _fake_pairs(tmp_path, monkeypatch)
+    md = MARKETS.create("real_pairs", {"pairs": ["USDJPY", "AUDJPY"]}).generate(seed=1)
+    s = STRATEGIES.create("main_carry_breakout", {"n_in": 20, "n_out": 10, "min_carry": -1.0, "c2r_min": 0.0,
+                                                 "vol_n": 20, "protect": 0.0, "max_spread_mult": 0.0})
+    bt = build_backtester(md, s, BrokerConfig.preset("oanda"), EngineConfig(initial_balance=1e5, min_units=1000,
+                                                                            swap_side_only=True), seed=1)
+    bt.run()
+    assert len(bt.trades) > 0
+    legs = md.meta["legs"]
+    for tr in bt.trades:
+        b = legs[tr.pair].bars(1440)
+        k = int(np.searchsorted(b.t, tr.entry_t, "right")) - 2                     # 入る判断をした足
+        side = int(np.sign(load_rates(MULTI_RATES).pair_differential(tr.pair, b.t[k:k + 1])[0]))
+        assert tr.side == side                                                     # スワップを受け取る向き
+        hi, lo = b.high[k - 20:k].max(), b.low[k - 20:k].min()
+        assert (b.close[k] > hi) if side > 0 else (b.close[k] < lo)               # ブレイクアウト

@@ -25,14 +25,14 @@ class _FlipContext:
     def side(self, pair: str) -> int:
         return self._ctx.side(pair) * self._o.flip.get(pair, 1)
 
-    def target(self, pair: str, side: int, units=None) -> None:
+    def target(self, pair: str, side: int, units=None, sl=None) -> None:
         o = self._o
         side = int(np.sign(side))
         if side == self.side(pair):
             return
         if side != 0:
             o.flip[pair] = 1 if o.rng.random() < 0.5 else -1
-        self._ctx.target(pair, side * o.flip.get(pair, 1), units)
+        self._ctx.target(pair, side * o.flip.get(pair, 1), units, sl)
 
     def close_all(self) -> None:
         for p in self._ctx.pairs:

@@ -147,9 +147,10 @@ class PortfolioContext:
     def position(self, pair: str):
         return self._pb.legs[pair].pos
 
-    def target(self, pair: str, side: int, units: float | None = None) -> None:
+    def target(self, pair: str, side: int, units: float | None = None, sl: float | None = None) -> None:
         """pair を side(+1 買い / -1 売り / 0 持たない)にする。向きが同じなら何もしない(量は変えない)。
-        取引時間外なら新規は出さない(逆向きの建玉の決済だけ行う)。"""
+        取引時間外なら新規は出さない(逆向きの建玉の決済だけ行う)。
+        sl は新規の損切りの幅(価格、約定値から。サーバーの逆指値)。"""
         leg = self._pb.legs[pair]
         cur = self.side(pair)
         side = int(np.sign(side))
@@ -162,7 +163,7 @@ class PortfolioContext:
         if side == 0:
             self._pb.submit(leg, _Order("close"))
         elif self.can_enter and swap_ok:
-            self._pb.submit(leg, _Order("enter", side, None, None, units))
+            self._pb.submit(leg, _Order("enter", side, sl, None, units))
         elif cur == -side:
             self._pb.submit(leg, _Order("close"))
 
@@ -194,7 +195,9 @@ class PortfolioBacktester:
         self.legs: dict[str, Leg] = {}
         for j, pair in enumerate(self.pairs):
             b = bars_by_pair[pair]
-            diff = rates.pair_differential(pair, b.t) if rates is not None else None
+            diff = None
+            if rates is not None:
+                diff = b.rate_diff if b.rate_diff is not None else rates.pair_differential(pair, b.t)
             leg = Leg(pair, self.acct, book, b, _Idle(), self.broker, self.cfg, pip=(pips or {}).get(pair, pip),
                       seed=seed + 1_000_003 * j,
                       schedule=schedule, rate_diff=diff)
@@ -329,7 +332,8 @@ def build_backtester(md: MarketData, strategy, broker: BrokerConfig, config: Eng
     pair = md.meta.get("swap_pair")
     diff = None
     if pair and not strategy.multi and broker.swap_mode == "rates":
-        diff = load_rates(MULTI_RATES).pair_differential(pair, md.bars(tf).t)
+        b = md.bars(tf)
+        diff = b.rate_diff if b.rate_diff is not None else load_rates(MULTI_RATES).pair_differential(pair, b.t)
     if getattr(strategy, "engine", "classic") == "mt5":
         from .mt5 import Mt5Tester
 

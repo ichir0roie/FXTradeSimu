@@ -226,9 +226,11 @@ def test_daily_open_pays_the_rollover_spread_unless_the_fill_is_delayed(tmp_path
 
 
 def test_real_pairs_keeps_only_bars_shared_by_every_pair(tmp_path, monkeypatch):
+    from fxsim.markets.models import real_pairs
     path = tmp_path / "market.sqlite"
     monkeypatch.setattr(paths, "MARKET_DB", path)
     load_ohlc.cache_clear()
+    real_pairs._aligned.cache_clear()
     con = prices.open_market_db(path)
     n = 40
     _write(con, "USDJPY", 1440, 150.0 + np.arange(n) * 0.1, start=T0 - 20 * 86_400)

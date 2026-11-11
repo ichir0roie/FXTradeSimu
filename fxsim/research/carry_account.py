@@ -50,6 +50,7 @@ class Plan:
     stop: float | None = None    # 建玉の損失(スワップ込み)/ 建玉の金額 がこれ以下で手仕舞う
     units: float = 1000.0
     cap: float = 0.5             # 必要証拠金の合計 / 有効証拠金 の上限
+    c2r: float | None = None     # 受け取りの年率 / 60 日ボラ(年率)がこれ以上のときだけ入る
 
 
 class CarryAccount:
@@ -132,6 +133,8 @@ class CarryAccount:
                 continue
             side = int(self.side[p][i])
             if self.carry[p][i] < 0.01 or side == 0 or self.blocked_month.get(p) == month:
+                continue
+            if self.plan.c2r is not None and not (np.isfinite(self.c2r[p][i]) and self.c2r[p][i] >= self.plan.c2r):
                 continue
             if not self._signal(p, i, side):
                 continue
