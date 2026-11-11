@@ -27,7 +27,11 @@ class Service:
         self.client = MT5Client(module, self.cfg.mt5)
         creds = load_credentials(self.cfg.account)
         self.client.connect(creds)
-        self.trader = LiveTrader(self.cfg, self.client, expected_login=creds.login if creds else None)
+        cls = LiveTrader
+        if self.cfg.symbols:                     # 複数ペアの戦略(B047 など)
+            from .portfolio import PortfolioTrader
+            cls = PortfolioTrader
+        self.trader = cls(self.cfg, self.client, expected_login=creds.login if creds else None)
         self.trader.startup()
         return self.trader
 

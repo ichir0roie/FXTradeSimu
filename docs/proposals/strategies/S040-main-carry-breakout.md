@@ -1,6 +1,6 @@
 # S040 main_carry_breakout: 10 ペアの口座で、スワップ狙い + ブレイクアウト(本命の 3 本目)
 
-- 種類: 戦略 / 状態: 実装済み。しきい値は E026 で選ぶ
+- 種類: 戦略 / 状態: 実装済み、しきい値は E026 で決めた。デモ口座での常駐の準備ができた(`configs/trading/demo-majors-b047.yaml`)
 - 実装: `fxsim/strategies/main/carry_breakout.py`(登録名 `main_carry_breakout` v1)、動作ケース B047
 - 親: S039(B046)、E012〜E025
 
@@ -18,7 +18,7 @@
 | 共通の対策 | 月初の 9 割の床、証拠金の上限(有効証拠金の `margin_cap`)、急変用の逆指値(ATR x 9)、スプレッドのゲート、swap_side_only | S038、E017、E019、E022 |
 | 量 | 1 ペア `units` 通貨(既定 1,000 = OANDA の最小) | E025 |
 
-相場は real_pairs(R013)と real_pairs_bootstrap(R014)。MT5 の常駐(fxsim trade)は 1 銘柄ずつなので、まだ動かせない。
+相場は real_pairs(R013)と real_pairs_bootstrap(R014)。常駐は複数ペアの PortfolioTrader(`docs/TRADING.md`)。
 
 ## 測り方
 - `python -m fxsim pair-eval B047 --daily-fill-hour 2`(real_pairs の 5 期間、方向でたらめ版と対)
@@ -27,3 +27,10 @@
 ## 結果(既定の設定、しきい値を選ぶ前)
 pair-eval(`P-B047-h2`): 10 万円から 6 年で平均 +4.3 万円・中央値 +3.2 万円、5 期間中 3 期間プラス、方向でたらめ版との差 t 1.90。
 期間: 1996〜 +3.2 万、2002〜 +12.5 万、2008〜 −1.1 万、2014〜 −0.4 万、2020〜 +7.3 万円。パターンが 5 つしかなく、t は 2 に届かない。
+
+## 常駐(2026-11-11)
+`python -m fxsim trade run configs/trading/demo-majors-b047.yaml` で、10 ペアを 1 つのデモ口座で動かせる(PortfolioTrader)。
+判断はサーバーの 0 時、注文は 2 時まで待つ。`trade check` でデモの端末につないで確かめた(注文は出していない): 仮の口座 10 万円は
+11 年で 21.2 万円(バックテストと合う)。その時点で条件を満たすのは USDCHF だけ(受け取り年 3.5%、キャリー・トゥ・リスク 0.48)で、
+20 日の高値抜けを待っていた。
+

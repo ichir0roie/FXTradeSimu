@@ -63,6 +63,12 @@ class TraderConfig:
     dry_run: bool = False            # True なら注文を出さず、出すはずの注文を記録するだけ
     allow_real: bool = False         # account: real のとき、これも true でないと動かない
     comment: str = "fxsim"           # 注文のコメント(MT5 の画面に出る。31 文字まで)
+    # 複数ペアの戦略(Strategy.multi、例: B047)だけ。MT5 の銘柄名の並び。symbol(足の確定と時刻の基準)も含め、
+    # 対円でない決済通貨を円に直すため USDJPY と、USDCHF・USDCAD など決済通貨のペアも入れる
+    symbols: list[str] | None = None
+    # 日足の注文を出すサーバーの時(None = 足の確定ですぐ)。判断はサーバーの 0 時(ロールオーバー)だが、その 1 時間は
+    # スプレッドが平常の数倍に広がる(E017)ので、2 なら 2 時まで待ってから出す。待っている注文は state.json に残す
+    fill_server_hour: int | None = None
 
     def __post_init__(self):
         if isinstance(self.mt5, dict):
@@ -81,6 +87,13 @@ class TraderConfig:
             raise ValueError("protect must be in [0, 1)")
         if isinstance(self.server_utc_offset_hours, str) and self.server_utc_offset_hours != "auto":
             raise ValueError("server_utc_offset_hours must be 'auto' or a number")
+        if self.symbols is not None:
+            if isinstance(self.symbols, str):
+                self.symbols = [self.symbols]
+            if self.symbol not in self.symbols:
+                raise ValueError("symbol (the lead symbol) must be one of symbols")
+        if self.fill_server_hour is not None and not 0 <= int(self.fill_server_hour) <= 23:
+            raise ValueError("fill_server_hour must be 0..23")
 
     @property
     def state_dir(self) -> Path:

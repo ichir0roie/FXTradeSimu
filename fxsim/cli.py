@@ -437,7 +437,12 @@ def cmd_trade(args) -> None:
             lines = journal.read_text(encoding="utf-8").splitlines() if journal.exists() else []
             for line in lines[-args.tail:]:
                 rec = json.loads(line)
-                if rec["kind"] == "bar":
+                if rec["kind"] == "bar" and "positions" in rec["sim"]:        # 複数ペア
+                    held = {k: v["side"] for k, v in rec["sim"]["positions"].items() if v}
+                    acts = ", ".join(f"{a['symbol']} {a['action']['kind']} {a['action']['side']:+d} "
+                                     f"{a['action']['lots']}" for a in rec["actions"]) or "-"
+                    print(f"{rec['bar_close_utc']}  sim {held or 'flat'}  actions: {acts}")
+                elif rec["kind"] == "bar":
                     acts = ", ".join(f"{a['kind']} {a['side']:+d} {a['lots']}" for a in rec["actions"]) or "-"
                     pos = rec["sim"]["position"]
                     sim = f"{pos['side']:+d} {pos['units']:.0f}" if pos else "flat"
@@ -454,6 +459,21 @@ def cmd_trade(args) -> None:
         print("server offset (h):", (c.server_offset(cfg.symbol) or 0) / 3600 if cfg.server_utc_offset_hours == "auto"
               else cfg.server_utc_offset_hours)
         forming = int(c.rates(cfg.symbol, trader.timeframe, 1)["time"][-1])
+        if cfg.symbols:                          # 複数ペア
+            decided = trader.decide(forming)
+            if decided is None:
+                print("some symbols have no forming bar yet; try again later")
+            else:
+                snap, per, meta = decided
+                print(json.dumps({"meta": meta, "sim_equity": snap.equity, "server_hour": trader.server_hour(),
+                                  "fill_server_hour": cfg.fill_server_hour,
+                                  "pairs": {s: {"sim_position": asdict(snap.pairs[s[:6].lower()].position)
+                                                if snap.pairs[s[:6].lower()].position else None,
+                                                "real": [asdict(p) for p in per[s][0]],
+                                                "actions": [asdict(a) for a in per[s][1]]} for s in cfg.symbols}},
+                                 ensure_ascii=False, indent=2, default=str))
+            c.shutdown()
+            return
         snap, real, actions, meta = trader.decide(forming)
         print(json.dumps({"meta": meta, "sim_position": asdict(snap.position) if snap.position else None,
                           "sim_orders": [asdict(o) for o in snap.orders], "real": [asdict(p) for p in real],

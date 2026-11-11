@@ -28,7 +28,7 @@ import logging
 import math
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -75,6 +75,10 @@ class TraderState:
     sim_sl: float | None = None
     sim_tp: float | None = None
     updated_at: float | None = None
+    # 複数ペア(PortfolioTrader)だけ: ペアごとの前回のシミュレーションの建玉と、出すのを待っている注文
+    pairs: dict = field(default_factory=dict)
+    pending: list = field(default_factory=list)
+    pending_bar_t: int | None = None
 
     @classmethod
     def load(cls, path: Path) -> TraderState:
@@ -139,7 +143,28 @@ def lots_for(units: float, spec: SymbolSpec, scale: float) -> float:
     return lots if lots >= spec.volume_min else 0.0
 
 
+def sim_broker_for(behavior: BehaviorCase, sim_broker: dict, engine: EngineConfig, mt5: bool) -> BrokerConfig:
+    """常駐のシミュレーションのブローカー。約定は素直なまま(既定は fair、滑りなし)。
+
+    - 本命の戦略(MT5 のテスター): 口座の決まり(ロット・証拠金・両建て)は動作ケースのものを使う
+    - swap_side_only の動作ケース: スワップの決め方(金利差・業者の取り分)は動作ケースのブローカーのものを使う。
+      既定のシミュレーションのブローカーはスワップを固定の 0 にしているので、そのままでは「受け取る向き」が無く、
+      新規が全部止まる(E022 で全部の動作ケースに swap_side_only を入れた後に見つけた)
+    """
+    overrides = dict(sim_broker.get("overrides") or {})
+    if mt5 and "mt5" not in overrides:
+        overrides["mt5"] = behavior.broker_spec["overrides"].get("mt5", {})
+    if engine.swap_side_only:
+        b = BrokerConfig.preset(behavior.broker_spec["preset"], behavior.broker_spec["overrides"])
+        overrides.update(swap_mode=b.swap_mode, swap_markup=b.swap_markup, swap_markup_pay=b.swap_markup_pay,
+                         rates_path=b.rates_path, swap_long_per_10k=b.swap_long_per_10k,
+                         swap_short_per_10k=b.swap_short_per_10k)
+    return BrokerConfig.preset(sim_broker.get("preset", "fair"), overrides)
+
+
 class LiveTrader:
+    multi = False                   # 複数ペアの戦略を扱うか(PortfolioTrader)
+
     def __init__(self, cfg: TraderConfig, client: MT5Client, behavior: BehaviorCase | None = None,
                  strategy_factory: Callable[[], object] | None = None, sleep: Callable[[float], None] | None = None,
                  expected_login: int | None = None):
@@ -153,16 +178,14 @@ class LiveTrader:
             params = {**params, "guard": {**(params.get("guard") or {}), "protect": 0.0}}
         self.make_strategy = strategy_factory or (lambda: STRATEGIES.create(self.behavior.strategy, params))
         probe = self.make_strategy()
-        if getattr(probe, "multi", False):
-            raise ValueError(f"{self.behavior.id}: multi-pair strategies are not supported by fxsim trade")
+        if bool(getattr(probe, "multi", False)) != self.multi:
+            raise ValueError(f"{self.behavior.id}: {'multi' if getattr(probe, 'multi', False) else 'single'}-pair "
+                             f"strategy needs {'symbols' if getattr(probe, 'multi', False) else 'symbol'} "
+                             "(multi-pair strategies run with PortfolioTrader)")
         self.timeframe = int(probe.timeframe)
-        b = cfg.sim_broker
-        overrides = dict(b.get("overrides") or {})
-        if getattr(probe, "engine", "classic") == "mt5" and "mt5" not in overrides:
-            # 本命の戦略: 口座の決まり(ロット・証拠金・両建て)は動作ケースのものを使う。約定は素直なまま
-            overrides["mt5"] = self.behavior.broker_spec["overrides"].get("mt5", {})
-        self.sim_broker = BrokerConfig.preset(b.get("preset", "fair"), overrides)
         self.engine_cfg = EngineConfig(**self.behavior.engine)
+        self.sim_broker = sim_broker_for(self.behavior, cfg.sim_broker, self.engine_cfg,
+                                         getattr(probe, "engine", "classic") == "mt5")
         self.schedule = self.behavior.trading_schedule()
         self.sleep = sleep if sleep is not None else time.sleep
         d = cfg.state_dir if not cfg.dry_run else cfg.state_dir.with_name(cfg.state_dir.name + ".dry")
@@ -394,8 +417,9 @@ class LiveTrader:
             r = fn()
         return r
 
-    def execute(self, a: Action) -> list[OrderResult]:
-        cfg, c, sym = self.cfg, self.client, self.cfg.symbol
+    def execute(self, a: Action, sym: str | None = None) -> list[OrderResult]:
+        cfg, c = self.cfg, self.client
+        sym = sym or cfg.symbol
         kw = {"magic": cfg.magic, "deviation": cfg.deviation_points, "comment": cfg.comment}
         real = c.positions(sym, cfg.magic)
         if a.kind == "close_all":
@@ -445,6 +469,6 @@ class LiveTrader:
             q = bid_ask * a.side
             if (a.sl is not None and q <= a.sl * a.side) or (a.tp is not None and q >= a.tp * a.side):
                 log.info("stops already crossed (sl %s tp %s at %s); closing", a.sl, a.tp, bid_ask)
-                return self.execute(Action("close_all", reason="stop crossed"))
+                return self.execute(Action("close_all", reason="stop crossed"), sym)
             return [self._send(lambda p=p: c.modify(sym, p.ticket, a.sl, a.tp, magic=cfg.magic)) for p in real]
         raise ValueError(f"unknown action {a.kind}")

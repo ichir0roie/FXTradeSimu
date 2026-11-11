@@ -475,3 +475,23 @@ def test_poll_interval_follows_the_timeframe():
     cfg = TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=1)
     assert cfg.poll_interval(1440) == 60 and cfg.poll_interval(60) == 30 and cfg.poll_interval(5) == 5
     assert TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=1, poll_seconds=7).poll_interval(1440) == 7
+
+
+@pytest.mark.parametrize("side, opens", [("buy", True), ("sell", False)])
+def test_swap_side_only_behaviors_still_open_on_the_receiving_side(tmp_path, monkeypatch, side, opens):
+    """常駐のシミュレーションのブローカーはスワップを固定の 0 にしている。swap_side_only の動作ケースでは、
+    動作ケースのブローカーの金利差で向きを決める(0 のままだと全部の新規が止まっていた)。
+    2021-03 の USD − JPY は +0.23%"""
+    monkeypatch.setattr("fxsim.trading.config.TRADING_DIR", tmp_path)
+    rates = make_rates(150 + np.cumsum(np.full(40, 0.01)))
+    fake = FakeMT5(rates)
+    fake.visible = 31
+    cfg = TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=77, history_bars=1000, protect=0.0)
+    beh = BehaviorCase(id="BT", strategy="ma_cross", timeframe=60, engine={"units": 10000, "swap_side_only": True},
+                       broker={"preset": "fair", "overrides": {"swap_markup": 0.0}})
+    tr = LiveTrader(cfg, MT5Client(fake), behavior=beh,
+                    strategy_factory=lambda: Script({29: [(side, {"sl": 0.5})]}), sleep=lambda s: None)
+    tr.startup()
+    assert tr.sim_broker.swap_mode == "rates" and tr.sim_broker.slippage_pips == 0.0
+    tr.poll()
+    assert (len(fake.positions) == 1) == opens

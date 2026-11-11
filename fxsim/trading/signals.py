@@ -137,3 +137,63 @@ def simulate(bars: Bars, strategy, broker: BrokerConfig, engine: EngineConfig, s
     if bt.snapshot is None:        # 途中で破綻して止まった(足 n-1 の約定まで来なかった)
         return SimSnapshot(int(bars.t[-2]), None, None, [], bt.equity, bt.balance, True, len(bt.trades))
     return bt.snapshot
+
+
+# ---- 複数ペア(Strategy.multi、PortfolioBacktester) ----
+
+@dataclass
+class PortfolioSnapshot:
+    """複数ペアの戦略の、最後の確定足の判断。pairs はペア(小文字)-> そのペアの SimSnapshot。"""
+    bar_t: int
+    pairs: dict[str, SimSnapshot]
+    equity: float = 0.0
+    balance: float = 0.0
+    halted: bool = False
+    n_trades: int = 0
+
+
+def simulate_portfolio(bars_by_pair: dict[str, Bars], strategy, broker: BrokerConfig, engine: EngineConfig,
+                       schedule: TradingSchedule, pips: dict[str, float], seed: int = 0) -> PortfolioSnapshot:
+    """全ペア同じ時刻の足(最後の 1 本は作りかけ)で PortfolioBacktester を回し、最後の確定足の判断を返す。
+
+    各ペアの Leg の約定(_fill)を、作りかけの足でだけ止めて、その時点の注文と建玉を写し取る(_SnapshotBacktester と同じ)。
+    """
+    from ..backtest.portfolio import PortfolioBacktester
+
+    first = next(iter(bars_by_pair.values()))
+    if len(first) < 2:
+        raise ValueError("need at least one closed bar and the forming bar")
+    pb = PortfolioBacktester(bars_by_pair, strategy, broker, engine, pip=next(iter(pips.values())), seed=seed,
+                             schedule=schedule, pips=pips)
+    last = len(first) - 1
+    snaps: dict[str, SimSnapshot] = {}
+
+    def wrap(leg):
+        inner = leg._fill
+
+        def fill(i: int) -> None:
+            if i < last:
+                inner(i)
+                return
+            orders = []
+            for o in leg.pending:
+                units = 0.0
+                if o.kind == "enter":
+                    price = leg.ao[i] if o.side > 0 else leg.bo[i]
+                    units = leg._units(o.sl_dist, price, o.units)
+                elif o.units is not None:
+                    units = float(o.units)
+                orders.append(SimOrder(o.kind, o.side, units, o.sl_dist, o.tp_dist, o.sl_from_average))
+            pos_t = int(leg.t[leg.pos.entry_idx]) if leg.pos is not None else None
+            snaps[leg.pair] = SimSnapshot(int(leg.t[i - 1]), copy.copy(leg.pos), pos_t, orders, pb.equity,
+                                          pb.balance, pb.halted, len(leg.trades))
+            leg.pending = []
+        leg._fill = fill
+
+    for leg in pb.legs.values():
+        wrap(leg)
+    pb.run()
+    bar_t = int(first.t[-2])
+    for pair in pb.legs:                    # 破綻して途中で止まったペアは、持たないものとして返す
+        snaps.setdefault(pair, SimSnapshot(bar_t, None, None, [], pb.equity, pb.balance, True, 0))
+    return PortfolioSnapshot(bar_t, snaps, pb.equity, pb.balance, pb.halted, len(pb.trades))

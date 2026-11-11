@@ -154,6 +154,34 @@ mt5: {backend: rpyc, host: localhost, port: 18812, path: "C:\\Program Files\\OAN
 ほかのキー(`fxsim/trading/config.py`): `max_history_bars`(起点からの本数の上限。超えたら起点を進める)、
 `poll_seconds`(既定 auto)、`protect`(既定 0.9)、`gap_mult`(既定 1.5)、`floor_check_seconds`(既定 60)、`deviation_points`、`pip`、`sim_broker`、`dry_run`、`allow_real`、`comment`。
 
+### 複数ペアの戦略(B047 など、`symbols` を書く)
+
+```yaml
+name: demo-majors-b047
+behavior: B047
+symbol: USDJPY               # 足の確定と時刻の基準(symbols の中の 1 つ)
+symbols: [USDJPY, EURUSD, GBPUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, EURJPY, GBPJPY, AUDJPY]
+magic: 20261112
+fill_server_hour: 2          # 判断はサーバーの 0 時、注文は 2 時まで待つ(ロールオーバーの 1 時間はスプレッドが数倍)
+```
+
+`symbols` があると `PortfolioTrader`(`fxsim/trading/portfolio.py`)で動く。流れは 1 銘柄の常駐と同じで、全ペアでまとめて行う。
+
+- 全ペアの足を取り、全ペアにある足だけを残す。作りかけの足がまだ来ていないペアがあれば、その回は待つ(処理済みにしない)
+- 決済通貨が円でないペアは、今の気配から「決済通貨 1 単位の円の値」を求めて価格に掛け、バックテスト(real_pairs)と同じ
+  円の値段でシミュレーションする。仮の口座(動作ケースの `engine.initial_balance`、B047 は 10 万円)で PortfolioBacktester を回す
+- ペアごとに実口座の建玉(magic が同じもの)と突き合わせる(下の決まりは 1 銘柄と同じ。途中からは乗らない)。
+  損切り・利確の幅は、円に換算した値段を銘柄の値段に戻して置く
+- `fill_server_hour` があれば、サーバーの時刻がその時になるまで注文を `state.json` の `pending` に置いて待つ。
+  待っている間に次の足の判断が出たら古い注文は捨てる(journal に `pending_dropped`)。出す直前に消すので二重には出ない
+- 口座の床は口座全体の有効証拠金で見る。割ったら symbols の全ペアの、この常駐の建玉を決済する
+- 対円でないペアの円への換算に、USDJPY と、決済通貨のペア(USDCHF・USDCAD など)を symbols に入れておく
+- 金利差はペアの短期金利の差(`data/real/short_rates_monthly_fred.csv`)。月に 1 回 `python -m fxsim fetch-fred` で取り直す
+
+2026-11-11 にデモ口座の端末へ `trade check` でつないで確かめた(注文は出していない): 10 ペアの日足 2,959 本で
+シミュレーションし、仮の口座は 10 万円 → 21.2 万円(バックテストと合う)。その時点では USDCHF だけが金利差と
+キャリー・トゥ・リスクの条件を満たし、20 日の高値抜けを待っていた。
+
 ## 使い方
 
 ```bash
@@ -241,7 +269,11 @@ loginctl enable-linger $USER     # ログアウトしても動かし続けるな
 
 ## 気をつけること
 
-- 対応する足は M1 / M5 / M15 / M30 / H1 / H4 / D1。複数ペアの戦略(`basket_*`)はまだ動かせない
+- 対応する足は M1 / M5 / M15 / M30 / H1 / H4 / D1。複数ペアの戦略は `symbols` を書けば動く(上の節)。
+  1 分足の再生(trade-replay)はまだ 1 銘柄だけ
+- `swap_side_only` の動作ケース(全部、E022)では、シミュレーションのブローカーのスワップの決め方(金利差・業者の取り分)を
+  動作ケースのブローカーから引き継ぐ(`trader.sim_broker_for`)。既定の `sim_broker` はスワップを固定の 0 にしているので、
+  引き継がないと「受け取る向き」が無く、新規が全部止まる(2026-11-11 に直した。それより前に動かした常駐は新規を出していなかった)
 - 本命の戦略(`strategies/main/`、MT5 のテスターで回るもの)も動かせる。テスターは成行をその場で約定させるので、
   作りかけの足の始値で戦略を呼んだ前後の建玉の差を注文に直す(`signals.py` の `_SnapshotMt5Tester`)。
   建玉は 1 つまで。シミュレーションの口座の決まり(ロット・証拠金・両建て)は動作ケースの `broker.overrides.mt5` を使い、
