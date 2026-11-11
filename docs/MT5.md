@@ -30,7 +30,7 @@ class MainXxx(MainStrategy):
         return target, stop_dist, expected_move   # 向き(+1/0/−1)、損切りの幅(価格)、見込みの値幅(価格)
 ```
 
-売買の決まり(終値の損切り・手仕舞い・新規の門・量)は `MainStrategy.on_bar` が共通で行う。
+売買の決まり(終値の損切り・手仕舞い・新規のゲート・量)は `MainStrategy.on_bar` が共通で行う。
 自分で注文を出したいときは `on_bar(i, ctx)` を書き、`ctx`(`backtest/mt5/context.py` の `Mt5Context`)を使う。
 
 呼ばれる時点は「新しい足の最初のティック」。`on_bar(i, ctx)` の `i` は確定した足で、`ctx.bid` / `ctx.ask` は足 i+1 の始値の気配。

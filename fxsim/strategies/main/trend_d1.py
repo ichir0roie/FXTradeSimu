@@ -1,7 +1,7 @@
 """S038 main_trend_d1: 本命の 1 本目。日足のトレンドに、共通の対策(guards)を全部入れたもの。
 
 E012 で、日足の時系列モメンタム(B007)は費用の壁(1 取引 2.6 pip)を越える素の損益(+10 pip / 取引)を持っていたが、
-スワップの上乗せ(年率 1%)で消えた。ここでは対策(回転の上限・費用とスワップの門・固定比率の量・終値の損切りと
+スワップの上乗せ(年率 1%)で消えた。ここでは対策(回転の上限・コストとスワップのゲート・固定比率の量・終値の損切りと
 遠くの非常用の逆指値・ドローダウンの止め)を入れて、MT5 の口座の決まりで回したときに何が残るかを見る。
 信号は結果を見て調整していない定番の形:
 終値が 200 日の移動平均より上で 60 日のリターンがプラスなら買い、両方逆なら売り。
@@ -16,7 +16,7 @@ from ..indicators import atr, sma
 from .base import MainStrategy
 
 
-@STRATEGIES.register("main_trend_d1", version="1",
+@STRATEGIES.register("main_trend_d1", version="2",
                      description="本命: 日足のトレンド(200 日平均 + 60 日リターン)に共通の対策を入れた EA(MT5 前提)")
 class MainTrendD1(MainStrategy):
     name = "main_trend_d1"

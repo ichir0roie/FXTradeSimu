@@ -11,6 +11,15 @@
     3. 注文が無く、シミュレーションの同じ建玉(建てた足が同じ)で損切り・利確が動いていたら、実口座も同じ価格に動かす
        (トレーリング。すでに越えた価格なら、その場で決済する)
 数量はシミュレーションの数量(通貨)x volume_scale をロットに直し、volume_step で切り捨てる。
+
+口座の床(protect、資産の 9 割を守る。guards.EquityFloor と同じ決まりを実口座の有効証拠金で):
+    - 床 = 月初の有効証拠金 x protect。同じ口座の常駐どうしで data/trading/account-<login>.json を共有する
+    - floor_check_seconds ごとと、注文を出す直前に有効証拠金を比べる。割ったら、この常駐の建玉を全部決済し、
+      その月は新規(open / add)を出さない。手動やほかの EA の建玉には触らない
+    - 新規の量は、口座の全建玉(銘柄・magic を問わない)とこの新規が、サーバーの逆指値まで飛んで窓で滑っても
+      (逆指値までの損失 x gap_mult、MT5 の order_calc_profit で口座の通貨に換算)床を割らない量まで減らす。
+      逆指値の無い建玉が口座にあれば、最悪の損失が分からないので新規を出さない
+    - シミュレーションの中の床は切る(シミュレーションの有効証拠金は実口座と別物なので、床は実口座だけで見る)
 """
 from __future__ import annotations
 
@@ -30,6 +39,8 @@ from ..calendar import NS_MIN
 from ..cases.loader import load_cases
 from ..cases.model import BehaviorCase
 from ..strategies import STRATEGIES
+from ..strategies.guards import EquityFloor, floor_lots
+from ..strategies.main.base import MainStrategy
 from .config import TraderConfig
 from .feed import pip_from_digits, rates_to_bars
 from .mt5 import LivePosition, MT5Client, MT5Error, OrderResult, SymbolSpec
@@ -130,13 +141,16 @@ def lots_for(units: float, spec: SymbolSpec, scale: float) -> float:
 
 class LiveTrader:
     def __init__(self, cfg: TraderConfig, client: MT5Client, behavior: BehaviorCase | None = None,
-                 strategy_factory: Callable[[], object] | None = None, sleep: Callable[[float], None] = time.sleep,
+                 strategy_factory: Callable[[], object] | None = None, sleep: Callable[[float], None] | None = None,
                  expected_login: int | None = None):
         self.cfg = cfg
         self.expected_login = expected_login
         self.client = client
         self.behavior = behavior or load_cases().behaviors[cfg.behavior]
         params = self.behavior.strategy_params()
+        if strategy_factory is None and isinstance(STRATEGIES.create(self.behavior.strategy, params), MainStrategy):
+            # 床は実口座の有効証拠金で見る(下の check_floor)。シミュレーションの中では切る
+            params = {**params, "guard": {**(params.get("guard") or {}), "protect": 0.0}}
         self.make_strategy = strategy_factory or (lambda: STRATEGIES.create(self.behavior.strategy, params))
         probe = self.make_strategy()
         if getattr(probe, "multi", False):
@@ -150,11 +164,14 @@ class LiveTrader:
         self.sim_broker = BrokerConfig.preset(b.get("preset", "fair"), overrides)
         self.engine_cfg = EngineConfig(**self.behavior.engine)
         self.schedule = self.behavior.trading_schedule()
-        self.sleep = sleep
+        self.sleep = sleep if sleep is not None else time.sleep
         d = cfg.state_dir if not cfg.dry_run else cfg.state_dir.with_name(cfg.state_dir.name + ".dry")
         self.state_path = d / "state.json"
         self.journal_path = d / "journal.jsonl"
         self.state = TraderState.load(self.state_path)
+        self.poll_interval = cfg.poll_interval(self.timeframe)
+        self._floor_checked = 0.0
+        self._login: int | None = None
 
     # ---- 記録 ----
     def journal(self, kind: str, **data) -> None:
@@ -176,6 +193,7 @@ class LiveTrader:
             # 1 つの端末は 1 つの口座にしかつながらない。ほかの常駐が別の口座でログインし直した、など
             raise MT5Error(f"terminal is logged in to {acct['login']}, "
                            f"not {self.expected_login} from .env.{self.cfg.account}")
+        self._login = int(acct["login"])
         spec = self.client.symbol(self.cfg.symbol)
         if not self.client.trade_allowed() and not self.cfg.dry_run:
             log.warning("algo trading is disabled in the terminal; orders will be rejected (10027)")
@@ -186,6 +204,100 @@ class LiveTrader:
                  acct["currency"], acct["balance"], self.cfg.symbol, self.timeframe, self.behavior.id,
                  self.behavior.strategy, " [dry-run]" if self.cfg.dry_run else "")
         return info
+
+    # ---- 口座の床 ----
+    @property
+    def floor_path(self) -> Path:
+        login = self._login if self._login is not None else int(self.client.account()["login"])
+        suffix = ".dry" if self.cfg.dry_run else ""
+        return self.cfg.state_dir.parent / f"account-{login}{suffix}.json"
+
+    def load_floor(self) -> EquityFloor:
+        f = EquityFloor(self.cfg.protect)
+        if self.floor_path.exists():
+            with open(self.floor_path, encoding="utf-8") as fh:
+                d = json.load(fh)
+            f.key, f.floor, f.halted, f.trips = d.get("key"), d.get("floor", 0.0), d.get("halted", False), \
+                d.get("trips", 0)
+        return f
+
+    def save_floor(self, f: EquityFloor) -> None:
+        path = self.floor_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f".{self.cfg.name}.tmp")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"key": f.key, "floor": f.floor, "halted": f.halted, "trips": f.trips, "protect": f.protect,
+                       "updated_at": time.time(), "by": self.cfg.name}, fh, ensure_ascii=False, indent=2)
+        tmp.replace(path)
+
+    def check_floor(self) -> tuple[EquityFloor, float]:
+        """有効証拠金を床と比べる。割ったら止めて、この常駐の建玉を全部決済する。(床, 有効証拠金)を返す。"""
+        self._floor_checked = time.time()
+        f = self.load_floor()
+        equity = float(self.client.account()["equity"])
+        if self.cfg.protect <= 0:
+            return f, equity
+        f.update(time.time_ns(), equity)
+        tripped = f.check(equity)
+        self.save_floor(f)
+        if tripped:
+            log.error("equity %.0f fell to the floor %.0f (%.0f%% of the month's start): closing and halting "
+                      "new entries for this month", equity, f.floor, f.protect * 100)
+            results = [] if self.cfg.dry_run else self.execute(Action("close_all", reason="floor"))
+            self.journal("floor", equity=equity, floor=f.floor, results=[asdict(r) for r in results],
+                         dry_run=self.cfg.dry_run)
+        return f, equity
+
+    def account_worst_loss(self, skip_magic: int | None = None) -> float | None:
+        """口座の全建玉が、今の決済値段からサーバーの逆指値まで飛んで窓で滑ったときの損失の合計(口座の通貨)。
+        逆指値の無い建玉があれば None。skip_magic の建玉は数えない(この足で決済するもの)。"""
+        total, ticks = 0.0, {}
+        for sym, p, magic in self.client.account_positions():
+            if skip_magic is not None and magic == skip_magic:
+                continue
+            if p.sl is None:
+                return None
+            tick = ticks.get(sym) or ticks.setdefault(sym, self.client.tick(sym))
+            close = tick.bid if p.side > 0 else tick.ask
+            if (close - p.sl) * p.side <= 0:
+                continue
+            total += -self.client.profit(sym, p.side, p.volume, close, p.sl) * self.cfg.gap_mult
+        return total
+
+    def apply_floor(self, actions: list[Action]) -> list[Action]:
+        """新規(open / add)の量を、口座の床を割らない量まで減らす。止めているなら新規を外す。"""
+        if self.cfg.protect <= 0 or not any(a.kind in ("open", "add") for a in actions):
+            return actions
+        f, equity = self.check_floor()
+        closes_own = any(a.kind == "close_all" for a in actions)
+        worst = self.account_worst_loss(self.cfg.magic if closes_own else None)
+        room = f.room(equity, worst)
+        spec = self.client.symbol(self.cfg.symbol)
+        tick = self.client.tick(self.cfg.symbol)
+        out = []
+        for a in actions:
+            if a.kind not in ("open", "add"):
+                out.append(a)
+                continue
+            px = tick.ask if a.side > 0 else tick.bid
+            if a.sl_dist:
+                per_lot = -self.client.profit(self.cfg.symbol, a.side, 1.0, px, px - a.side * a.sl_dist) \
+                    * self.cfg.gap_mult
+            else:
+                per_lot = float("inf")
+            lots = floor_lots(a.lots, room, per_lot, spec.volume_step)
+            if lots < spec.volume_min:
+                why = ("halted for the month" if f.halted else "no stop on some position" if worst is None
+                       else "no stop on the order" if not a.sl_dist else f"room {room:.0f}")
+                log.warning("%s %+d %.2f lots skipped by the equity floor (%s)", a.kind, a.side, a.lots, why)
+                self.journal("floor_skip", action=asdict(a), room=room, floor=f.floor, equity=equity, reason=why)
+                continue
+            if lots < a.lots:
+                log.info("%s %+d cut from %.2f to %.2f lots by the equity floor", a.kind, a.side, a.lots, lots)
+                a = Action(**{**asdict(a), "lots": lots, "reason": a.reason + " (floor)"})
+            room -= lots * per_lot
+            out.append(a)
+        return out
 
     # ---- 足 ----
     def utc_offset(self) -> int:
@@ -238,11 +350,15 @@ class LiveTrader:
         return snap, real, actions, meta
 
     def poll(self) -> bool:
-        """新しい足が確定していれば判断して注文を出す。処理したら True。"""
+        """新しい足が確定していれば判断して注文を出す。処理したら True。
+        足を待つ間も floor_check_seconds ごとに口座の床を見る。"""
+        if self.cfg.protect > 0 and time.time() - self._floor_checked >= self.cfg.floor_check_seconds:
+            self.check_floor()
         forming = self.new_bar()
         if forming is None:
             return False
         snap, real, actions, meta = self.decide(forming)
+        actions = self.apply_floor(actions)
         # 注文を出す前に「処理済み」を書く。途中で落ちても、同じ足の注文を二重に出さない
         s = self.state
         s.last_forming, s.last_bar_t = forming, snap.bar_t

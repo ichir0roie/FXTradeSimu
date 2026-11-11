@@ -7,7 +7,8 @@ account: demo                   # 口座の情報は .env.demo から(本番は 
 volume_scale: 1.0               # 実口座の数量 = 動作ケースの数量(10,000 通貨)x これ → 0.1 ロット
 max_lots: 0.5
 history_bars: 3000
-poll_seconds: 5
+poll_seconds: auto              # 足の長さに合わせる(1 時間足は 30 秒ごと)。負荷を抑えるため
+protect: 0.9                    # 口座の床 = 月初の有効証拠金の 9 割(B001 は ATR x 4 の逆指値を置くので、最悪の損失が分かる)
 server_utc_offset_hours: auto   # 市場が閉じている間に初めて起動するなら数値で(例: 2)
 dry_run: false
 allow_real: false

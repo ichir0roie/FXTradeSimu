@@ -3,16 +3,19 @@
 サブクラスは signals(bars, rng) で、足ごとの 3 つの列を因果的に計算するだけでよい(足 i の終値までで決まる値):
     target[i]          持ちたい向き(+1 買い / −1 売り / 0 持たない)
     stop_dist[i]       損切りまでの幅(価格)。量はこの幅で決まる(guards.size_lots)
-    expected_move[i]   1 回の取引で見込む値幅(価格)。費用の門(guards.cost_ok)に使う
+    expected_move[i]   1 回の取引で見込む値幅(価格)。コストゲート(guards.cost_ok)に使う
 売買の決まり(on_bar、新しい足の最初のティック):
+    0. 口座の床: 月初の有効証拠金 x protect を割っていたら、この戦略の建玉を全部手仕舞い、その月は新規を出さない
+       (guards.EquityFloor。テスターは足の確定でだけ見る。常駐は fxsim trade が口座全体で見る)
     1. 終値の損切り: 確定した足の終値(買いは bid、売りは ask)が損切りの水準を越えていたら決済する(close_stop)。
        trail なら、水準を有利な向きにだけ動かす
     2. 手仕舞い: 向きが target と違い、min_hold_bars を過ぎていたら決済する。金曜の最後の足で手仕舞う設定もある
     3. 新規: 建玉が無く target ≠ 0 なら、取引時間・ロールオーバーの前後・ドローダウンの止め・回転の上限・
-       費用の門を通ったときだけ、
-       guards.size_lots の量で成行。close_stop なら非常用の逆指値(損切りの幅 x emergency_stop_mult)だけをサーバーに置く
+       コストゲートを通ったときだけ、
+       guards.size_lots の量を、口座の全建玉が逆指値まで飛んでも床を割らない量(guards.floor_lots)に抑えて成行。
+       close_stop なら非常用の逆指値(損切りの幅 x emergency_stop_mult)だけをサーバーに置く
 方向でたらめ版(検証の帰無、main_direction_null): null_u を渡すと、新規の向きだけを乱数で決め、
-手仕舞いの時期は元の向きの信号で決める(売買の時期・量・損切りの幅・費用の門は同じ)。
+手仕舞いの時期は元の向きの信号で決める(売買の時期・量・損切りの幅・コストゲートは同じ)。
 数量・価格・注文は MT5 の決まり(ロット、ポイント、stops_level)で出す。
 magic は戦略の名前から決まる(同じ口座のほかの EA と分ける)。
 """
@@ -27,11 +30,14 @@ import numpy as np
 from ..base import Strategy
 from ..guards import (
     DrawdownBreaker,
+    EquityFloor,
     GuardConfig,
     TurnoverBudget,
     cost_ok,
+    floor_lots,
     last_decision_of_week,
     near_rollover,
+    open_worst_loss,
     size_lots,
 )
 
@@ -67,13 +73,24 @@ class MainStrategy(Strategy):
         self.bars = bars
         self.breaker = DrawdownBreaker(self.g)
         self.budget = TurnoverBudget(self.g, self.magic)
+        self.floor = EquityFloor(self.g.protect)
+        self.floor_cut = 0                         # 床のために量を減らした新規の回数
         self.stops: dict[int, float] = {}          # チケット -> 終値で判定する損切りの水準
         # チケット -> 建てたときの信号の向き(方向でたらめ版では実際の向きと違う)
         self.signal_side: dict[int, int] = {}
-        self.blocked: dict[str, int] = {"session": 0, "drawdown": 0, "turnover": 0, "cost": 0, "size": 0}
+        self.blocked: dict[str, int] = {"session": 0, "drawdown": 0, "turnover": 0, "cost": 0, "size": 0,
+                                    "floor": 0}
 
     def on_bar(self, i, ctx):
         g, b = self.g, self.bars
+        # 0. 口座の床(月初の有効証拠金 x protect)
+        if g.protect > 0:
+            self.floor.update(ctx.time, ctx.equity)
+            if self.floor.check(ctx.equity):
+                for p in ctx.positions(self.magic):
+                    ctx.position_close(p.ticket, reason="floor")
+                    self.stops.pop(p.ticket, None)
+                return
         positions = ctx.positions(self.magic)
         # 1. 終値の損切り(と追いかけ)
         for p in positions:
@@ -125,6 +142,17 @@ class MainStrategy(Strategy):
             sl = level
         elif g.emergency_stop_mult > 0:
             sl = entry - want * dist * g.emergency_stop_mult
+        if g.protect > 0:
+            # 口座の全建玉と、この新規が逆指値まで飛んで窓で滑っても、床を割らない量まで
+            sym = ctx.symbol()
+            room = self.floor.room(ctx.equity, open_worst_loss(ctx, g))
+            per_lot = (abs(entry - sl) * sym.contract_size * g.gap_mult) if sl is not None else float("inf")
+            capped = floor_lots(lots, room, per_lot, sym.volume_step)
+            self.floor_cut += capped < lots
+            lots = capped
+            if lots < sym.volume_min:
+                self.blocked["floor"] += 1
+                return
         r = ctx.buy(lots, sl=sl) if want > 0 else ctx.sell(lots, sl=sl)
         if r.ok:
             for p in ctx.positions(self.magic):

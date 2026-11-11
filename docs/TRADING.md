@@ -28,6 +28,31 @@
 数量は「動作ケースの数量(通貨)x `volume_scale`」をロットに直し、`volume_step` で切り捨てる
 (10,000 通貨 = 0.1 ロット)。`max_lots` を超える注文は出さない。
 
+## 口座の床(資産の 9 割を守る)
+
+`protect`(既定 0.9)で、実口座の有効証拠金に床を置く(`trader.py`、決まりは `guards.EquityFloor` と同じ)。
+
+- 床 = 月初の有効証拠金 x `protect`。月が変わって最初に見た有効証拠金で付け直す(UTC の月)。
+  同じ口座の常駐どうしで `data/trading/account-<login>.json` を共有する(dry-run は `account-<login>.dry.json`)
+- 足を待つ間も `floor_check_seconds`(既定 60 秒)ごとと、注文を出す直前に有効証拠金を比べる。
+  割ったら、この常駐の建玉を全部決済し、その月は新規(open / add)を出さない。手動やほかの EA の建玉には触らない
+- 新規の量は、口座の全建玉(銘柄・magic を問わない)とその新規が、今の値段からサーバーの逆指値まで飛んで、
+  さらに窓で `gap_mult`(既定 1.5)倍滑っても床を割らない量まで減らす。損益は MT5 の `order_calc_profit` で口座の通貨に直す。
+  床に近づくほど量が小さくなり、最小ロットに届かなければ出さない(journal に `floor_skip`)
+- 逆指値の無い建玉が口座に 1 つでもあると、最悪の損失が分からないので新規を出さない。逆指値を置かない戦略や、
+  逆指値なしの手動の建玉が同じ口座にあると、床のある常駐も新規を出せなくなる。そういう戦略は `protect: 0` の別の口座で動かす
+- シミュレーションの中の床は切る(シミュレーションの有効証拠金は実口座と別物)。バックテスト(MT5 のテスター)では
+  戦略が自分で床を持ち、足の確定でだけ比べる
+- 窓が `gap_mult` を超えて飛べば、床を割ることはある(決済はその後になる)
+
+## 処理の負荷
+
+- 足を見に行く間隔は `poll_seconds: auto`(既定)で足の長さに合わせる: 足の長さ / 120 を 5〜60 秒に収めたもの
+  (日足・4 時間足 60 秒、1 時間足 30 秒、15 分足 7.5 秒、5 分足 5 秒)。足が変わっていなければ、作りかけの足の時刻を 1 本取るだけ
+- 足が確定したときだけ、起点からの足でシミュレーションを回す(日足の 3,000 本なら 1 秒かからない)
+- 床は `floor_check_seconds` ごとに有効証拠金を 1 回取るだけ
+- systemd では `Nice=10` と `CPUWeight=20` で、手元の作業より後回しにする(下のユニット)
+
 ## 用意するもの
 
 MetaTrader5 の Python パッケージは Windows でしか動かない。
@@ -127,7 +152,7 @@ mt5: {backend: rpyc, host: localhost, port: 18812, path: "C:\\Program Files\\OAN
 ```
 
 ほかのキー(`fxsim/trading/config.py`): `max_history_bars`(起点からの本数の上限。超えたら起点を進める)、
-`poll_seconds`、`deviation_points`、`pip`、`sim_broker`、`dry_run`、`allow_real`、`comment`。
+`poll_seconds`(既定 auto)、`protect`(既定 0.9)、`gap_mult`(既定 1.5)、`floor_check_seconds`(既定 60)、`deviation_points`、`pip`、`sim_broker`、`dry_run`、`allow_real`、`comment`。
 
 ## 使い方
 
@@ -155,6 +180,8 @@ Description=MetaTrader5 bridge in Wine (fxsim)
 WorkingDirectory=%h/work/FXTradeSimu
 Environment=WINEPREFIX=%h/.wine-mt5 WINEDEBUG=-all
 ExecStart=/opt/wine-staging/bin/wine C:\\Python311\\python.exe fxsim/trading/wine_server.py --port 18812
+Nice=10
+CPUWeight=20
 Restart=on-failure
 RestartSec=30
 
@@ -173,6 +200,8 @@ After=fxsim-mt5-bridge.service network-online.target
 [Service]
 WorkingDirectory=%h/work/FXTradeSimu
 ExecStart=%h/work/FXTradeSimu/.venv/bin/python -m fxsim trade run configs/trading/%i.yaml
+Nice=10
+CPUWeight=20
 Restart=on-failure
 RestartSec=30
 
@@ -200,7 +229,8 @@ loginctl enable-linger $USER     # ログアウトしても動かし続けるな
   夏時間で差が変わると、それより前の足の時刻は 1 時間ずれたまま扱う(取引時間の判定と日足の区切りに効く)
 - 足の中の経路が無いので、シミュレーションの損切り・利確は足の高安で判定する(両方届いたら損切りが先)。
   実口座は MT5 のサーバーで約定するので、同じ足で片方だけ手仕舞うことがある。食い違いは上の決まりで次の足に揃える
-- 判断は足が確定してから最初の問い合わせ(`poll_seconds` ごと)で行うので、約定は足の始値から数秒遅れる
+- 判断は足が確定してから最初の問い合わせ(`poll_seconds` ごと)で行うので、約定は足の始値から最大でその間隔だけ遅れる
+  (auto なら日足で最大 60 秒)
 - 起点からの本数が `max_history_bars` を超えるか、MT5 の履歴が起点に届かなくなると、起点を進める(ログに警告)。
   そのとき戦略の中の状態が変わることがある
 - `account: real` と `allow_real: true` の両方が無い限り、本番の口座では起動しない

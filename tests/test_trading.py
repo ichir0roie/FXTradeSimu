@@ -1,4 +1,5 @@
 """fxsim trade(MT5 の常駐)の判断と注文。MT5 の代わりに同じ関数を持つ偽物(FakeMT5)を使う。"""
+import json
 import time
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -47,6 +48,7 @@ class FakeMT5:
         self.requests = []
         self.next_ticket = 1
         self.reject = None
+        self.equity = 1e6
 
     # 接続
     def initialize(self, **kw):
@@ -62,7 +64,7 @@ class FakeMT5:
         return SimpleNamespace(trade_allowed=True)
 
     def account_info(self):
-        return SimpleNamespace(login=123, server="Demo", currency="JPY", balance=1e6, equity=1e6, margin=0,
+        return SimpleNamespace(login=123, server="Demo", currency="JPY", balance=1e6, equity=self.equity, margin=0,
                                margin_free=1e6, leverage=25, trade_mode=0 if self.demo else 2, margin_mode=2,
                                company="x")
 
@@ -89,6 +91,10 @@ class FakeMT5:
     def positions_get(self, symbol=None):
         return tuple(self.positions)
 
+    def order_calc_profit(self, otype, symbol, volume, price_open, price_close):
+        side = 1 if otype == 0 else -1
+        return (price_close - price_open) * side * volume * 100_000
+
     def order_send(self, req):
         self.requests.append(req)
         if self.reject is not None:
@@ -104,7 +110,8 @@ class FakeMT5:
                     if p.volume <= 0:
                         self.positions.remove(p)
         else:
-            self.positions.append(SimpleNamespace(ticket=self.next_ticket, type=req["type"], volume=req["volume"],
+            self.positions.append(SimpleNamespace(ticket=self.next_ticket, symbol=req["symbol"], type=req["type"],
+                                                  volume=req["volume"],
                                                   price_open=req["price"], sl=req.get("sl", 0.0),
                                                   tp=req.get("tp", 0.0), time=int(self._now()[-1]["time"]),
                                                   magic=req["magic"]))
@@ -132,6 +139,7 @@ class Script(Strategy):
 
 def trader_for(fake, script, tmp_path, monkeypatch, **cfg_kw):
     monkeypatch.setattr("fxsim.trading.config.TRADING_DIR", tmp_path)
+    cfg_kw = {"protect": 0.0, **cfg_kw}        # 口座の床は専用のテストで見る
     cfg = TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=77, history_bars=1000,
                        server_utc_offset_hours="auto", **cfg_kw)
     beh = BehaviorCase(id="BT", strategy="ma_cross", timeframe=60, engine={"units": 10000})
@@ -411,3 +419,59 @@ def test_load_credentials_reads_account_file(tmp_path):
     f.write_text("MT5_LOGIN=1\n", encoding="utf-8")
     with pytest.raises(ValueError, match="MT5_PASSWORD"):
         load_credentials("demo", f)
+
+
+# ---- 口座の床 -------------------------------------------------------------------
+
+def _manual(fake, side=1, volume=0.3, sl_below=1.0, magic=1, ticket=90):
+    bid = float(fake._now()[-1]["close"])
+    sl = bid - side * sl_below if sl_below is not None else 0.0
+    fake.positions.append(SimpleNamespace(ticket=ticket, symbol="USDJPY", type=0 if side > 0 else 1, volume=volume,
+                                          price_open=bid, sl=sl, tp=0.0, time=0, magic=magic))
+
+
+def test_floor_cuts_new_entries_so_the_worst_case_stays_above_it(tmp_path, monkeypatch):
+    fake = FakeMT5(make_rates(150 + np.cumsum(np.full(40, 0.01))))
+    fake.visible = 31
+    _manual(fake)               # 手動の買い 0.3 ロット、逆指値まで 1 円 -> 最悪 0.3 x 10 万 x 1 x 1.5 = 4.5 万円
+    tr = trader_for(fake, {29: [("buy", {"units": 100_000, "sl": 0.5})]}, tmp_path, monkeypatch, protect=0.9)
+    tr.poll()
+    # 床 90 万円、余裕 100 - 4.5 - 90 = 5.5 万円。1 ロットの最悪 0.5 x 10 万 x 1.5 = 7.5 万円 -> 0.73 ロット
+    mine = [p for p in fake.positions if p.magic == 77]
+    assert len(mine) == 1 and mine[0].volume == pytest.approx(0.73)
+    saved = json.loads((tmp_path / "account-123.json").read_text())
+    assert saved["floor"] == pytest.approx(900_000) and not saved["halted"]
+
+
+def test_position_without_a_stop_blocks_new_entries(tmp_path, monkeypatch):
+    fake = FakeMT5(make_rates(150 + np.cumsum(np.full(40, 0.01))))
+    fake.visible = 31
+    _manual(fake, sl_below=None)
+    tr = trader_for(fake, {29: [("buy", {"sl": 0.5})]}, tmp_path, monkeypatch, protect=0.9)
+    tr.poll()
+    assert [p.magic for p in fake.positions] == [1]
+
+
+def test_floor_breach_closes_own_positions_and_halts_for_the_month(tmp_path, monkeypatch):
+    fake = FakeMT5(make_rates(150 + np.cumsum(np.full(40, 0.01))))
+    fake.visible = 31
+    _manual(fake)
+    tr = trader_for(fake, {29: [("buy", {"sl": 0.5})], 31: [("close", {})], 32: [("buy", {"sl": 0.5})]},
+                    tmp_path, monkeypatch, protect=0.9)
+    tr.poll()
+    assert any(p.magic == 77 for p in fake.positions)
+    fake.equity = 890_000                      # 月初 100 万円の 9 割を割った
+    tr._floor_checked = 0.0
+    tr.poll()                                  # 足は進んでいないが、床は見る
+    assert [p.magic for p in fake.positions] == [1]          # 自分の建玉だけ決済
+    fake.equity = 950_000
+    fake.visible = 34                          # 足 32 の買いも、その月は出さない
+    tr.poll()
+    assert [p.magic for p in fake.positions] == [1]
+    assert json.loads((tmp_path / "account-123.json").read_text())["halted"]
+
+
+def test_poll_interval_follows_the_timeframe():
+    cfg = TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=1)
+    assert cfg.poll_interval(1440) == 60 and cfg.poll_interval(60) == 30 and cfg.poll_interval(5) == 5
+    assert TraderConfig(name="t", behavior="BT", symbol="USDJPY", magic=1, poll_seconds=7).poll_interval(1440) == 7

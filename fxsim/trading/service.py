@@ -57,7 +57,7 @@ class Service:
                     log.info("alive: equity %.2f %s, positions %d", a["equity"], a["currency"],
                              len(self.client.positions(self.cfg.symbol, self.cfg.magic)))
                     last_beat = time.time()
-                self.stop_event.wait(self.cfg.poll_seconds)
+                self.stop_event.wait(self.trader.poll_interval)
             except (MT5Error, ConnectionError, EOFError, OSError) as e:
                 log.error("MT5: %s (retry in %.0fs)", e, backoff)
                 self.trader = None

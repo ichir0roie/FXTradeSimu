@@ -259,3 +259,65 @@ def test_main_direction_null_keeps_timing_and_randomizes_sides():
     assert len(a) > 5 and a[0][0] == b[0][0]                 # 最初の新規は同じ時刻
     flipped = np.mean([x[1] != y[1] for x, y in zip(a, b, strict=False)])
     assert 0.15 < flipped < 0.85
+
+
+# ---- 口座の床(資産の 9 割を守る) -----------------------------------------------------
+
+def test_equity_floor_resets_each_month_and_halts_until_the_next():
+    from fxsim.strategies.guards import EquityFloor
+    day = 86_400 * 10**9
+    jan = np.datetime64("2021-01-04", "ns").astype(np.int64)
+    feb = np.datetime64("2021-02-01", "ns").astype(np.int64)
+    f = EquityFloor(0.9)
+    f.update(jan, 1_000_000)
+    assert f.floor == pytest.approx(900_000)
+    f.update(jan + 10 * day, 1_200_000)                     # 同じ月のうちは付け直さない
+    assert f.floor == pytest.approx(900_000)
+    assert f.room(950_000, 20_000) == pytest.approx(30_000)
+    assert f.room(950_000, None) == 0.0                      # 逆指値の無い建玉があれば新規なし
+    assert not f.check(900_001) and f.check(899_999) and f.halted
+    assert not f.check(800_000)                              # 止めている間は二度手仕舞わない
+    assert f.room(2_000_000, 0.0) == 0.0
+    f.update(feb, 880_000)                                   # 月が変わったら付け直して再開
+    assert not f.halted and f.floor == pytest.approx(792_000)
+
+
+def test_floor_lots_keeps_the_worst_loss_within_the_room():
+    from fxsim.strategies.guards import floor_lots, worst_loss
+    # 1 ロット 10 万通貨、逆指値まで 1 円、窓で 1.5 倍 -> 1 ロットの最悪 15 万円
+    assert floor_lots(0.5, 30_000, 150_000, 0.01) == pytest.approx(0.2)
+    assert floor_lots(0.1, 30_000, 150_000, 0.01) == pytest.approx(0.1)
+    assert floor_lots(0.5, float("inf"), 150_000, 0.01) == 0.5
+    assert worst_loss(1, 10_000, 100.0, 99.0, 1.5) == pytest.approx(15_000)
+    assert worst_loss(-1, 10_000, 100.0, 99.0, 1.5) == 0.0           # 利の乗った側の逆指値
+    assert worst_loss(1, 10_000, 100.0, None, 1.5) is None
+
+
+def _month_drops(bt, bars):
+    """月ごとの (その月の最低の有効証拠金 / 月初の有効証拠金) の最小。"""
+    months = bars.t.astype("datetime64[ns]").astype("datetime64[M]")
+    eq = np.asarray(bt.equity_curve)
+    worst = 1.0
+    for m in np.unique(months):
+        e = eq[months == m]
+        worst = min(worst, float(e.min() / e[0]))
+    return worst
+
+
+def test_main_strategy_keeps_each_month_above_the_floor():
+    md = MARKETS.create("malicious").generate(years=6, seed=4)
+    bars = md.bars(1440)
+    # 1 回 4% を賭ける荒い設定。床なしでは月に 1 割以上減る月がある
+    guard = {"risk_per_trade": 0.04, "max_leverage": 50.0, "max_drawdown": 0.0, "max_trades_per_year": 0,
+             "cost_multiple": 0.0}
+    br = BrokerConfig.preset("fair")
+
+    def run(protect):
+        s = STRATEGIES.create("main_trend_d1", {"guard": {**guard, "protect": protect}})
+        return Mt5Tester(bars, s, br, EngineConfig(), pip=md.pip, seed=2).run(), s
+
+    bare, _ = run(0.0)
+    held, s = run(0.9)
+    assert _month_drops(bare, bars) < 0.9
+    assert _month_drops(held, bars) >= 0.9 - 1e-9
+    assert s.floor_cut + s.blocked["floor"] > 0

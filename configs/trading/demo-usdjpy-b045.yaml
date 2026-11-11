@@ -7,7 +7,8 @@ account: demo                   # 口座の情報は .env.demo から(本番は 
 volume_scale: 1.0               # 実口座の数量 = シミュレーションの数量 x これ。量は戦略が決める(残高 100 万円の 0.5% を損切りまでで失う量。0.01 ロット前後)
 max_lots: 0.5
 history_bars: 3000
-poll_seconds: 5
+poll_seconds: auto              # 足の長さに合わせる(日足は 60 秒ごと)。負荷を抑えるため
+protect: 0.9                    # 口座の床 = 月初の有効証拠金の 9 割。割ったら決済して、その月は新規を出さない(同じ口座の常駐で共有)
 server_utc_offset_hours: auto   # 市場が閉じている間に初めて起動するなら数値で(例: 2)
 dry_run: false
 allow_real: false

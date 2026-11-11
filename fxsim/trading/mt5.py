@@ -147,11 +147,11 @@ def load_module(cfg: MT5Config):
 
 
 class MT5Client:
-    def __init__(self, module, cfg: MT5Config | None = None, sleep=time.sleep):
+    def __init__(self, module, cfg: MT5Config | None = None, sleep=None):
         self.m = module
         self.cfg = cfg or MT5Config()
         self._specs: dict[str, SymbolSpec] = {}
-        self.sleep = sleep
+        self.sleep = sleep if sleep is not None else time.sleep   # 呼んだ時点の time(再生では仮想の時計)
 
     def c(self, name: str) -> int:
         """MetaTrader5 の定数。"""
@@ -266,6 +266,25 @@ class MT5Client:
         if abs(offset) > 14 * 3600 or abs(diff - offset) > tolerance_sec:
             return None
         return int(offset)
+
+    def account_positions(self) -> list[tuple[str, LivePosition, int]]:
+        """口座の全建玉(銘柄・magic を問わない)。(銘柄, 建玉, magic) の並び。口座の床(最悪の損失)に使う。"""
+        ps = self.m.positions_get()
+        if ps is None:
+            raise MT5Error(f"positions_get() failed: {self.last_error()}")
+        buy = self.c("POSITION_TYPE_BUY")
+        return [(str(p.symbol), LivePosition(int(p.ticket), 1 if int(p.type) == buy else -1, float(p.volume),
+                                             float(p.price_open), float(p.sl) or None, float(p.tp) or None,
+                                             int(p.time)), int(p.magic))
+                for p in _local(ps)]
+
+    def profit(self, name: str, side: int, volume: float, price_open: float, price_close: float) -> float:
+        """price_open で建てて price_close で決済したときの損益(口座の通貨)。MT5 の order_calc_profit。"""
+        otype = self.c("ORDER_TYPE_BUY") if side > 0 else self.c("ORDER_TYPE_SELL")
+        v = self.m.order_calc_profit(otype, name, float(volume), float(price_open), float(price_close))
+        if v is None:
+            raise MT5Error(f"order_calc_profit({name}) failed: {self.last_error()}")
+        return float(v)
 
     def positions(self, name: str, magic: int) -> list[LivePosition]:
         ps = self.m.positions_get(symbol=name)

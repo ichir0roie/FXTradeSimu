@@ -15,6 +15,10 @@ E012 の 4 枚の壁のうち、避け方が分かっている 1〜3 と、過�
                      (cooldown 本で再開。0 なら止めたまま)
     時間             ロールオーバー(22:00 UTC)の前後 avoid_rollover_hours 時間は新規を出さない(スプレッドが広がる)。
                      flat_before_weekend なら、金曜の最後の判断で手仕舞う(週末の窓を持ち越さない)
+    口座の床         EquityFloor: 月初の有効証拠金 x protect を床にする(資産の 9 割を守る)。新規は、口座の全建玉が
+                     サーバーの逆指値まで窓で滑って飛んだ最悪の場合(逆指値までの損失 x gap_mult)でも
+                     有効証拠金が床を割らない量まで(floor_lots)。床を割ったら全部手仕舞い、その月は新規を出さない。
+                     逆指値の無い建玉が口座にあれば、最悪の損失が分からないので新規を出さない
 どれも「負けを減らす」ための仕組みで、優位性は作らない(E012)。勝つには、戦略の側に費用を越える情報が要る。
 """
 from __future__ import annotations
@@ -42,6 +46,8 @@ class GuardConfig:
     dd_cooldown_bars: int = 0            # 止めてからこの本数で再開し、山を今の有効証拠金に付け直す(0 = 止めたまま)
     avoid_rollover_hours: float = 1.0    # ロールオーバーの前後この時間は新規を出さない(日足以上の戦略では効かない)
     flat_before_weekend: bool = False    # 金曜の最後の判断で手仕舞う
+    protect: float = 0.9                 # 口座の床 = 月初の有効証拠金 x これ(0 = 床を置かない)
+    gap_mult: float = 1.5                # 逆指値が窓で滑る分の見込み(最悪の損失 = 逆指値までの損失 x これ)
 
     @classmethod
     def from_dict(cls, d: dict | None) -> GuardConfig:
@@ -112,6 +118,77 @@ class TurnoverBudget:
         return n < self.g.max_trades_per_year
 
 
+# ---- 口座の床(資産の 9 割を守る) --------------------------------------------------
+
+def month_key(t_ns: int) -> int:
+    """UTC の年月(年 x 12 + 月 − 1)。床を付け直す区切り。"""
+    m = np.datetime64(int(t_ns), "ns").astype("datetime64[M]").astype(np.int64)
+    return int(m)
+
+
+@dataclass
+class EquityFloor:
+    """月初の有効証拠金 x protect を床にする。月が変わって最初に見た有効証拠金で付け直し、止めていれば再開する。
+
+    バックテストでは戦略が持ち、常駐(fxsim trade)では口座ごとのファイルに残して、同じ口座の常駐どうしで共有する。"""
+    protect: float
+    key: int | None = None              # 床を付けた月(month_key)
+    floor: float = 0.0
+    halted: bool = False                # 床を割って止めている(その月は新規を出さない)
+    trips: int = 0
+
+    def update(self, t_ns: int, equity: float) -> None:
+        k = month_key(t_ns)
+        if k != self.key:
+            self.key, self.floor, self.halted = k, equity * self.protect, False
+
+    def check(self, equity: float) -> bool:
+        """床を割っていれば止めて True(呼んだ側が全部手仕舞う)。止めている間は False(手仕舞いは済んでいる)。"""
+        if self.protect <= 0 or self.halted or equity > self.floor:
+            return False
+        self.halted = True
+        self.trips += 1
+        return True
+
+    def room(self, equity: float, worst_open: float | None) -> float:
+        """新規の建玉の最悪の損失に使える額。床を割る・止めている・最悪が分からないなら 0。"""
+        if self.protect <= 0:
+            return float("inf")
+        if self.halted or worst_open is None:
+            return 0.0
+        return max(0.0, equity - worst_open - self.floor)
+
+
+def worst_loss(side: int, units: float, close_price: float, sl: float | None, gap_mult: float) -> float | None:
+    """1 つの建玉が、今の決済値段(買いは bid、売りは ask)から逆指値まで飛んで、さらに窓で滑ったときの損失
+    (決済通貨。USDJPY の円口座なら円)。逆指値が無ければ None。利の乗った側の逆指値なら 0。"""
+    if sl is None:
+        return None
+    return max(0.0, (close_price - sl) * side) * units * gap_mult
+
+
+def open_worst_loss(ctx, g: GuardConfig) -> float | None:
+    """MT5 のテスターの口座の全建玉(magic を問わない)の最悪の損失の合計。逆指値の無い建玉があれば None。"""
+    sym = ctx.symbol()
+    total = 0.0
+    for p in ctx.positions(None):
+        w = worst_loss(p.side, p.volume * sym.contract_size, sym.bid if p.side > 0 else sym.ask, p.sl, g.gap_mult)
+        if w is None:
+            return None
+        total += w
+    return total
+
+
+def floor_lots(lots: float, room: float, per_lot_worst: float, volume_step: float) -> float:
+    """最悪の損失が room に収まるロット(volume_step で切り捨て)。"""
+    if room == float("inf"):
+        return lots
+    if per_lot_worst <= 0 or not np.isfinite(per_lot_worst):
+        return 0.0
+    cap = np.floor(room / per_lot_worst / volume_step + 1e-9) * volume_step
+    return float(round(min(lots, cap), 8))
+
+
 # ---- 止める仕組み・時間 ----------------------------------------------------------
 
 class DrawdownBreaker:
@@ -154,5 +231,6 @@ def last_decision_of_week(bar_t: np.ndarray, i: int) -> bool:
         or (bar_t[i + 1] - bar_t[i]) > 2 * NS_DAY
 
 
-__all__ = ["DrawdownBreaker", "GuardConfig", "TurnoverBudget", "cost_ok", "last_decision_of_week", "near_rollover",
-           "round_trip_cost", "size_lots"]
+__all__ = ["DrawdownBreaker", "EquityFloor", "GuardConfig", "TurnoverBudget", "cost_ok", "floor_lots",
+           "last_decision_of_week", "month_key", "near_rollover", "open_worst_loss", "round_trip_cost", "size_lots",
+           "worst_loss"]

@@ -50,7 +50,12 @@ class TraderConfig:
     max_lots: float = 1.0            # 1 回の注文と建玉の合計の上限(ロット)。超える注文は出さない
     history_bars: int = 3000         # 起点を決めるときに遡る本数(戦略の warmup より十分長く)
     max_history_bars: int = 60_000   # 起点からの本数の上限。超えたら起点を進める
-    poll_seconds: float = 5.0        # 新しい足を見に行く間隔
+    poll_seconds: str | float = "auto"   # 新しい足を見に行く間隔(秒)。auto は足の長さ / 120 を 5〜60 秒に収めたもの
+                                         # (日足・4 時間足 60 秒、1 時間足 30 秒、5 分足 5 秒)。負荷を抑えるため
+    protect: float = 0.9             # 口座の床 = 月初の有効証拠金 x これ。割ったらこの常駐の建玉を全部決済し、
+                                     # その月は新規を出さない(0 = 床を置かない。同じ口座の常駐どうしで床を共有する)
+    gap_mult: float = 1.5            # 最悪の損失 = 逆指値までの損失 x これ(窓で滑る分)
+    floor_check_seconds: float = 60.0    # 足の確定を待つ間も、この間隔で有効証拠金を床と比べる
     deviation_points: int = 20       # 成行の許容スリッページ(ポイント)
     server_utc_offset_hours: str | float = "auto"   # MT5 のサーバー時刻 − UTC。auto は気配の時刻から推定
     pip: float | None = None         # 省略で銘柄の桁数から(3 桁・2 桁なら 0.01、5 桁・4 桁なら 0.0001)
@@ -70,12 +75,21 @@ class TraderConfig:
             raise ValueError("magic must be a positive integer")
         if self.max_lots <= 0 or self.volume_scale <= 0:
             raise ValueError("max_lots and volume_scale must be positive")
+        if isinstance(self.poll_seconds, str) and self.poll_seconds != "auto":
+            raise ValueError("poll_seconds must be 'auto' or a number")
+        if not 0 <= self.protect < 1:
+            raise ValueError("protect must be in [0, 1)")
         if isinstance(self.server_utc_offset_hours, str) and self.server_utc_offset_hours != "auto":
             raise ValueError("server_utc_offset_hours must be 'auto' or a number")
 
     @property
     def state_dir(self) -> Path:
         return TRADING_DIR / self.name
+
+    def poll_interval(self, timeframe_minutes: int) -> float:
+        if self.poll_seconds == "auto":
+            return float(min(60.0, max(5.0, timeframe_minutes * 60 / 120)))
+        return float(self.poll_seconds)
 
     def to_dict(self) -> dict:
         return asdict(self)
