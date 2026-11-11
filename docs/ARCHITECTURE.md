@@ -20,7 +20,7 @@ fxsim/
   data/                データ型
     market.py            MarketData(基準解像度の mid とスプレッド、時間足のキャッシュ)
     bars.py              Bars(任意の時間足、bid/ask の OHLC)と make_bars
-    real.py              実データの読み込み(汎用 CSV / HistData)
+    real.py              実データの読み込み(汎用 CSV / HistData / 相場の DB の db:<銘柄>/<時間足>)
     rates.py             金利の表(スワップの計算に使う。通貨ごとの列も持てる)
     fred.py              FRED から対円 7 ペアの日足と 8 通貨の短期金利を取る(fetch-fred)
   markets/             市場モデル
@@ -49,6 +49,8 @@ fxsim/
     db.py                接続・トランザクション・JSON
     writer.py            書き込み(計画の行、相場パターン、ジョブの途中経過と結果、ケースの記録)
     queries.py           読み出し(レポート・統計・ケース)
+    prices.py            相場の DB(data/market.sqlite。MT5 から溜めた足、時間足ごとのテーブル)。data に依存しない
+                         (data/real.py が db: のときだけ関数の中で読み込む)
   experiments/         実験
     config.py            設定(ExperimentConfig と StorageConfig / LiveConfig、YAML の書式)
     runner.py            計画(plan)と実行(経路ごとに 1 プロセス)。PathTask / JobTask
@@ -64,7 +66,9 @@ fxsim/
     config.py            常駐の設定(configs/trading/*.yaml)
     mt5.py               MT5 の端末とのやり取り(MetaTrader5 の薄い包み。Wine の中へは rpyc で)
     wine_server.py       Wine の中の Windows 版 Python で動かす MetaTrader5 への橋
-    feed.py              MT5 の足を Bars に(サーバー時刻 -> UTC、bid + スプレッド -> mid / ask)
+    feed.py              MT5 の足を Bars に(サーバー時刻 -> UTC、bid + スプレッド -> mid / ask)。server_to_utc は
+                         業者の夏時間の決まり(America/New_York+7 など)でサーバー時刻を UTC に直す
+    history.py           MT5 の足を相場の DB に書き足す(fetch-mt5、configs/market_data/*.yaml)
     signals.py           MT5 の足でバックテストを回し、最後の確定足の注文とシミュレーションの建玉を写し取る
     trader.py            実口座の建玉との突き合わせ(plan)と注文、状態と記録(data/trading/<name>/)
     service.py           常駐のループ(つなぎ直し・シグナル)

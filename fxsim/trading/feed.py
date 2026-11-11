@@ -33,6 +33,39 @@ def rates_to_bars(rates: np.ndarray, timeframe: int, point: float, utc_offset_se
                 spread_mean=s, spread_max=s.copy(), ticks=ticks, start_idx=np.arange(n, dtype=np.int64))
 
 
+def parse_server_tz(rule: str) -> tuple[str, int]:
+    """'America/New_York+7' -> ('America/New_York', 7)。サーバー時刻 = その地域の時刻 + 時間。'UTC+2' は固定のずれ。"""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    rule = rule.strip()
+    try:                       # Etc/GMT-2 のように、符号まで含めて地域の名前のもの
+        ZoneInfo(rule)
+        return rule, 0
+    except (ZoneInfoNotFoundError, ValueError):
+        pass
+    for sign in ("+", "-"):
+        zone, sep, hours = rule.rpartition(sign)
+        if sep and zone and hours.replace(".", "", 1).isdigit():
+            return zone, round(float(hours) * 3600) * (1 if sign == "+" else -1)
+    return rule, 0
+
+
+def server_to_utc(server_sec, rule: str) -> np.ndarray:
+    """MT5 のサーバー時刻(秒)-> UTC(秒)。
+
+    多くの MT5 の業者(OANDA Japan を含む)は「NY の時刻 + 7 時間」で、週明けがサーバーの月曜 0 時になるように
+    米国の夏時間に合わせてずれを変える(夏 UTC+3、冬 UTC+2)。気配から推定した今のずれで全部の足を直すと、
+    夏時間をまたいだ古い足が 1 時間ずれる。
+    """
+    import pandas as pd
+
+    zone, shift = parse_server_tz(rule)
+    wall = pd.to_datetime(np.asarray(server_sec, dtype=np.int64) - shift, unit="s")
+    # 夏時間の切り替えの前後(日曜の未明)は市場が閉じているので、重なり・飛びは前に寄せるだけでよい
+    local = wall.tz_localize(zone, ambiguous=False, nonexistent="shift_forward")
+    return local.tz_convert("UTC").tz_localize(None).as_unit("s").asi8.astype(np.int64)
+
+
 def pip_from_digits(digits: int) -> float:
     """3 桁・2 桁(対円)なら 0.01、5 桁・4 桁なら 0.0001。"""
     return 0.01 if digits <= 3 else 0.0001

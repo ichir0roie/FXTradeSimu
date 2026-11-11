@@ -17,6 +17,8 @@
     init-db                      空の DB を作る
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
     fetch-fred                   FRED から対円 7 ペアの日足と 8 通貨の短期金利を取って data/real/ に書く
+    fetch-mt5 CONFIG             MT5 の足を相場の DB(data/market.sqlite)に書き足す(configs/market_data/*.yaml)
+    market-data                  相場の DB に溜まっている足の一覧(読むときは実データのパスに db:USDJPY/M1)
     overfit RUN                  実験の中の戦略の集まりの PBO と Deflated Sharpe(試した数の補正)
     trade run CONFIG             MT5 の口座で動作ケースの戦略を常駐して動かす(configs/trading/*.yaml、docs/TRADING.md)
     trade check CONFIG           MT5 につなぎ、口座・銘柄・建玉と、いまの足での判断を見る(注文は出さない)
@@ -33,7 +35,7 @@ import yaml
 from . import catalog  # noqa: F401
 from .backtest import BROKER_PRESETS
 from .markets import MARKETS
-from .paths import DEFAULT_DB, SUMMARIES_DIR
+from .paths import DEFAULT_DB, MARKET_DB, SUMMARIES_DIR
 from .storage import connect, init_db, queries, vacuum
 from .strategies import STRATEGIES
 
@@ -277,6 +279,47 @@ def cmd_fetch_fred(args) -> None:
     fetch()
 
 
+def cmd_fetch_mt5(args) -> None:
+    import logging
+
+    from .trading.history import load_fetch_config, run_fetch
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    cfg = load_fetch_config(args.config)
+    if args.symbols:
+        cfg.symbols = args.symbols
+    if args.timeframes:
+        cfg.timeframes = args.timeframes
+    if args.bars:
+        cfg.bars = args.bars
+    cfg.__post_init__()
+    for rec in run_fetch(cfg, args.market_db):
+        link = {None: "first fetch", 1: "connected", 0: "GAP before this fetch"}[rec["connected"]]
+        print(f"{rec['source']} {rec['symbol']} M{rec['timeframe']}: {rec['n_rows']} bars "
+              f"({_utc(rec['first_time'])} .. {_utc(rec['last_time'])} UTC), new {rec['n_new']}, {link}")
+
+
+def cmd_market_data(args) -> None:
+    from .storage import prices
+
+    con = prices.open_market_db(args.market_db)
+    rows = prices.coverage(con)
+    if not rows:
+        print(f"no rates in {args.market_db} (python -m fxsim fetch-mt5 CONFIG)")
+        return
+    print("| source | symbol | tf | bars | first (UTC) | last (UTC) | last fetched |")
+    print("|---|---|---|---:|---|---|---|")
+    for r in rows:
+        print(f"| {r['source']} | {r['symbol']} | {prices.TIMEFRAMES[r['timeframe']].upper()} | {r['n']} | "
+              f"{_utc(r['first_time'])} | {_utc(r['last_time'])} | {r['last_fetched_at']} |")
+
+
+def _utc(sec: int) -> str:
+    from datetime import datetime, timezone
+
+    return datetime.fromtimestamp(int(sec), timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+
 def cmd_overfit(args) -> None:
     from .overfit import format_overfit, run_overfit
 
@@ -373,6 +416,10 @@ def cmd_trade(args) -> None:
 
 def _db(p: argparse.ArgumentParser) -> None:
     p.add_argument("--db", default=str(DEFAULT_DB))
+
+
+def _market_db(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--market-db", default=str(MARKET_DB), help="相場の DB(既定: data/market.sqlite)")
 
 
 def _experiment_options(p: argparse.ArgumentParser, years: float = 3, seeds: str = "1-3") -> None:
@@ -485,6 +532,16 @@ def build_parser() -> argparse.ArgumentParser:
     _db(p)
 
     add("fetch-fred", cmd_fetch_fred, help="複数通貨ペアの実データと金利を FRED から取る")
+
+    p = add("fetch-mt5", cmd_fetch_mt5, help="MT5 の足を相場の DB に書き足す")
+    p.add_argument("config", help="configs/market_data/*.yaml")
+    p.add_argument("--symbols", nargs="+", help="設定の symbols を差し替える")
+    p.add_argument("--timeframes", nargs="+", help="設定の timeframes を差し替える(M1 M5 H1 ...)")
+    p.add_argument("--bars", type=int, help="設定の bars を差し替える(99999 まで)")
+    _market_db(p)
+
+    p = add("market-data", cmd_market_data, help="相場の DB に溜まっている足の一覧")
+    _market_db(p)
 
     p = add("init-db", cmd_init_db)
     _db(p)

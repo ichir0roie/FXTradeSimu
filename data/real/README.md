@@ -15,5 +15,24 @@
 - `time` は UTC。日付だけ(`2024-01-05`)なら、その日の NY クローズ(22:00 UTC)の値とみなす
 - HistData の Generic ASCII(`20240105 170000;146.10;146.12;146.08;146.11;0`、EST 固定)は `format: histdata` で読める
 
+## MT5 から溜めた足(相場の DB)
+
+MT5 の口座から取った足は、CSV ではなく相場の DB(`data/market.sqlite`、コミットしない)に溜める。
+業者の値は再配布できるか分からないので、リポジトリには入れない。
+
+```bash
+python -m fxsim fetch-mt5 configs/market_data/oanda-demo.yaml   # 書き足す(同じ足は上書き。何度流してもよい)
+python -m fxsim market-data                                     # 溜まっている足の一覧
+```
+
+- テーブルは時間足ごと(`rates_m1` / `rates_m5` / ... / `rates_d1`)。1 行 = 出どころ(MT5 のサーバー名)x 銘柄 x 足
+- 時刻(`time`)は足の始まりの UTC。MT5 のサーバー時刻は業者の決まり(OANDA Japan は NY + 7 時間、夏 UTC+3 / 冬 UTC+2)で
+  UTC に直す。元のサーバー時刻は `server_time` に控えてある
+- 価格は bid、`spread` はポイント。読むときは足ごとのスプレッドの半分を足して mid にする
+- 端末が遡れるのは 10 万本の少し手前まで(1 分足で 3 か月ほど)。それより間を空けると、その間の足は二度と取れない
+  (`fetches.connected` が 0 になり、警告が出る)
+- 読むときは、実データのパス(市場モデルの `source.path`、`verify --dataset`)に `db:USDJPY/M1` と書く。
+  出どころが複数あるなら `db:OANDA-Japan MT5 Demo/USDJPY/M1`。日足(`db:USDJPY/D1`)の終わりは 22:00 UTC に揃える
+
 1 分足を置けば `real`(そのまま再生)を 1 時間足の戦略で使える。日足しか無い場合、
 1 時間足の戦略は `real_bridge` / `real_bootstrap`(日足の骨格に日中の動きを合成)で評価する。

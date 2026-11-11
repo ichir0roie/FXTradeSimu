@@ -16,6 +16,7 @@ DB(`data/fxsim.sqlite`)は手元だけのもので、コミットしない。
 | 本命の戦略の案(MT5 前提) | `fxsim/strategies/main/<案>.py`。`MainStrategy` を継承して `signals` を書く。共通の対策は `fxsim/strategies/guards.py`、MT5 の決まりは `fxsim/backtest/mt5/`(`docs/MT5.md`) |
 | 複数ペアの戦略の案 | 同じ場所。`fxsim/strategies/basket.py` の `BasketStrategy` / `CrossSectional` を継承(`multi = True`)。相場は `basket_*` |
 | 実データ | `data/real/`(README に出典とライセンス)。対円 7 ペアと 8 通貨の金利は `python -m fxsim fetch-fred` で取り直せる |
+| MT5 から溜めた足(コミットしない) | 相場の DB `data/market.sqlite`(時間足ごとのテーブル、時刻は UTC)。`python -m fxsim fetch-mt5 configs/market_data/*.yaml` で書き足し、`python -m fxsim market-data` で一覧。実データのパスに `db:USDJPY/M1` と書けば読める。1 分足は MT5 から 3 か月ほどしか遡れないので、取り直せない。消さない |
 | 実験の設定 | `configs/*.yaml` |
 | 動作ケース / テストケース | `cases/behaviors/*.yaml` / `cases/tests/*.yaml`(書式は `docs/CASES.md`) |
 | 実験の結果(コミットする) | 概要 `docs/results/<run_key>/`(run.json・paths.csv・jobs.csv。書式は `docs/results/README.md`) |

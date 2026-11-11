@@ -1,12 +1,16 @@
 """リポジトリ内の決まった場所。ほかのモジュールは場所をここからだけ取る。"""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 REAL_DATA_DIR = DATA_DIR / "real"
 DEFAULT_DB = DATA_DIR / "fxsim.sqlite"      # 実験の DB(手元だけ。コミットしない)
+# 相場の DB(MT5 から溜めた足。手元だけ)。実験の DB と分けるのは、実験の DB は消して回し直せるが、
+# MT5 の 1 分足は 3 か月ほどしか遡れず、溜めた分は取り直せないため。FXSIM_MARKET_DB で差し替えられる
+MARKET_DB = Path(os.environ.get("FXSIM_MARKET_DB") or DATA_DIR / "market.sqlite")
 SUMMARIES_DIR = REPO_ROOT / "docs" / "results"   # 実験の概要(1 実行 = 1 フォルダ、コミットする)
 CASES_DIR = REPO_ROOT / "cases"
 CONFIGS_DIR = REPO_ROOT / "configs"

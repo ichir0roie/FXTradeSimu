@@ -1,0 +1,12 @@
+# python -m fxsim fetch-mt5 の設定(fxsim/trading/history.py)。口座の番号・パスワード・サーバーは .env.demo から
+account: demo
+source: null                      # DB の出どころの名前。省略で口座のサーバー名(OANDA-Japan MT5 Demo)
+server_tz: America/New_York+7     # OANDA Japan のサーバー時刻 = NY + 7 時間(夏 UTC+3、冬 UTC+2。週明けがサーバーの月曜 0 時)
+symbols: [USDJPY]
+timeframes: [M1]
+bars: 90000                       # 1 分足 9 万本 = 3 か月ほど。端末は 10 万本以上を断る
+mt5:
+  backend: rpyc                   # Wine の中の fxsim/trading/wine_server.py へ
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"
