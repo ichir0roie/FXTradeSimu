@@ -4,4 +4,5 @@ strategy: main_trend_d1
 timeframe: 1440
 schedule: {decision_every: 1, outside: hold}
 broker: {preset: malicious, overrides: {mt5: {preset: jp_domestic}}}
+engine: {swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)
 verify: {block_days: 500}

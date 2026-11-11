@@ -5,4 +5,4 @@ params: {window: 10, drop: 0.2}
 timeframe: 5
 schedule: {decision_every: 3, outside: hold}
 broker: malicious
-engine: {units: 10000}
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

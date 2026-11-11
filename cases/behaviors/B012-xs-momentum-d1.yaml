@@ -5,3 +5,4 @@ params: {lookback: 63, hold_days: 21, n_long: 2, n_short: 2, gross: 1.5}
 timeframe: 1440
 schedule: {decision_every: 1, outside: hold}
 broker: malicious
+engine: {swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

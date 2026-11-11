@@ -84,6 +84,10 @@ python -m fxsim eval-strategy <name> --params '{...}' --years 5 --seeds 1-10 --n
 `cases/tests/T###-*.yaml` に書き、`python -m fxsim cases run --all` で回す。定義とコードが前回と同じなら飛ばすので、
 いつでも全部流してよい。書式は `docs/CASES.md`。戦略の案を比べるときは、ここに足すのが一番手間が少ない。
 
+### スワップの向き
+- 全部の動作ケースは `engine: {swap_side_only: true}`(スワップを払う向きの新規は出さない、E022)。新しい動作ケースにも書く
+- 判定では、方向でたらめ版にも同じ決まりが掛かる。決まりで上がった分(キャリー)は戦略の手柄ではない
+
 ### 実データだけでの評価(主要 10 ペア x 期間)
 ```bash
 python -m fxsim pair-eval <動作ケース>...    # または --all。相場の DB の 10 ペアを期間に切り、方向でたらめ版と対で回す(E016)

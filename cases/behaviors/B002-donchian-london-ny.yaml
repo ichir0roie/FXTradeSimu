@@ -10,4 +10,4 @@ schedule:
   days: [mon, tue, wed, thu, fri]
   outside: close
 broker: malicious
-engine: {units: 10000}
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

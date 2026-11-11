@@ -29,7 +29,8 @@ schedule:
   days: [mon, tue, wed, thu, fri]    # 新規注文を出してよい曜日
   outside: close                     # 時間外の持ち高: hold(持ち越す)/ close(足の終値で手仕舞い、次の足の始値で約定)
 broker: malicious                    # fair / malicious、または {preset: malicious, overrides: {hunt_prob: 0.5}}
-engine: {units: 10000}               # 数量。{sizing: risk, risk_fraction: 0.01} で損切り幅からの資金管理
+engine: {units: 10000, swap_side_only: true}   # 数量。{sizing: risk, risk_fraction: 0.01} で損切り幅からの資金管理。
+                                     # swap_side_only: スワップを払う向きの新規は出さない(全部の動作ケースで true、E022)
 verify: {block_days: 1500}           # 任意。fxsim verify の既定(years / seeds / block_days)。省略で 30 年・1-10・250 日
 ```
 

@@ -5,3 +5,4 @@ params: {side: long, step_pct: 1.0, n_levels: 20, units_per_level: 1000, recente
 timeframe: 1440
 schedule: {decision_every: 1, outside: hold}
 broker: malicious
+engine: {swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)
