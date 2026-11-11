@@ -21,6 +21,7 @@ DB(`data/fxsim.sqlite`)は手元だけのもので、コミットしない。
 | 実験の結果(コミットする) | 概要 `docs/results/<run_key>/`(run.json・paths.csv・jobs.csv。書式は `docs/results/README.md`) |
 | 実験の結果(コミットしない) | DB `data/fxsim.sqlite`(資産曲線・取引・ローソク足まで全部)。手元だけ。要るときは同じ設定で回し直す |
 | 案の記録(仮説・設計・結果・判定・次の一手) | `docs/proposals/{markets,strategies,experiments}/<ID>-<名前>.md`(雛形 `docs/proposals/TEMPLATE.md`) |
+| MT5 の口座での常駐(fxsim trade) | コード `fxsim/trading/`、設定 `configs/trading/*.yaml`、状態と記録 `data/trading/<name>/`(コミットしない)、手順 `docs/TRADING.md`。動かすのは利用者の端末だけ |
 | 全体の設計 | `docs/ARCHITECTURE.md`(パッケージ構成と依存の向き)、悪意の一覧 `docs/MARKET_MALICE.md` |
 | これまでの評価の整理 | 投資の知見 `docs/INSIGHTS.md`、開発項目 `docs/ROADMAP.md`、戦略の候補 `docs/CANDIDATES.md` |
 

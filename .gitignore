@@ -12,7 +12,15 @@ web/.next/
 web/next-env.d.ts
 web/tsconfig.tsbuildinfo
 
-# 各自の環境
+# 各自の環境(.env.demo / .env.real は MT5 の口座の番号・パスワード。見本の .env.example だけコミットする)
+.env
+.env.*
+!.env.example
+# fxsim trade の状態と記録(手元だけ)
+data/trading/
 .idea/
 .vscode/
 desktop.ini
+
+
+.env.md

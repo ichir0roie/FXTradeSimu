@@ -21,6 +21,7 @@
 - **結果は SQLite**。シミュレーション中は手元の DB(`data/fxsim.sqlite`、コミットしない)に逐次書き込み、終わったら
   成績の概要(`docs/results/<run_key>/`、CSV と JSON)を書き出してコミットする。資産曲線や取引の明細はシードから回し直せば同じものが出る
 - **画面**(`web/`、Next.js、ローカル専用): 実行中のシミュレーションをリアルタイムに表示
+- **MT5 での常駐**(`fxsim trade`): 動作ケースの戦略を、バックテストと同じコードのまま MT5 のデモ口座で動かす(`docs/TRADING.md`)
 
 ![ライブ表示](docs/screenshots/00-live-running-b.png)
 
@@ -59,6 +60,7 @@ python -m fxsim demo --years 0.5 --delay-ms 200
 - `docs/ARCHITECTURE.md` — 構成
 - `docs/MARKET_MALICE.md` — 市場の悪意の一覧と測り方
 - `docs/CASES.md` — 動作ケースとテストケースの書き方
+- `docs/TRADING.md` — MT5 の口座で戦略を常駐させる
 - `docs/proposals/` — 案ごとの仮説・結果・判定・次の一手(E001 が最初の長期実験)
 - `data/real/README.md` — 実データの出典
 

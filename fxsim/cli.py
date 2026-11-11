@@ -18,6 +18,9 @@
     compact RUN_ID...            保存済みの資産曲線を粗い間隔に間引き、DB を詰める
     fetch-fred                   FRED から対円 7 ペアの日足と 8 通貨の短期金利を取って data/real/ に書く
     overfit RUN                  実験の中の戦略の集まりの PBO と Deflated Sharpe(試した数の補正)
+    trade run CONFIG             MT5 の口座で動作ケースの戦略を常駐して動かす(configs/trading/*.yaml、docs/TRADING.md)
+    trade check CONFIG           MT5 につなぎ、口座・銘柄・建玉と、いまの足での判断を見る(注文は出さない)
+    trade status CONFIG          常駐の状態と直近の記録(data/trading/<name>/)
 """
 from __future__ import annotations
 
@@ -316,6 +319,56 @@ def cmd_compact(args) -> None:
     print(f"{args.db}: {before / 1e6:.1f} MB -> {os.path.getsize(args.db) / 1e6:.1f} MB")
 
 
+def cmd_trade(args) -> None:
+    import logging
+    from dataclasses import asdict
+
+    from .trading import load_trader_config
+    from .trading.service import Service
+
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    cfg = load_trader_config(args.config)
+    if args.dry_run:
+        cfg.dry_run = True
+    if args.action == "status":
+        from .trading.trader import TraderState
+        for d in (cfg.state_dir, cfg.state_dir.with_name(cfg.state_dir.name + ".dry")):
+            if not (d / "state.json").exists():
+                continue
+            print(f"## {d}")
+            print(json.dumps(asdict(TraderState.load(d / "state.json")), ensure_ascii=False, indent=2))
+            journal = d / "journal.jsonl"
+            lines = journal.read_text(encoding="utf-8").splitlines() if journal.exists() else []
+            for line in lines[-args.tail:]:
+                rec = json.loads(line)
+                if rec["kind"] == "bar":
+                    acts = ", ".join(f"{a['kind']} {a['side']:+d} {a['lots']}" for a in rec["actions"]) or "-"
+                    pos = rec["sim"]["position"]
+                    sim = f"{pos['side']:+d} {pos['units']:.0f}" if pos else "flat"
+                    print(f"{rec['bar_close_utc']}  sim {sim:>12}  real {len(rec['real'])}  actions: {acts}")
+                else:
+                    rest = {k: v for k, v in rec.items() if k != "kind"}
+                    print(f"[{rec['kind']}] {json.dumps(rest, ensure_ascii=False, default=str)[:200]}")
+        return
+    svc = Service(cfg)
+    if args.action == "check":
+        cfg.dry_run = True
+        trader = svc.connect()
+        c = svc.client
+        print("server offset (h):", (c.server_offset(cfg.symbol) or 0) / 3600 if cfg.server_utc_offset_hours == "auto"
+              else cfg.server_utc_offset_hours)
+        forming = int(c.rates(cfg.symbol, trader.timeframe, 1)["time"][-1])
+        snap, real, actions, meta = trader.decide(forming)
+        print(json.dumps({"meta": meta, "sim_position": asdict(snap.position) if snap.position else None,
+                          "sim_orders": [asdict(o) for o in snap.orders], "real": [asdict(p) for p in real],
+                          "actions": [asdict(a) for a in actions]}, ensure_ascii=False, indent=2, default=str))
+        c.shutdown()
+        return
+    svc.install_signals()
+    svc.run(once=args.once)
+
+
 # ---- 引数 -------------------------------------------------------------------
 
 def _db(p: argparse.ArgumentParser) -> None:
@@ -442,6 +495,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--detail-equity-minutes", type=int, default=None,
                    help="詳細保存のジョブの資産曲線の間隔(分。省略で間引かない)")
     _db(p)
+
+    p = add("trade", cmd_trade, help="MT5 の口座で動作ケースの戦略を常駐して動かす")
+    p.add_argument("action", choices=["run", "check", "status"])
+    p.add_argument("config", help="configs/trading/*.yaml")
+    p.add_argument("--dry-run", action="store_true", help="注文を出さず、出すはずの注文を記録するだけ")
+    p.add_argument("--once", action="store_true", help="新しい足を 1 本処理したら終わる")
+    p.add_argument("--tail", type=int, default=20, help="status: 表示する記録の行数")
+    p.add_argument("--log-level", default="info")
     return ap
 
 

@@ -60,6 +60,14 @@ fxsim/
   verification.py      ひとつのモデルの長期検証の判定(C1〜C4、パターンの組、年ごと、参考の Deflated Sharpe)
   overfit.py           試した数の補正(Deflated Sharpe Ratio、PBO)
   reports/             Markdown のレポート(run_report / leaderboard / cases_overview)
+  trading/             MT5 の口座で動作ケースの戦略を常駐させる(fxsim trade、docs/TRADING.md)
+    config.py            常駐の設定(configs/trading/*.yaml)
+    mt5.py               MT5 の端末とのやり取り(MetaTrader5 の薄い包み。Wine の中へは rpyc で)
+    wine_server.py       Wine の中の Windows 版 Python で動かす MetaTrader5 への橋
+    feed.py              MT5 の足を Bars に(サーバー時刻 -> UTC、bid + スプレッド -> mid / ask)
+    signals.py           MT5 の足でバックテストを回し、最後の確定足の注文とシミュレーションの建玉を写し取る
+    trader.py            実口座の建玉との突き合わせ(plan)と注文、状態と記録(data/trading/<name>/)
+    service.py           常駐のループ(つなぎ直し・シグナル)
   cli.py               python -m fxsim ...
 web/                   Next.js 16(App Router)+ better-sqlite3 + lightweight-charts
   lib/types.ts           API の型(サーバーと画面で共有)

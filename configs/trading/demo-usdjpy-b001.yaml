@@ -1,0 +1,18 @@
+# fxsim trade の設定(docs/TRADING.md)。口座の番号・パスワード・サーバーはここに書かない(.env.demo / .env.real)
+name: demo-usdjpy-b001
+behavior: B001                  # EMA 交差のドテン(H1)。E011 では不合格。デモ口座で仕組みを確かめるための例
+symbol: USDJPY                  # ブローカーの銘柄名(OANDA は接尾辞なし。USDJPY.m などがあれば合わせる)
+magic: 20261110                 # この常駐の注文の印。設定ごとに変える
+account: demo                   # 口座の情報は .env.demo から(本番は account: real と .env.real、allow_real: true)
+volume_scale: 1.0               # 実口座の数量 = 動作ケースの数量(10,000 通貨)x これ → 0.1 ロット
+max_lots: 0.5
+history_bars: 3000
+poll_seconds: 5
+server_utc_offset_hours: auto   # 市場が閉じている間に初めて起動するなら数値で(例: 2)
+dry_run: false
+allow_real: false
+mt5:
+  backend: rpyc                 # Wine の中の fxsim/trading/wine_server.py へ。Windows で直接なら metatrader5
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"   # OANDA のデモで確かめた(Wine の中の場所)
