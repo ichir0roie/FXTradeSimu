@@ -36,7 +36,7 @@ from dataclasses import asdict, replace
 
 import numpy as np
 
-from ..calendar import NS_MIN
+from ..calendar import NS_DAY, NS_MIN
 from ..data import Bars, load_rates
 from ..data.rates import MULTI_RATES
 from ..strategies.guards import EquityFloor, floor_lots
@@ -50,7 +50,6 @@ log = logging.getLogger(__name__)
 PRICE_FIELDS = ("open", "high", "low", "close", "bid_open", "bid_high", "bid_low", "bid_close", "ask_open", "ask_high",
                 "ask_low", "ask_close", "spread_mean", "spread_max")
 
-NS_DAY = 86_400_000_000_000
 
 
 def pair_key(symbol: str) -> str:

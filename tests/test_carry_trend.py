@@ -185,3 +185,32 @@ def test_carry_breakout_enters_only_on_breakouts_in_the_carry_direction(tmp_path
         assert tr.side == side                                                     # スワップを受け取る向き
         hi, lo = b.high[k - 20:k].max(), b.low[k - 20:k].min()
         assert (b.close[k] > hi) if side > 0 else (b.close[k] < lo)               # ブレイクアウト
+
+
+def test_carry_rank_ranks_stable_pairs_by_carry_to_risk_and_sizes_by_weight():
+    s = STRATEGIES.create("main_carry_rank", {"weights": [4, 3, 2, 1], "unit": 1000, "min_carry": 0.01,
+                                              "max_vol": 0.15, "max_spread_days": 10})
+    s.pairs = ["a", "b", "c", "d", "e", "f", "g"]
+    one = lambda v: np.array([v], dtype=float)  # noqa: E731
+    #            carry  vol   spread_days
+    spec = {"a": (0.03, 0.10, 1.0),    # c2r 0.30 -> 2 位
+            "b": (0.02, 0.05, 1.0),    # c2r 0.40 -> 1 位
+            "c": (0.04, 0.20, 1.0),    # ボラが大きすぎる -> 外す
+            "d": (0.005, 0.02, 1.0),   # 金利差が下限より小さい -> 外す
+            "e": (0.02, 0.10, 30.0),   # スプレッドを取り返すのに 30 日 -> 外す
+            "f": (0.015, 0.10, 2.0),   # c2r 0.15 -> 4 位
+            "g": (0.02, 0.08, 2.0)}    # c2r 0.25 -> 3 位
+    s.carry = {k: one(v[0]) for k, v in spec.items()}
+    s.vol_rank = {k: one(v[1]) for k, v in spec.items()}
+    s.spread_days = {k: one(v[2]) for k, v in spec.items()}
+    s.typical = {k: one(1.0) for k in spec}
+    s.side = {k: np.array([1]) for k in spec}
+    s.rank_hist = {k: 0 for k in spec}
+    s.rank_bar(0)
+    assert s.rank == {"b": 0, "a": 1, "g": 2, "f": 3}
+    assert [s.entry_units(k, 0) for k in ("b", "a", "g", "f")] == [4000, 3000, 2000, 1000]
+    assert not any(s.allowed(k, 0) for k in ("c", "d", "e"))
+    s.p.weights = [4, 3]
+    assert s.allowed("a", 0) and not s.allowed("g", 0)
+    s.p.drop_rank = 2
+    assert s.drop("g", 0) and s.drop("c", 0) and not s.drop("a", 0)

@@ -103,6 +103,21 @@ class MainCarryBreakout(BasketStrategy):
     def _want(self, pair: str, i: int) -> int:
         return int(self.side[pair][i]) if self.carry[pair][i] >= self.p.min_carry else 0
 
+    def rank_bar(self, i: int) -> None:
+        """足 i の手仕舞いと新規の前に呼ぶ(派生の戦略がペアの順位を決める。ここでは何もしない)。"""
+
+    def drop(self, pair: str, i: int) -> bool:
+        """持っている建玉を、手仕舞いの決まりとは別に外すか(派生の戦略が使う)。"""
+        return False
+
+    def allowed(self, pair: str, i: int) -> bool:
+        """このペアに新規を出してよいか(派生の戦略が絞る)。"""
+        return True
+
+    def entry_units(self, pair: str, i: int) -> float:
+        """新規の量(通貨)。"""
+        return self.p.units
+
     def on_bar(self, i, ctx):
         p, pb = self.p, ctx._pb
         eq = ctx.equity
@@ -115,6 +130,7 @@ class MainCarryBreakout(BasketStrategy):
                 return
             if self.floor.halted:
                 return
+        self.rank_bar(i)
         lev = pb.broker.leverage
         used = 0.0
         held = 0
@@ -124,7 +140,7 @@ class MainCarryBreakout(BasketStrategy):
             if cur == 0:
                 continue
             c = self.c[pair][i]
-            out = self._want(pair, i) != cur
+            out = self._want(pair, i) != cur or self.drop(pair, i)
             if p.n_out > 0:
                 out |= (c < self.lo_out[pair][i]) if cur > 0 else (c > self.hi_out[pair][i])
             pos = pb.legs[pair].pos
@@ -143,7 +159,7 @@ class MainCarryBreakout(BasketStrategy):
         # 新規(キャリー・トゥ・リスクの高い順)
         cands = []
         for pair in self.pairs:
-            if ctx.side(pair) != 0:
+            if ctx.side(pair) != 0 or not self.allowed(pair, i):
                 continue
             side = self._want(pair, i)
             if side == 0:
@@ -162,13 +178,14 @@ class MainCarryBreakout(BasketStrategy):
             cands.append((-(c2r if np.isfinite(c2r) else -1e9), pair, side))
         for _, pair, side in sorted(cands):
             c = self.c[pair][i]
-            margin = p.units * c / lev
+            units = self.entry_units(pair, i)
+            margin = units * c / lev
             if used + margin > p.margin_cap * eq:
                 self.blocked["margin"] += 1
                 continue
             a = self.atr[pair][i]
             sl = p.emergency_atr * a if p.emergency_atr > 0 and np.isfinite(a) else None
-            ctx.target(pair, side, p.units, sl)
+            ctx.target(pair, side, units, sl)
             used += margin
             held += 1
         self.held.append(held)
