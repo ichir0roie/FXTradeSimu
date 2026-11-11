@@ -62,6 +62,11 @@ class MainCarryBreakout(BasketStrategy):
         protect: float = 0.9            # 0 = 床を置かない
         max_spread_mult: float = 3.0    # 0 = 見ない
         spread_window: int = 20
+        # 急変ですぐ切る(E029。既定はすべて使わない)
+        shock_atr: float = 0.0          # 終値どうしの逆行が前の日の ATR x これを超えたら手仕舞う
+        vol_ratio: float = 0.0          # 5 日ボラ / 250 日ボラがこれを超えたら手仕舞い、新規も出さない
+        shock_all: bool = False         # どれか 1 ペアが急変で切れたら、全部を手仕舞う(キャリーの巻き戻しは全ペア同時)
+        cooldown: int = 0               # 急変で切った後、この本数は新規を出さない(全ペア)
 
     def prepare(self, bars_by_pair, rng):
         p = self.p
@@ -91,14 +96,39 @@ class MainCarryBreakout(BasketStrategy):
             self.spread[pair] = b.spread_mean
             self.typical[pair] = typical_spread(b.spread_mean, p.spread_window)
         self.warmup = max(p.vol_n, p.n_in, p.n_out, p.atr_n) + 1
+        if p.vol_ratio > 0:
+            self.vol_fast, self.vol_slow = {}, {}
+            for pair, b in bars_by_pair.items():
+                r = np.diff(np.log(b.close), prepend=np.log(b.close[0]))
+                self.vol_fast[pair] = _rolling_std(r, 5)
+                self.vol_slow[pair] = _rolling_std(r, 250)
+            self.warmup = max(self.warmup, 251)
+        self.cool_until = -1
         self.floor = EquityFloor(p.protect)
-        self.blocked = {"floor": 0, "margin": 0, "spread": 0, "spread_exit": 0, "c2r": 0}
+        self.blocked = {"floor": 0, "margin": 0, "spread": 0, "spread_exit": 0, "c2r": 0, "shock": 0,
+                        "shock_all": 0, "cool": 0, "vol": 0}
         self.held: list[int] = []
 
     def _wide(self, pair: str, i: int) -> bool:
         m = self.p.max_spread_mult
         ty = self.typical[pair][i]
         return m > 0 and np.isfinite(ty) and ty > 0 and self.spread[pair][i] > m * ty
+
+    def _stormy(self, pair: str, i: int) -> bool:
+        if self.p.vol_ratio <= 0:
+            return False
+        f, s = self.vol_fast[pair][i], self.vol_slow[pair][i]
+        return bool(np.isfinite(f) and np.isfinite(s) and s > 0 and f > self.p.vol_ratio * s)
+
+    def _shock(self, pair: str, i: int, cur: int) -> bool:
+        """持っている向きに対する急変(終値で判定。ひげでは切らない、E019)。"""
+        p = self.p
+        if p.shock_atr > 0 and i > 0:
+            a = self.atr[pair][i - 1]
+            move = (self.c[pair][i] - self.c[pair][i - 1]) * cur
+            if np.isfinite(a) and a > 0 and move < -p.shock_atr * a:
+                return True
+        return self._stormy(pair, i)
 
     def _want(self, pair: str, i: int) -> int:
         return int(self.side[pair][i]) if self.carry[pair][i] >= self.p.min_carry else 0
@@ -134,12 +164,22 @@ class MainCarryBreakout(BasketStrategy):
         lev = pb.broker.leverage
         used = 0.0
         held = 0
+        # 急変: その日のうちに(次の約定で)切り、しばらく新規を出さない
+        shocked = [pair for pair in self.pairs if ctx.side(pair) != 0 and self._shock(pair, i, ctx.side(pair))]
+        if shocked:
+            self.blocked["shock"] += len(shocked)
+            self.cool_until = max(self.cool_until, i + p.cooldown)
+            if p.shock_all:
+                self.blocked["shock_all"] += 1
         # 手仕舞い
         for pair in self.pairs:
             cur = ctx.side(pair)
             if cur == 0:
                 continue
             c = self.c[pair][i]
+            if pair in shocked or (shocked and p.shock_all):
+                ctx.target(pair, 0)                  # 急変の手仕舞いはスプレッドの門で止めない
+                continue
             out = self._want(pair, i) != cur or self.drop(pair, i)
             if p.n_out > 0:
                 out |= (c < self.lo_out[pair][i]) if cur > 0 else (c > self.hi_out[pair][i])
@@ -158,8 +198,15 @@ class MainCarryBreakout(BasketStrategy):
                 used += pos.units * c / lev
         # 新規(キャリー・トゥ・リスクの高い順)
         cands = []
+        if i < self.cool_until:
+            self.blocked["cool"] += 1
+            self.held.append(held)
+            return
         for pair in self.pairs:
             if ctx.side(pair) != 0 or not self.allowed(pair, i):
+                continue
+            if self._stormy(pair, i):
+                self.blocked["vol"] += 1
                 continue
             side = self._want(pair, i)
             if side == 0:
@@ -189,6 +236,21 @@ class MainCarryBreakout(BasketStrategy):
             used += margin
             held += 1
         self.held.append(held)
+
+
+
+def _rolling_std(r: np.ndarray, n: int) -> np.ndarray:
+    """直近 n 本(その足を含む)の標準偏差。足りない所は nan。"""
+    out = np.full(len(r), np.nan)
+    if len(r) < n:
+        return out
+    c1 = np.cumsum(np.r_[0.0, r])
+    c2 = np.cumsum(np.r_[0.0, r * r])
+    s1 = c1[n:] - c1[:-n]
+    s2 = c2[n:] - c2[:-n]
+    var = np.maximum(s2 / n - (s1 / n) ** 2, 0.0) * n / (n - 1)
+    out[n - 1:] = np.sqrt(var)
+    return out
 
 
 __all__ = ["MainCarryBreakout"]

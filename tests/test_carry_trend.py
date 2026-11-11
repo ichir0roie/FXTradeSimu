@@ -214,3 +214,19 @@ def test_carry_rank_ranks_stable_pairs_by_carry_to_risk_and_sizes_by_weight():
     assert s.allowed("a", 0) and not s.allowed("g", 0)
     s.p.drop_rank = 2
     assert s.drop("g", 0) and s.drop("c", 0) and not s.drop("a", 0)
+
+
+def test_carry_breakout_shock_exit_reads_closes_and_volatility():
+    from fxsim.strategies.main.carry_breakout import _rolling_std
+    r = np.random.default_rng(1).normal(0, 0.01, 40)
+    got = _rolling_std(r, 5)
+    assert np.isnan(got[3]) and got[10] == pytest.approx(r[6:11].std(ddof=1))
+    s = STRATEGIES.create("main_carry_breakout", {"shock_atr": 2.5, "vol_ratio": 2.0})
+    s.c = {"a": np.array([100.0, 100.0, 97.0, 98.0])}
+    s.atr = {"a": np.array([1.0, 1.0, 1.0, 1.0])}
+    s.vol_fast = {"a": np.array([0.1, 0.1, 0.1, 0.3])}
+    s.vol_slow = {"a": np.array([0.1, 0.1, 0.1, 0.1])}
+    assert not s._shock("a", 1, 1)
+    assert s._shock("a", 2, 1)                 # 1 日で 3 = ATR x 3 の逆行
+    assert not s._shock("a", 2, -1)            # 売りには順行
+    assert s._shock("a", 3, -1)                # 逆行は 1 だけだが、5 日ボラが 250 日の 3 倍
