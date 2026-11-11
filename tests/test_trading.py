@@ -359,7 +359,8 @@ def test_example_configs_load():
     for p in paths:
         cfg = load_trader_config(p)
         assert cfg.behavior in behaviors and not cfg.allow_real
-        assert not STRATEGIES.create(behaviors[cfg.behavior].strategy, behaviors[cfg.behavior].strategy_params()).multi
+        multi = STRATEGIES.create(behaviors[cfg.behavior].strategy, behaviors[cfg.behavior].strategy_params()).multi
+        assert multi == bool(cfg.symbols)          # 複数ペアの戦略は symbols を書く(PortfolioTrader)
 
 
 def test_remote_results_become_plain_objects():
