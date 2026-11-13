@@ -1,0 +1,10 @@
+id: B048
+name: 本命 3 本目の順位版 main_carry_rank(10 ペアから受け取り / ボラの順位で上位 4 を選び 4:3:2:1 の量、B047 の下限つき、10 万円・OANDA)
+strategy: main_carry_rank
+timeframe: 1440
+# E028: 順位で量に差を付けても B047(全ペア同じ量)よりシャープは上がらなかった。比べるための記録として残す。
+# 順位は新規の判断のときだけ使い、持っている建玉は順位が変わっても手仕舞いの決まりまで持つ(drop_rank 0)
+params: {n_in: 20, n_out: 10, min_carry: 0.02, c2r_min: 0.4, weights: [4, 3, 2, 1], unit: 1000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

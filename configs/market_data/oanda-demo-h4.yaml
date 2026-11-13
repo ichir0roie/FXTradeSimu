@@ -1,0 +1,16 @@
+# python -m fxsim fetch-mt5 の設定。全 28 ペアの 4 時間足(E054: 1 時間足は 10 万本 = 2010 年までしか遡れないが、
+# 4 時間足なら同じ本数でもっと昔まで届く。2010 年より前は、型を絞るのに使っていない初見の期間)
+# 口座の番号・パスワード・サーバーは .env.demo から。値段の履歴を読むだけで、注文は出さない
+account: demo
+source: null
+server_tz: America/New_York+7
+symbols: [USDJPY, EURUSD, GBPUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, EURJPY, GBPJPY, AUDJPY,
+          EURGBP, EURAUD, EURNZD, EURCAD, EURCHF, GBPAUD, GBPNZD, GBPCAD, GBPCHF, AUDNZD, AUDCAD, AUDCHF, NZDCAD, NZDCHF,
+          NZDJPY, CADCHF, CADJPY, CHFJPY]
+timeframes: [H4]
+bars: 99999
+mt5:
+  backend: rpyc
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"

@@ -1,0 +1,8 @@
+id: B085
+name: 米雇用統計に 20 日の流れの向きで入り、物差し x 0.5 で利確、逆指値なし、落ち着いたら閉じる(E062 の利用者の案)
+strategy: event_one_side
+timeframe: 60
+params: {trigger: nfp, tp_mult: 0.5, exit: calm}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

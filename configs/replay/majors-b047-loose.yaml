@@ -1,0 +1,17 @@
+# 再生(trade-replay)の試験用。B047 のしきい値をゆるめて取引を増やし、10 ペアの常駐の注文・手仕舞い・
+# 2 時まで待つ流れ・故障からの立ち直りを確かめる。本番の口座では動かさない(strategy_params は試験用)
+name: replay-majors-b047-loose
+behavior: B047
+symbol: USDJPY
+symbols: [USDJPY, EURUSD, GBPUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, EURJPY, GBPJPY, AUDJPY]
+magic: 20261190
+account: demo
+max_lots: 0.1
+fill_server_hour: 2
+protect: 0.9
+strategy_params: {n_in: 10, n_out: 5, min_carry: 0.0, c2r_min: 0.0}
+# 見る履歴を短くして、仮の口座(10 万円)が再生の少し前から始まるようにする(ゆるい設定のまま 11 年の履歴を回すと、
+# 仮の口座が履歴の中で減って新規を出せなくなる。戦略の準備に要るのは 61 日)
+history_bars: 150
+dry_run: false
+allow_real: false

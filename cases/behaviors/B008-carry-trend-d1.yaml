@@ -1,0 +1,8 @@
+id: B008
+name: キャリー + 200 日移動平均の向きで絞る(日足・持ち続ける)
+strategy: carry_trade
+params: {trend_n: 200}
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

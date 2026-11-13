@@ -1,0 +1,7 @@
+id: B042
+name: オスカーズ・グラインド(1 単位の利益を目指して増やす、±20 pip)
+strategy: oscars_grind
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

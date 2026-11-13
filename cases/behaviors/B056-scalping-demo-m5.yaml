@@ -1,0 +1,10 @@
+id: B056
+name: デイトレードの実証(スキャルピング 5 分足、±5 pip、24 時間、1,000 通貨、デモ口座で約定の費用を測る、E040)
+strategy: scalping
+timeframe: 5
+params: {start_hour: 0, end_hour: 24}   # 24 時間取引する(既定は 7〜17 時 UTC)。夜中とロールオーバーの広いスプレッドも測る
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+# 頻繁に取引するための実証実験なので、両方の向きに入る(swap_side_only を外す)。
+# ±5 pip で数十分で決着するので、ロールオーバー(21〜22 時 UTC)をまたぐ建玉は少なく、スワップは小さい
+engine: {units: 1000, swap_side_only: false}

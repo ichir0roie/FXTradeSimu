@@ -1,0 +1,8 @@
+id: B073
+name: B072 の指値を ATR x 1.0 にした版
+strategy: main_pullback_limit
+timeframe: 60
+params: {signal_hours: 4, rolling: true, vol_ratio_min: 1.2, limit_atr: 1.0, max_days: 6}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

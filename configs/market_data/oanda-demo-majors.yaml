@@ -1,0 +1,13 @@
+# python -m fxsim fetch-mt5 の設定(fxsim/trading/history.py)。主要 10 ペアの 1 分足・5 分足・1 時間足(S039〜、E015)
+# 1 分足は 3 か月ほどしか遡れないので、定期的に流して書き足す。口座の番号・パスワード・サーバーは .env.demo から
+account: demo
+source: null                      # 省略で口座のサーバー名(OANDA-Japan MT5 Demo)
+server_tz: America/New_York+7     # OANDA Japan のサーバー時刻 = NY + 7 時間
+symbols: [USDJPY, EURUSD, GBPUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, EURJPY, GBPJPY, AUDJPY]
+timeframes: [M1, M5, H1]
+bars: 99999                       # 端末は 10 万本以上を断る。1 分足 ≈ 3 か月、5 分足 ≈ 1.3 年、1 時間足は端末が持つ分まで
+mt5:
+  backend: rpyc
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"

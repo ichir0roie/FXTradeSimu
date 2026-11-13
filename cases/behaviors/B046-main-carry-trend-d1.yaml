@@ -1,0 +1,11 @@
+id: B046
+name: 本命 2 本目 main_carry_trend(日足、スワップを受け取る向きだけ + 200 日平均の保険 + 共通の対策、OANDA の MT5 口座)
+strategy: main_carry_trend
+timeframe: 1440
+# 共通の対策の上書き(結果を見る前に決めた値): スプレッドが典型の 3 倍を超えたら出さない、損切りは mid の終値で判定、
+# 持つ日数の見込みは 60 日(キャリーは長く持つ)
+params: {guard: {max_spread_mult: 3.0, stop_price: mid, hold_days_est: 60}}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)
+verify: {block_days: 500}

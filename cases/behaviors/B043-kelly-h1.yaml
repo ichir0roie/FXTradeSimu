@@ -1,0 +1,7 @@
+id: B043
+name: ケリー(過去の勝率から賭ける割合、半分ケリー、±20 pip)
+strategy: kelly
+timeframe: 60
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

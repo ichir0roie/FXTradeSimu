@@ -1,0 +1,9 @@
+id: B078
+name: 4 時間足のデータで動かす押し目・荒い時期だけ・指値 ATR x 0.5(B068 と同じ決まり)
+strategy: main_pullback_limit
+timeframe: 240
+# E054: 4 時間足のデータそのもので動かす版(1999〜2010 年の初見の期間を測るため)。数字は E052 のまま
+params: {signal_hours: 4, vol_ratio_min: 1.2, limit_atr: 0.5, max_days: 6}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

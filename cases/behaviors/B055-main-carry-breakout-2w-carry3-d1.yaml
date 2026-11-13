@@ -1,0 +1,11 @@
+id: B055
+name: B049 の金利差の下限を 3% にしたもの(10 ペアの口座、スワップを受け取る向きだけ、10 日抜けで入り 5 日で出る、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E038: B049 の負けどころのうち、受け取る金利差が年 2〜3% の新規(勝率 4 割、1 取引ほぼ 0 円)を外す。
+# 関門の候補 4 つ(荒い・流れに逆らう抜け・金利差の下限・同時に持つ数)を、verify が使わない並べ替え(seed 101〜120)で
+# 比べ、基準(シャープの平均が上、20 本中 14 本以上で上、最大 DD の最悪が悪くない)を通ったのはこれだけ
+params: {n_in: 10, n_out: 5, min_carry: 0.03, c2r_min: 0.4, units: 2000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

@@ -1,0 +1,21 @@
+# fxsim trade の設定(docs/TRADING.md)。デイトレードの実証 B056(スキャルピング 5 分足、USDJPY、E040)
+# 頻繁な取引が実口座でどれだけ削られるか(スプレッド・滑り・約定の遅れ)を、シミュレーションと突き合わせて測る
+# 口座の番号・パスワード・サーバーはここに書かない(.env.demo / .env.real)
+name: demo-usdjpy-b056
+behavior: B056
+symbol: USDJPY
+magic: 20261115                 # この常駐の注文の印。設定ごとに変える
+account: demo
+volume_scale: 1.0               # 実口座の数量 = 動作ケースの数量(1,000 通貨)x 1.0 = 0.01 ロット(OANDA の最小)
+max_lots: 0.01                  # 最小の 0.01 を超える注文は出さない
+history_bars: 3000              # 5 分足で約 10 日分
+poll_seconds: auto              # 5 分足は 5 秒ごと
+protect: 0.9                    # 口座の床 = 月初の有効証拠金の 9 割(同じ口座の常駐で共有)
+server_utc_offset_hours: auto
+dry_run: false
+allow_real: false
+mt5:
+  backend: rpyc
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"

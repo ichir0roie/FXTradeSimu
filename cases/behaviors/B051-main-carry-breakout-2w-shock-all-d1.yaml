@@ -1,0 +1,10 @@
+id: B051
+name: B049 + 急変で全部切る(どれか 1 ペアが 1 日で ATR x 2.5 逆行したら全ペアを手仕舞い 10 日休む、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E029 の「終値の急変で切る + 全ペア + 10 日休む」を 2 週版に足した。キャリーの巻き戻しは全ペア同時に来る(E031 で B049 と比べる)
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5, shock_atr: 2.5,
+         shock_all: true, cooldown: 10}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

@@ -1,0 +1,8 @@
+id: B084
+name: B083 の損切りの幅を ATR x 1 にした版(量が 3 倍。2 時間しか持たないので、幅は量を決めるだけ)
+strategy: main_month_end_fix
+timeframe: 60
+params: {hold: 2, stop_atr: 1.0}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

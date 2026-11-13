@@ -1,0 +1,8 @@
+id: T005
+name: 旧 simpleFollower(15 分ごと判断)を 3 年
+behavior: B005
+period: {years: 3}
+patterns:
+  - {market: real_bridge, seeds: "1-4"}
+  - {market: malicious, seeds: "1-4"}
+detail_seeds: [1]

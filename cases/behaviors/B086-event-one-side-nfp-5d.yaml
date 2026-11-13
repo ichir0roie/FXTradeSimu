@@ -1,0 +1,8 @@
+id: B086
+name: 米雇用統計に入り、物差し x 0.25 で利確、逆指値なし、負けは最長 5 日待つ(勝率が一番高い形)
+strategy: event_one_side
+timeframe: 60
+params: {trigger: nfp, tp_mult: 0.25, exit: 5d}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

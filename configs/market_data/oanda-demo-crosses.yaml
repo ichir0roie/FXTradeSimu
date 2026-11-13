@@ -1,0 +1,14 @@
+# python -m fxsim fetch-mt5 の設定。主要 10 ペア以外のクロスの 1 時間足・5 分足(E053: 型を絞るのに使っていない初見のデータ)
+# 口座の番号・パスワード・サーバーは .env.demo から。値段の履歴を読むだけで、注文は出さない
+account: demo
+source: null                      # 省略で口座のサーバー名(OANDA-Japan MT5 Demo)
+server_tz: America/New_York+7     # OANDA Japan のサーバー時刻 = NY + 7 時間
+symbols: [EURGBP, EURAUD, EURNZD, EURCAD, EURCHF, GBPAUD, GBPNZD, GBPCAD, GBPCHF, AUDNZD, AUDCAD, AUDCHF, NZDCAD, NZDCHF,
+          NZDJPY, CADCHF, CADJPY, CHFJPY]
+timeframes: [H1, M5]
+bars: 99999                       # 端末は 10 万本以上を断る。5 分足 ≈ 1.3 年、1 時間足は端末が持つ分まで(約 16 年)
+mt5:
+  backend: rpyc
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"

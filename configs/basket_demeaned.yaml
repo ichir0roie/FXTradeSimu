@@ -1,0 +1,18 @@
+# E010 の続き: ドリフトを抜いた並べ替え(basket_bootstrap の demean)で、勝ちがドリフトか時系列の癖かを切り分ける
+name: E010b basket demeaned bootstrap
+proposal: E010
+years: 30
+seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+storage: {candle_timeframe: 1440, equity_detail_timeframe: 10080, equity_timeframe: 43200, trades: none, events: false}
+brokers: [fair]
+markets:
+  - {model: basket_bootstrap, label: boot_demeaned, params: {source: {block_days: 250, demean: true}}}
+strategies:
+  - {name: xs_carry, label: carry_2x2}
+  - {name: xs_momentum, label: mom_63}
+  - {name: xs_value, label: value_1260}
+  - {name: basket_trend, label: trend_63, params: {lookback: 63}}
+  - {name: basket_trend, label: trend_126}
+  - {name: basket_trend, label: trend_252, params: {lookback: 252}}
+  - {name: xs_gbdt, label: gbdt}
+  - {name: buy_and_hold, label: usdjpy_hold}

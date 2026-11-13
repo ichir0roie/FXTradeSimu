@@ -1,0 +1,8 @@
+id: B065
+name: B064 の対照。同じ決まりで成行で入る(limit_atr 0)
+strategy: main_pullback_limit
+timeframe: 60
+params: {limit_atr: 0.0}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

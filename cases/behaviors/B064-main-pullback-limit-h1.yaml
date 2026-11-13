@@ -1,0 +1,8 @@
+id: B064
+name: 指値で待つ押し目 main_pullback_limit(1 時間足で動かす。日足の終値から ATR x 0.5 下の指値を 1 日。両方向、OANDA)
+strategy: main_pullback_limit
+timeframe: 60
+params: {}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

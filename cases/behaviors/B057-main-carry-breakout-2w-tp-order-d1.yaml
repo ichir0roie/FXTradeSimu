@@ -1,0 +1,10 @@
+id: B057
+name: B049 に利確の指値を置いた版(建値 ± 建てた足の ATR x 2、利確の後は入り直す、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E041: デモ口座の常駐でも利確の指値をサーバーに置く(利用者の判断、2026-11-12)。幅は ATR x 1〜5 から、
+# 成績を崩さない ATR x 2・入り直すを選んだ(直近の実データ シャープ 0.67 対 B049 0.60、ランダムの中央 0.51 対 0.56)
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5, tp_atr: 2.0, tp_order: true, reenter: true}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

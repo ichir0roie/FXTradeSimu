@@ -1,0 +1,9 @@
+id: B062
+name: 押し目の 10 ペアの口座版 main_trend_free(200 日平均の向きで RSI(2) が 10 を割ったら入り 50 を越えるか 10 本で出る。両方向、100 万円・OANDA)
+strategy: main_trend_free
+timeframe: 1440
+# S048 の形のまま(教科書どおりの数字)。金利差は見ない(c2r_min 0)。1 ペア 1 万通貨、証拠金の上限 50%
+params: {sides: both, signal: pullback, c2r_min: 0.0, units: 10000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 1000000, min_units: 1000}

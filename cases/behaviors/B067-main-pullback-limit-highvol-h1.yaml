@@ -1,0 +1,8 @@
+id: B067
+name: 指値で待つ押し目の荒い時期だけの版(ATR(20) / ATR(250) が 1.2 以上の日だけ入る。ほかは B064 と同じ)
+strategy: main_pullback_limit
+timeframe: 60
+params: {vol_ratio_min: 1.2}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

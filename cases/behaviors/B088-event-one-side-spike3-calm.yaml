@@ -1,0 +1,8 @@
+id: B088
+name: 跳ねた足(平常の 3 倍)の向きに入り、幅の中央値 x 1 で利確、逆指値なし、落ち着いたら閉じる(E063)
+strategy: event_one_side
+timeframe: 60
+params: {trigger: spike, spike_k: 3.0, tp_mult: 1.0, exit: calm}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

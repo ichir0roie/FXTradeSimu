@@ -1,0 +1,10 @@
+id: B049
+name: 本命 3 本目の 2 週版 main_carry_breakout(10 ペアの口座、スワップを受け取る向きだけ、10 日抜けで入り 5 日で出る、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# 取引の幅を 2 週にした(E030: 2〜5 週が良く、古い期間では 2 週が一番釣り合いが良い。持つ期間は 3 週間ほど)。
+# 金利差・c2r の下限(E026)と量(1 ペア 2,000 通貨、証拠金の上限 50%)は B047 のまま
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

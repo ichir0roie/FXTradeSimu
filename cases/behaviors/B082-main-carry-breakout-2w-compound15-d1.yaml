@@ -1,0 +1,9 @@
+id: B082
+name: B049 の複利版(新規 1 本の必要証拠金 = その時の有効証拠金の 15%。量が資金と一緒に増減する。ほかは B049 と同じ、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E057: 資金に比例して張る。15% は 26 本の相場で伸びが大きいがロスカット 1 本(26 本中)の張り方
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, margin_frac: 0.15, margin_cap: 0.98}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

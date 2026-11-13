@@ -1,0 +1,8 @@
+id: B076
+name: B072 の量を同じ建玉(有効証拠金の 1 倍)にした版(ボラで量を変えない)
+strategy: main_pullback_limit
+timeframe: 60
+params: {signal_hours: 4, rolling: true, vol_ratio_min: 1.2, limit_atr: 0.5, max_days: 6, notional: 1.0}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

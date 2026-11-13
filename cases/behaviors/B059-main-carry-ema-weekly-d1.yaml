@@ -1,0 +1,11 @@
+id: B059
+name: スワップ狙いの EMA 版 main_carry_ema(EMA5/20 の向きで入り、返ったら出る。判定は週に 1 回、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_ema
+timeframe: 1440
+# 利用者の案(2026-11-13): EMA だけを基準にし、1 回の取引は 5 日以上(週ごと)。ほかは B049 のまま。
+# E044: EMA の長さと判定の間隔 10 通りの中で、B049 と釣り合うのはこの設定(点数 +0.62 対 +0.58)。
+# シャープは B049 と区別が付かず、年率が高い分だけドローダウンが大きい
+params: {ema_fast: 5, ema_slow: 20, signal_every: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

@@ -1,0 +1,10 @@
+id: B054
+name: 実証実験用 B049 をゆるめて頻繁に取引(金利差 1%・c2r 0.2、ATR x 0.5 で利確して入り直す、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E037: デモ口座の常駐で取引の流れを数多く確かめるための設定。直近 1 年で週 2 回ほど取引し、週 1.4 回ほど利確する。
+# 稼ぐための設定ではない(直近 12 年の最大 DD 58%、ランダムの最悪 80%)。本番の口座では使わない
+params: {n_in: 10, n_out: 5, min_carry: 0.01, c2r_min: 0.2, units: 2000, margin_cap: 0.5, tp_atr: 0.5, reenter: true}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

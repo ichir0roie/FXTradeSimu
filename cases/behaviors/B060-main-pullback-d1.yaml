@@ -1,0 +1,7 @@
+id: B060
+name: 本命 main_pullback_d1(日足の押し目。200 日平均の向きで RSI(2) が 10 を割ったら入り、50 を越えるか 10 本で出る。両方向、OANDA)
+strategy: main_pullback_d1
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+verify: {block_days: 500}

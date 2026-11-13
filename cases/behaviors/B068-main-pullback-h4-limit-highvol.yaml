@@ -1,0 +1,8 @@
+id: B068
+name: 4 時間足の押し目・荒い時期だけ・指値(4 時間足の RSI(2) と 200 本平均、ATR 比 1.2 以上、終値から ATR x 0.5 の指値、最長 6 本。両方向)
+strategy: main_pullback_limit
+timeframe: 60
+params: {signal_hours: 4, vol_ratio_min: 1.2, limit_atr: 0.5, max_days: 6}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000}

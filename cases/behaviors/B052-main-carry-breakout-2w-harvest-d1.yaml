@@ -1,0 +1,9 @@
+id: B052
+name: B049 + 利確を刻む(建値から ATR x 0.5 有利で利確、5 日の安値を割るまでは入り直す、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E034: 下限と入りは B049 のまま。利確の回数を増やす一番刻む設定(勝率 7 割・1 回 5 日ほど)
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5, tp_atr: 0.5, reenter: true}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

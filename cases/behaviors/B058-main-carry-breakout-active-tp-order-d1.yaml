@@ -1,0 +1,10 @@
+id: B058
+name: B054 の利確を指値にした版(建値 ± 建てた足の ATR x 2、利確の後は入り直す、金利差 1%・c2r 0.2、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E041: B054 の利確(終値が建値から ATR x 0.5 有利なら翌朝に成行)を、サーバーの指値に替えた。幅は ATR x 0.5〜2 から
+# 一番崩れの小さい ATR x 2 を選んだ(直近 1 年で取引は週 2.0 → 1.1 回に減る)。稼ぐための設定ではない。本番の口座では使わない
+params: {n_in: 10, n_out: 5, min_carry: 0.01, c2r_min: 0.2, units: 2000, margin_cap: 0.5, tp_atr: 2.0, tp_order: true, reenter: true}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

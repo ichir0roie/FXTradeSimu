@@ -1,0 +1,8 @@
+id: B066
+name: B064 のスワップを受け取る向きだけの版
+strategy: main_pullback_limit
+timeframe: 60
+params: {}
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {initial_balance: 1000000, swap_side_only: true}

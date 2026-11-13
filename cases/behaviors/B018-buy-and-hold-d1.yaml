@@ -1,0 +1,7 @@
+id: B018
+name: 買い持ち(USDJPY、1 万通貨をずっと持つ。買いに偏った戦略の判定の対照)
+strategy: buy_and_hold
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: malicious
+engine: {units: 10000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

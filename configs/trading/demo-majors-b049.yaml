@@ -1,0 +1,23 @@
+# fxsim trade の設定(docs/TRADING.md)。本命 3 本目の 2 週版 B049(10 ペアを 1 つの口座で持つ、スワップ狙い + 10 日抜けで入り 5 日で出る、E030)
+# 2026-11-12 から B057(B049 + 利確の指値 ATR x 2、入り直す、E041)で動かす。名前と状態の置き場所は B049 のまま
+# 口座の番号・パスワード・サーバーはここに書かない(.env.demo / .env.real)
+name: demo-majors-b049
+behavior: B057
+symbol: USDJPY                  # 足の確定と時刻の基準(symbols の中の 1 つ。円への換算にも使う)
+symbols: [USDJPY, EURUSD, GBPUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, EURJPY, GBPJPY, AUDJPY]
+magic: 20261113                 # この常駐の注文の印。設定ごとに変える
+account: demo
+volume_scale: 0.5               # 実口座の数量 = シミュレーション(1 ペア 2,000 通貨)x 0.5 = 1,000 通貨 = 0.01 ロット(OANDA の最小。B054 と揃える)
+max_lots: 0.01                  # 1 銘柄の 1 回の注文と建玉の合計の上限(ロット)。最小の 0.01 を超える注文は出さない
+history_bars: 3000
+poll_seconds: auto              # 日足は 60 秒ごと
+fill_server_hour: 2             # 判断はサーバーの 0 時(ロールオーバー)、注文は 2 時まで待つ(スプレッドが平常に戻る、E017)
+protect: 0.9                    # 口座の床 = 月初の有効証拠金の 9 割(同じ口座の常駐で共有)
+server_utc_offset_hours: auto
+dry_run: false
+allow_real: false
+mt5:
+  backend: rpyc
+  host: localhost
+  port: 18812
+  path: "C:\\Program Files\\OANDA MetaTrader 5\\terminal64.exe"

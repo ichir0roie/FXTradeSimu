@@ -1,0 +1,8 @@
+id: B061
+name: 本命 main_pullback_d1 のスワップを受け取る向きだけの版(ほかは B060 と同じ)
+strategy: main_pullback_d1
+timeframe: 1440
+schedule: {decision_every: 1, outside: hold}
+broker: {preset: oanda, overrides: {mt5: {preset: jp_domestic}}}
+engine: {swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)
+verify: {block_days: 500}

@@ -1,0 +1,8 @@
+id: B063
+name: 押し目の 10 ペアの口座版のスワップを受け取る向きだけの版(金利差の下限なし。ほかは B062 と同じ)
+strategy: main_trend_free
+timeframe: 1440
+params: {sides: recv, signal: pullback, min_carry: 0.0, c2r_min: 0.0, units: 10000, margin_cap: 0.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 1000000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)

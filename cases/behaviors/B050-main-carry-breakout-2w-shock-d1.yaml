@@ -1,0 +1,9 @@
+id: B050
+name: B049 + 急変で切る(1 日で ATR x 2.5 逆行したら終値の次の約定で手仕舞う、10 ペアの口座、10 万円・OANDA)
+strategy: main_carry_breakout
+timeframe: 1440
+# E029 の「終値の急変で切る」を 2 週版に足した。ほかは B049 のまま(E031 で B049 と比べる)
+params: {n_in: 10, n_out: 5, min_carry: 0.02, c2r_min: 0.4, units: 2000, margin_cap: 0.5, shock_atr: 2.5}
+schedule: {decision_every: 1, outside: hold}
+broker: oanda
+engine: {initial_balance: 100000, min_units: 1000, swap_side_only: true}   # スワップを払う向きの新規は出さない(E022)
